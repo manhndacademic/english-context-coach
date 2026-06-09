@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-english_context_coach}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    # Uncomment ports if you need to access the database from the host (e.g. for GUI clients or local migration tools)
+    # ports:
+    #   - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - default_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-english_context_coach}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: ["bun", "server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-english_context_coach}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      HOSTNAME: "0.0.0.0"
+    # Option 1: Uncomment ports if you want to expose the application to the host directly
+    # ports:
+    #   - "3000:3000"
+    networks:
+      - default_net
+      # Option 2 (Active): Connect to your Nginx Proxy Manager's network
+      - npm_network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    build: .
+    command: ["bun", "run", "db:migrate"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-english_context_coach}
+    networks:
+      - default_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["bun", "run", "worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-english_context_coach}
+    networks:
+      - default_net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+
+networks:
+  default_net: # Private internal network for English Context Coach services
+  # External network for connecting to Nginx Proxy Manager.
+  # If you are NOT using NPM or external proxy on docker network:
+  # 1. Comment out 'npm_network' under 'web:' service networks list.
+  # 2. Uncomment 'ports:' under 'web:' service to expose port 3000.
+  # 3. Comment out this entire 'npm_network' block below.
+  npm_network:
+    external: true

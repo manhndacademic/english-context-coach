@@ -1,0 +1,23 @@
+name: learning-english-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.local
+    environment:
+      POSTGRES_DB: english_context_coach
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d english_context_coach"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-local-data:
