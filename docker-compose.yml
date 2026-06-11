@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,13 +19,23 @@ services:
   web:
     build: .
     restart: unless-stopped
-    command: ["sh", "-c", "bun run db:migrate && bun server.js"]
+    command: ["bun", "server.js"]
     env_file: .env
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/english_context_coach
       AUTH_URL: http://localhost:3000
     ports:
       - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    build: .
+    command: ["bun", "run", "db:migrate"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/english_context_coach
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,8 +48,8 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/english_context_coach
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
