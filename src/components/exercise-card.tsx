@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, CheckCircle2, Loader2, SendHorizontal, Target } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  SendHorizontal,
+  Target,
+} from "lucide-react";
 import { submitAttemptAction } from "@/app/actions/attempts";
 import type { Attempt, Exercise, KeyPhrase, LessonFocus } from "@/db/schema";
 
@@ -26,27 +32,70 @@ export function ExerciseCard({
   const latest = attempts[0];
   const gradingFailed = latest?.gradingStatus === "failed";
   const solved = latest?.isCorrect === true;
-  const needsRetry = Boolean(latest && latest.gradingStatus === "succeeded" && latest.isCorrect === false);
-  const [answer, setAnswer] = useState(latest && !latest.isCorrect ? latest.answer : "");
-  const statusLabel = solved ? "Done" : gradingFailed ? "Check failed" : needsRetry ? "Needs another try" : isCurrent ? "Up next" : "Not started";
+  const needsRetry = Boolean(
+    latest &&
+    latest.gradingStatus === "succeeded" &&
+    latest.isCorrect === false,
+  );
+  const [answer, setAnswer] = useState(
+    latest && !latest.isCorrect ? latest.answer : "",
+  );
+  const [submissionId, setSubmissionId] = useState(() => crypto.randomUUID());
+  const statusLabel = solved
+    ? "Done"
+    : gradingFailed
+      ? "Check failed"
+      : needsRetry
+        ? "Needs another try"
+        : isCurrent
+          ? "Up next"
+          : "Not started";
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
   const feedbackId = `exercise-${exercise.id}-feedback`;
-  const submitLabel = gradingFailed ? "Retry checking" : needsRetry ? "Try again" : solved ? "Practice again" : "Submit answer";
-  const choiceSet = useMemo(() => new Set([exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])].filter(Boolean)), [exercise]);
+  const submitLabel = gradingFailed
+    ? "Retry checking"
+    : needsRetry
+      ? "Try again"
+      : solved
+        ? "Practice again"
+        : "Submit answer";
+  const choiceSet = useMemo(
+    () =>
+      new Set(
+        [exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])].filter(
+          Boolean,
+        ),
+      ),
+    [exercise],
+  );
 
   return (
-    <article className={`exercise-card ${solved ? "exercise-card-complete" : ""} ${isCurrent ? "exercise-card-current" : ""}`}>
+    <article
+      className={`exercise-card ${solved ? "exercise-card-complete" : ""} ${isCurrent ? "exercise-card-current" : ""}`}
+    >
       <div className="exercise-card-topline">
         <div className="cluster">
           <span className="pill">{exercise.type.replaceAll("_", " ")}</span>
-          <span className={`exercise-status ${solved ? "exercise-status-done" : needsRetry ? "exercise-status-retry" : ""}`}>
-            {solved ? <CheckCircle2 size={15} aria-hidden="true" /> : needsRetry ? <AlertCircle size={15} aria-hidden="true" /> : <Target size={15} aria-hidden="true" />}
+          <span
+            className={`exercise-status ${solved ? "exercise-status-done" : needsRetry ? "exercise-status-retry" : ""}`}
+          >
+            {solved ? (
+              <CheckCircle2 size={15} aria-hidden="true" />
+            ) : needsRetry ? (
+              <AlertCircle size={15} aria-hidden="true" />
+            ) : (
+              <Target size={15} aria-hidden="true" />
+            )}
             {statusLabel}
           </span>
         </div>
         {latest?.gradingStatus === "succeeded" ? (
-          <span className={latest.isCorrect ? "status-succeeded" : "status-failed"}>{latest.score}/100</span>
+          <span
+            className={latest.isCorrect ? "status-succeeded" : "status-failed"}
+          >
+            {latest.score}/100
+          </span>
         ) : gradingFailed ? (
           <span className="status-failed">System retry needed</span>
         ) : null}
@@ -60,7 +109,10 @@ export function ExerciseCard({
         </a>
       ) : null}
       {lessonFocus ? (
-        <a className="exercise-phrase-link" href={`#lessonfocus-${lessonFocus.id}`}>
+        <a
+          className="exercise-phrase-link"
+          href={`#lessonfocus-${lessonFocus.id}`}
+        >
           <span>Practices</span>
           <strong>{lessonFocus.title}</strong>
           <span className="pill">{formatLabel(lessonFocus.category)}</span>
@@ -69,9 +121,19 @@ export function ExerciseCard({
       ) : null}
       <h3 id={promptId}>{exercise.promptVi}</h3>
       {exercise.promptEn ? <p>{exercise.promptEn}</p> : null}
-      <form action={submitAttemptAction} className="stack">
+      <form
+        action={async (formData) => {
+          await submitAttemptAction(formData);
+          setSubmissionId(crypto.randomUUID());
+        }}
+        className="stack"
+      >
         <input name="exerciseId" type="hidden" value={exercise.id} />
         <input name="lessonId" type="hidden" value={exercise.lessonId} />
+        <input name="submissionId" type="hidden" value={submissionId} />
+        {gradingFailed ? (
+          <input name="retryAttemptId" type="hidden" value={latest.id} />
+        ) : null}
         {exercise.type === "meaning_choice" && exercise.choices ? (
           <div className="choice-list">
             {exercise.choices.map((choice) => (
@@ -87,7 +149,13 @@ export function ExerciseCard({
                   required
                 />
                 <span>{choice}</span>
-                {solved && choiceSet.has(choice) ? <CheckCircle2 className="choice-correct-icon" size={15} aria-hidden="true" /> : null}
+                {solved && choiceSet.has(choice) ? (
+                  <CheckCircle2
+                    className="choice-correct-icon"
+                    size={15}
+                    aria-hidden="true"
+                  />
+                ) : null}
               </label>
             ))}
           </div>
@@ -98,7 +166,11 @@ export function ExerciseCard({
               aria-describedby={latest ? feedbackId : undefined}
               name="answer"
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder={needsRetry ? "Thử lại bằng cách giữ nghĩa tự nhiên của cụm trong câu." : "Viết câu trả lời của bạn..."}
+              placeholder={
+                needsRetry
+                  ? "Thử lại bằng cách giữ nghĩa tự nhiên của cụm trong câu."
+                  : "Viết câu trả lời của bạn..."
+              }
               required
               value={answer}
             />
@@ -107,11 +179,22 @@ export function ExerciseCard({
         <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
       </form>
       {latest ? (
-        <div className={`exercise-feedback ${latest.isCorrect ? "exercise-feedback-correct" : "exercise-feedback-retry"}`} id={feedbackId}>
-          <strong>{latest.gradingStatus === "failed" ? "Checking failed" : latest.isCorrect ? "Good read" : "Hint for the next try"}</strong>
+        <div
+          className={`exercise-feedback ${latest.isCorrect ? "exercise-feedback-correct" : "exercise-feedback-retry"}`}
+          id={feedbackId}
+        >
+          <strong>
+            {latest.gradingStatus === "failed"
+              ? "Checking failed"
+              : latest.isCorrect
+                ? "Good read"
+                : "Hint for the next try"}
+          </strong>
           <p>{latest.feedbackVi}</p>
           {latest.gradingStatus === "failed" ? (
-            <p className="hint">Your answer is saved. Retry checking without rewriting it.</p>
+            <p className="hint">
+              Your answer is saved. Retry checking without rewriting it.
+            </p>
           ) : !latest.isCorrect ? (
             <p className="hint">Your last answer: {latest.answer}</p>
           ) : null}
@@ -121,7 +204,13 @@ export function ExerciseCard({
   );
 }
 
-function SubmitAttemptButton({ disabled, label }: { disabled: boolean; label: string }) {
+function SubmitAttemptButton({
+  disabled,
+  label,
+}: {
+  disabled: boolean;
+  label: string;
+}) {
   const { pending } = useFormStatus();
 
   return (
@@ -130,7 +219,11 @@ function SubmitAttemptButton({ disabled, label }: { disabled: boolean; label: st
       disabled={disabled || pending}
       type="submit"
     >
-      {pending ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <SendHorizontal size={16} aria-hidden="true" />}
+      {pending ? (
+        <Loader2 className="spin" size={16} aria-hidden="true" />
+      ) : (
+        <SendHorizontal size={16} aria-hidden="true" />
+      )}
       {pending ? "Checking..." : label}
     </button>
   );

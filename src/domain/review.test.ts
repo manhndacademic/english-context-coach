@@ -22,46 +22,70 @@ describe("review scheduling", () => {
   it("computes due dates from a fixed date", () => {
     const from = new Date("2026-06-09T00:00:00Z");
     expect(nextDueDate(3, from).toISOString()).toBe("2026-06-12T00:00:00.000Z");
-    expect(resetDueAfterFailure(from).toISOString()).toBe("2026-06-10T00:00:00.000Z");
+    expect(resetDueAfterFailure(from).toISOString()).toBe(
+      "2026-06-10T00:00:00.000Z",
+    );
   });
 
   it("moves through explicit mastery states on successful reviews", () => {
-    expect(transitionMastery({
-      currentState: "new",
-      currentIntervalDays: 0,
-      result: "correct",
-      gradingStatus: "succeeded",
-    })).toMatchObject({ nextState: "learning", nextIntervalDays: 1, shouldSchedule: true });
+    expect(
+      transitionMastery({
+        currentState: "new",
+        currentIntervalDays: 0,
+        result: "correct",
+        gradingStatus: "succeeded",
+      }),
+    ).toMatchObject({
+      nextState: "learning",
+      nextIntervalDays: 1,
+      shouldSchedule: true,
+    });
 
-    expect(transitionMastery({
-      currentState: "learning",
-      currentIntervalDays: 1,
-      result: "correct",
-      gradingStatus: "succeeded",
-    })).toMatchObject({ nextState: "reviewing", nextIntervalDays: 3 });
+    expect(
+      transitionMastery({
+        currentState: "learning",
+        currentIntervalDays: 1,
+        result: "correct",
+        gradingStatus: "succeeded",
+      }),
+    ).toMatchObject({ nextState: "reviewing", nextIntervalDays: 3 });
 
-    expect(transitionMastery({
-      currentState: "reviewing",
-      currentIntervalDays: 14,
-      result: "correct",
-      gradingStatus: "succeeded",
-    })).toMatchObject({ nextState: "mastered", nextIntervalDays: 14 });
+    expect(
+      transitionMastery({
+        currentState: "reviewing",
+        currentIntervalDays: 14,
+        result: "correct",
+        gradingStatus: "succeeded",
+      }),
+    ).toMatchObject({ nextState: "mastered", nextIntervalDays: 14 });
   });
 
   it("moves failed reviews to relearning but ignores grading failures", () => {
-    expect(transitionMastery({
-      currentState: "reviewing",
-      currentIntervalDays: 7,
-      result: "incorrect",
-      gradingStatus: "succeeded",
-    })).toMatchObject({ nextState: "relearning", nextIntervalDays: 1, shouldSchedule: true });
+    expect(
+      transitionMastery({
+        currentState: "reviewing",
+        currentIntervalDays: 7,
+        result: "incorrect",
+        gradingStatus: "succeeded",
+      }),
+    ).toMatchObject({
+      nextState: "relearning",
+      nextIntervalDays: 1,
+      shouldSchedule: true,
+    });
 
-    expect(transitionMastery({
-      currentState: "reviewing",
-      currentIntervalDays: 7,
-      result: "grading_failed",
-      gradingStatus: "failed",
-    })).toMatchObject({ nextState: "reviewing", nextIntervalDays: 7, shouldSchedule: false });
+    expect(
+      transitionMastery({
+        currentState: "reviewing",
+        currentIntervalDays: 7,
+        result: "grading_failed",
+        gradingStatus: "failed",
+      }),
+    ).toMatchObject({
+      nextState: "reviewing",
+      nextIntervalDays: 7,
+      shouldSchedule: false,
+    });
   });
 
   it("aggregates related schedule movement phrasal verbs into one concept", () => {
@@ -72,36 +96,58 @@ describe("review scheduling", () => {
       explanationVi: "Không phải đẩy vật gì ra sau.",
     };
 
-    expect(deterministicConceptKey({
-      ...base,
-      normalizedPhrase: "push this back",
-      senseKey: "push-back-schedule",
-    })).toBe("phrasal_verb:schedule_movement_back");
+    const keys = [
+      deterministicConceptKey({
+        ...base,
+        normalizedPhrase: "push the meeting back",
+        senseKey: "push-back-schedule",
+      }),
+      deterministicConceptKey({
+        ...base,
+        normalizedPhrase: "move the deadline back",
+        senseKey: "move-back-deadline",
+      }),
+      deterministicConceptKey({
+        ...base,
+        normalizedPhrase: "put the release back by one week",
+        senseKey: "put-back-release",
+      }),
+    ];
 
-    expect(deterministicConceptKey({
-      ...base,
-      normalizedPhrase: "move the meeting back",
-      senseKey: "move-back-schedule",
-    })).toBe("phrasal_verb:schedule_movement_back");
+    expect(new Set(keys)).toEqual(
+      new Set(["phrasal_verb:schedule_movement_back"]),
+    );
   });
 
-  it("keeps unrelated senses separate", () => {
+  it("keeps unrelated back senses out of the schedule-movement concept", () => {
     const common = {
-      normalizedPhrase: "back up",
       category: "phrasal_verb",
       errorType: "phrasal_verb_error",
       explanationVi: "Different senses.",
     };
+    const examples = [
+      ["put the book back", "put-back-book", "đặt sách lại chỗ cũ"],
+      ["move back home", "move-back-home", "chuyển về nhà"],
+      [
+        "push back against criticism",
+        "push-back-against",
+        "phản đối chỉ trích",
+      ],
+      ["set the clock back", "set-clock-back", "chỉnh đồng hồ lùi lại"],
+      ["back up data", "backup-data", "sao lưu dữ liệu"],
+      ["back up an argument", "support-claim", "ủng hộ một lập luận"],
+    ];
 
-    expect(deterministicConceptKey({
-      ...common,
-      senseKey: "backup-data",
-      meaningVi: "sao lưu dữ liệu",
-    })).not.toBe(deterministicConceptKey({
-      ...common,
-      senseKey: "support-claim",
-      meaningVi: "ủng hộ một lập luận",
-    }));
+    for (const [normalizedPhrase, senseKey, meaningVi] of examples) {
+      expect(
+        deterministicConceptKey({
+          ...common,
+          normalizedPhrase,
+          senseKey,
+          meaningVi,
+        }),
+      ).not.toBe("phrasal_verb:schedule_movement_back");
+    }
   });
 
   it("builds safe review prompts without original source sentences", () => {

@@ -70,9 +70,23 @@ export const errorTypeEnum = pgEnum("error_type", [
   "missing_context",
 ]);
 
-export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
-export const stageStatusEnum = pgEnum("stage_status", ["pending", "running", "succeeded", "failed"]);
-export const gradingStatusEnum = pgEnum("grading_status", ["pending", "succeeded", "failed"]);
+export const jobStatusEnum = pgEnum("job_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+]);
+export const stageStatusEnum = pgEnum("stage_status", [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+]);
+export const gradingStatusEnum = pgEnum("grading_status", [
+  "pending",
+  "succeeded",
+  "failed",
+]);
 export const reviewResultEnum = pgEnum("review_result", [
   "correct",
   "partially_correct",
@@ -102,7 +116,12 @@ export const generationMilestoneCodeEnum = pgEnum("generation_milestone_code", [
   "completed",
   "failed",
 ]);
-export const aiPurposeEnum = pgEnum("ai_purpose", ["analysis", "exercise_generation", "grading", "repair"]);
+export const aiPurposeEnum = pgEnum("ai_purpose", [
+  "analysis",
+  "exercise_generation",
+  "grading",
+  "repair",
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -133,7 +152,9 @@ export const accounts = pgTable(
     session_state: text("session_state"),
   },
   (account) => ({
-    compoundKey: primaryKey({ columns: [account.provider, account.providerAccountId] }),
+    compoundKey: primaryKey({
+      columns: [account.provider, account.providerAccountId],
+    }),
   }),
 );
 
@@ -153,7 +174,9 @@ export const verificationTokens = pgTable(
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (verificationToken) => ({
-    compositePk: primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
+    compositePk: primaryKey({
+      columns: [verificationToken.identifier, verificationToken.token],
+    }),
   }),
 );
 
@@ -172,7 +195,9 @@ export const authenticators = pgTable(
     transports: text("transports"),
   },
   (authenticator) => ({
-    compositePK: primaryKey({ columns: [authenticator.userId, authenticator.credentialID] }),
+    compositePK: primaryKey({
+      columns: [authenticator.userId, authenticator.credentialID],
+    }),
   }),
 );
 
@@ -212,8 +237,12 @@ export const lessons = pgTable(
     summaryVi: text("summary_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
     contextExplanationVi: text("context_explanation_vi"),
-    analysisStatus: stageStatusEnum("analysis_status").notNull().default("pending"),
-    exerciseStatus: stageStatusEnum("exercise_status").notNull().default("pending"),
+    analysisStatus: stageStatusEnum("analysis_status")
+      .notNull()
+      .default("pending"),
+    exerciseStatus: stageStatusEnum("exercise_status")
+      .notNull()
+      .default("pending"),
     analysisPromptVersion: text("analysis_prompt_version"),
     exercisePromptVersion: text("exercise_prompt_version"),
     gradingPromptVersion: text("grading_prompt_version"),
@@ -223,7 +252,10 @@ export const lessons = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    sourceVersionUnique: uniqueIndex("lessons_source_version_unique").on(table.sourceTextId, table.version),
+    sourceVersionUnique: uniqueIndex("lessons_source_version_unique").on(
+      table.sourceTextId,
+      table.version,
+    ),
     userIdx: index("lessons_user_idx").on(table.userId),
   }),
 );
@@ -284,8 +316,12 @@ export const exercises = pgTable(
     lessonId: uuid("lesson_id")
       .notNull()
       .references(() => lessons.id, { onDelete: "cascade" }),
-    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
-    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
+    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
+      onDelete: "set null",
+    }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
+      onDelete: "set null",
+    }),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -321,7 +357,9 @@ export const attempts = pgTable(
     score: integer("score"),
     isCorrect: boolean("is_correct"),
     feedbackVi: text("feedback_vi").notNull(),
-    gradingStatus: gradingStatusEnum("grading_status").notNull().default("succeeded"),
+    gradingStatus: gradingStatusEnum("grading_status")
+      .notNull()
+      .default("succeeded"),
     idempotencyKey: text("idempotency_key"),
     gradingMetadata: jsonb("grading_metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
@@ -329,7 +367,10 @@ export const attempts = pgTable(
   (table) => ({
     exerciseIdx: index("attempts_exercise_idx").on(table.exerciseId),
     userIdx: index("attempts_user_idx").on(table.userId),
-    idempotencyUnique: uniqueIndex("attempts_idempotency_unique").on(table.userId, table.idempotencyKey),
+    idempotencyUnique: uniqueIndex("attempts_idempotency_unique").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
   }),
 );
 
@@ -340,10 +381,18 @@ export const userErrors = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    attemptId: uuid("attempt_id").references(() => attempts.id, { onDelete: "set null" }),
-    lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
-    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
-    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
+    attemptId: uuid("attempt_id").references(() => attempts.id, {
+      onDelete: "set null",
+    }),
+    lessonId: uuid("lesson_id").references(() => lessons.id, {
+      onDelete: "set null",
+    }),
+    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
+      onDelete: "set null",
+    }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
+      onDelete: "set null",
+    }),
     errorType: errorTypeEnum("error_type").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
@@ -353,6 +402,9 @@ export const userErrors = pgTable(
   },
   (table) => ({
     userIdx: index("user_errors_user_idx").on(table.userId),
+    attemptUnique: uniqueIndex("user_errors_attempt_unique").on(
+      table.attemptId,
+    ),
   }),
 );
 
@@ -368,7 +420,9 @@ export const mistakeConcepts = pgTable(
     errorType: errorTypeEnum("error_type").notNull(),
     titleVi: text("title_vi").notNull(),
     explanationVi: text("explanation_vi").notNull(),
-    safeReviewSeed: jsonb("safe_review_seed").$type<Record<string, unknown>>().notNull(),
+    safeReviewSeed: jsonb("safe_review_seed")
+      .$type<Record<string, unknown>>()
+      .notNull(),
     masteryState: masteryStateEnum("mastery_state").notNull().default("new"),
     intervalDays: integer("interval_days").notNull().default(0),
     dueAt: timestamp("due_at", { mode: "date" }).notNull().defaultNow(),
@@ -377,7 +431,10 @@ export const mistakeConcepts = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    conceptUnique: uniqueIndex("mistake_concepts_user_key_unique").on(table.userId, table.conceptKey),
+    conceptUnique: uniqueIndex("mistake_concepts_user_key_unique").on(
+      table.userId,
+      table.conceptKey,
+    ),
     dueIdx: index("mistake_concepts_due_idx").on(table.userId, table.dueAt),
   }),
 );
@@ -389,7 +446,10 @@ export const mistakePatterns = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    mistakeConceptId: uuid("mistake_concept_id").references(() => mistakeConcepts.id, { onDelete: "cascade" }),
+    mistakeConceptId: uuid("mistake_concept_id").references(
+      () => mistakeConcepts.id,
+      { onDelete: "cascade" },
+    ),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
     category: phraseCategoryEnum("category").notNull(),
@@ -441,9 +501,16 @@ export const mistakeEvidence = pgTable(
   },
   (table) => ({
     userIdx: index("mistake_evidence_user_idx").on(table.userId),
-    sourceIdx: index("mistake_evidence_source_idx").on(table.userId, table.sourceTextId),
-    conceptIdx: index("mistake_evidence_concept_idx").on(table.mistakeConceptId),
-    userErrorUnique: uniqueIndex("mistake_evidence_user_error_unique").on(table.userErrorId),
+    sourceIdx: index("mistake_evidence_source_idx").on(
+      table.userId,
+      table.sourceTextId,
+    ),
+    conceptIdx: index("mistake_evidence_concept_idx").on(
+      table.mistakeConceptId,
+    ),
+    userErrorUnique: uniqueIndex("mistake_evidence_user_error_unique").on(
+      table.userErrorId,
+    ),
   }),
 );
 
@@ -457,9 +524,16 @@ export const reviewAttempts = pgTable(
     mistakeConceptId: uuid("mistake_concept_id")
       .notNull()
       .references(() => mistakeConcepts.id, { onDelete: "cascade" }),
-    mistakePatternId: uuid("mistake_pattern_id").references(() => mistakePatterns.id, { onDelete: "set null" }),
-    reviewExerciseType: reviewExerciseTypeEnum("review_exercise_type").notNull(),
-    promptSnapshot: jsonb("prompt_snapshot").$type<Record<string, unknown>>().notNull(),
+    mistakePatternId: uuid("mistake_pattern_id").references(
+      () => mistakePatterns.id,
+      { onDelete: "set null" },
+    ),
+    reviewExerciseType: reviewExerciseTypeEnum(
+      "review_exercise_type",
+    ).notNull(),
+    promptSnapshot: jsonb("prompt_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
     answer: text("answer").notNull(),
     score: integer("score"),
     result: reviewResultEnum("result").notNull(),
@@ -474,8 +548,14 @@ export const reviewAttempts = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    conceptIdx: index("review_attempts_concept_idx").on(table.mistakeConceptId, table.createdAt),
-    idempotencyUnique: uniqueIndex("review_attempts_idempotency_unique").on(table.userId, table.idempotencyKey),
+    conceptIdx: index("review_attempts_concept_idx").on(
+      table.mistakeConceptId,
+      table.createdAt,
+    ),
+    idempotencyUnique: uniqueIndex("review_attempts_idempotency_unique").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
   }),
 );
 
@@ -502,8 +582,14 @@ export const generationJobs = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    userStatusIdx: index("generation_jobs_user_status_idx").on(table.userId, table.status),
-    statusIdx: index("generation_jobs_status_idx").on(table.status, table.createdAt),
+    userStatusIdx: index("generation_jobs_user_status_idx").on(
+      table.userId,
+      table.status,
+    ),
+    statusIdx: index("generation_jobs_status_idx").on(
+      table.status,
+      table.createdAt,
+    ),
   }),
 );
 
@@ -522,12 +608,14 @@ export const generationMilestones = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    lessonJobIdx: index("generation_milestones_lesson_job_idx").on(table.lessonId, table.generationJobId, table.id),
-    jobCodeStageUnique: uniqueIndex("generation_milestones_job_code_stage_unique").on(
+    lessonJobIdx: index("generation_milestones_lesson_job_idx").on(
+      table.lessonId,
       table.generationJobId,
-      table.code,
-      table.stage,
+      table.id,
     ),
+    jobCodeStageUnique: uniqueIndex(
+      "generation_milestones_job_code_stage_unique",
+    ).on(table.generationJobId, table.code, table.stage),
   }),
 );
 
@@ -535,8 +623,12 @@ export const aiRequests = pgTable(
   "ai_requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    lessonId: uuid("lesson_id").references(() => lessons.id, {
+      onDelete: "set null",
+    }),
     purpose: aiPurposeEnum("purpose").notNull(),
     provider: text("provider").notNull(),
     model: text("model").notNull(),

@@ -36,6 +36,13 @@
       "when": 1781190000000,
       "tag": "0004_p0_learning_loop",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781191000000,
+      "tag": "0005_p0_learning_loop_corrections",
+      "breakpoints": true
     }
   ]
 }

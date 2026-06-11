@@ -1,7 +1,8 @@
 "use server";
 
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import {
@@ -10,6 +11,7 @@ import {
   resultFromScore,
   transitionMastery,
   type ReviewPromptSnapshot,
+  type MasteryState,
   type ReviewResult,
 } from "@/domain/review";
 import { PROMPT_VERSIONS } from "@/domain/constants";
@@ -27,9 +29,12 @@ function normalizeAnswer(value: string) {
     .trim();
 }
 
-function idempotencyKeyForReview(input: { conceptId: string; answer: string }) {
-  const answerHash = createHash("sha256").update(input.answer).digest("hex").slice(0, 32);
-  return `review-attempt:${input.conceptId}:${answerHash}`;
+function idempotencyKeyForReview(input: {
+  conceptId: string;
+  reviewSessionId: string;
+  submissionId: string;
+}) {
+  return `review:${input.conceptId}:${input.reviewSessionId}:${input.submissionId}`;
 }
 
 async function gradeReviewAnswer(input: {
@@ -38,15 +43,21 @@ async function gradeReviewAnswer(input: {
   prompt: ReviewPromptSnapshot;
   answer: string;
 }) {
-  if (input.prompt.type === "meaning_choice" || input.prompt.type === "cloze_phrase") {
-    const expected = [input.prompt.correctAnswer, ...(input.prompt.acceptableAnswers ?? [])]
+  if (
+    input.prompt.type === "meaning_choice" ||
+    input.prompt.type === "cloze_phrase"
+  ) {
+    const expected = [
+      input.prompt.correctAnswer,
+      ...(input.prompt.acceptableAnswers ?? []),
+    ]
       .filter(Boolean)
       .map((value) => normalizeAnswer(String(value)));
     const correct = expected.includes(normalizeAnswer(input.answer));
     return {
       gradingStatus: "succeeded" as const,
       score: correct ? 100 : 0,
-      result: correct ? "correct" as const : "incorrect" as const,
+      result: correct ? ("correct" as const) : ("incorrect" as const),
       feedbackVi: correct
         ? "Đúng. Bạn đã nhớ lại được điểm ngữ cảnh này."
         : "Chưa đúng. Hãy tập trung vào nghĩa tự nhiên trong ngữ cảnh, không chỉ dịch từng từ.",
@@ -80,7 +91,8 @@ async function gradeReviewAnswer(input: {
       gradingStatus: "failed" as const,
       score: null,
       result: "grading_failed" as const,
-      feedbackVi: "Hệ thống chưa chấm được câu trả lời này. Bạn có thể thử chấm lại mà không cần viết lại.",
+      feedbackVi:
+        "Hệ thống chưa chấm được câu trả lời này. Bạn có thể thử chấm lại mà không cần viết lại.",
     };
   }
 }
@@ -89,19 +101,30 @@ export async function submitReviewAttemptAction(formData: FormData) {
   const user = await requireUser();
   const conceptId = String(formData.get("conceptId") ?? "");
   const answer = String(formData.get("answer") ?? "").trim();
-  if (!answer) return;
+  const retryAttemptId = String(formData.get("retryAttemptId") ?? "").trim();
+  if (!answer && !retryAttemptId) return;
 
   const [concept] = await db
     .select()
     .from(schema.mistakeConcepts)
-    .where(and(eq(schema.mistakeConcepts.id, conceptId), eq(schema.mistakeConcepts.userId, user.id)))
+    .where(
+      and(
+        eq(schema.mistakeConcepts.id, conceptId),
+        eq(schema.mistakeConcepts.userId, user.id),
+      ),
+    )
     .limit(1);
   if (!concept) return;
 
   const [pattern] = await db
     .select()
     .from(schema.mistakePatterns)
-    .where(and(eq(schema.mistakePatterns.mistakeConceptId, concept.id), eq(schema.mistakePatterns.userId, user.id)))
+    .where(
+      and(
+        eq(schema.mistakePatterns.mistakeConceptId, concept.id),
+        eq(schema.mistakePatterns.userId, user.id),
+      ),
+    )
     .limit(1);
 
   const promptSnapshot = buildReviewPromptSnapshot({
@@ -109,29 +132,59 @@ export async function submitReviewAttemptAction(formData: FormData) {
     safeReviewSeed: concept.safeReviewSeed,
     fallbackMeaningVi: concept.explanationVi,
   });
-  const idempotencyKey = idempotencyKeyForReview({ conceptId: concept.id, answer });
-  const [existing] = await db
-    .select()
-    .from(schema.reviewAttempts)
-    .where(and(eq(schema.reviewAttempts.userId, user.id), eq(schema.reviewAttempts.idempotencyKey, idempotencyKey)))
-    .limit(1);
+  const reviewSessionId =
+    String(formData.get("reviewSessionId") ?? "").trim() || randomUUID();
+  const submissionId =
+    String(formData.get("submissionId") ?? "").trim() || randomUUID();
+  const idempotencyKey = idempotencyKeyForReview({
+    conceptId: concept.id,
+    reviewSessionId,
+    submissionId,
+  });
+
+  const [retryAttempt] = retryAttemptId
+    ? await db
+        .select()
+        .from(schema.reviewAttempts)
+        .where(
+          and(
+            eq(schema.reviewAttempts.id, retryAttemptId),
+            eq(schema.reviewAttempts.userId, user.id),
+            eq(schema.reviewAttempts.mistakeConceptId, concept.id),
+          ),
+        )
+        .limit(1)
+    : [];
+  const [existing] = retryAttempt
+    ? [retryAttempt]
+    : await db
+        .select()
+        .from(schema.reviewAttempts)
+        .where(
+          and(
+            eq(schema.reviewAttempts.userId, user.id),
+            eq(schema.reviewAttempts.idempotencyKey, idempotencyKey),
+          ),
+        )
+        .limit(1);
   if (existing?.gradingStatus === "succeeded") {
     revalidatePath("/dashboard");
     revalidatePath("/review");
-    return;
+    redirect(`/review/result/${existing.id}`);
   }
 
+  const answerToGrade = retryAttempt ? retryAttempt.answer : answer;
   const grading = await gradeReviewAnswer({
     userId: user.id,
     conceptId: concept.id,
     prompt: promptSnapshot,
-    answer,
+    answer: answerToGrade,
   });
   const transition = transitionMastery({
     currentState: concept.masteryState,
     currentIntervalDays: concept.intervalDays,
     result: grading.result as ReviewResult,
-    gradingStatus: grading.gradingStatus,
+    gradingStatus: grading.gradingStatus as "succeeded" | "failed",
   });
 
   const values = {
@@ -140,43 +193,92 @@ export async function submitReviewAttemptAction(formData: FormData) {
     mistakePatternId: pattern?.id,
     reviewExerciseType: promptSnapshot.type,
     promptSnapshot,
-    answer,
+    answer: answerToGrade,
     score: grading.score,
-    result: grading.result,
+    result: grading.result as ReviewResult,
     feedbackVi: grading.feedbackVi,
-    gradingStatus: grading.gradingStatus,
+    gradingStatus: grading.gradingStatus as "succeeded" | "failed",
     previousMasteryState: concept.masteryState,
-    nextMasteryState: transition.nextState,
+    nextMasteryState: transition.nextState as MasteryState,
     previousIntervalDays: concept.intervalDays,
     nextIntervalDays: transition.nextIntervalDays,
-    idempotencyKey,
+    idempotencyKey: retryAttempt?.idempotencyKey ?? idempotencyKey,
     updatedAt: new Date(),
   };
 
   await db.transaction(async (tx) => {
-    if (existing) {
+    if (!existing) {
       await tx
-        .update(schema.reviewAttempts)
-        .set(values)
-        .where(and(eq(schema.reviewAttempts.id, existing.id), eq(schema.reviewAttempts.userId, user.id)));
-    } else {
-      await tx.insert(schema.reviewAttempts).values(values).onConflictDoNothing();
+        .insert(schema.reviewAttempts)
+        .values(values)
+        .onConflictDoNothing();
     }
+
+    const [currentAttempt] = await tx
+      .select()
+      .from(schema.reviewAttempts)
+      .where(
+        existing
+          ? and(
+              eq(schema.reviewAttempts.id, existing.id),
+              eq(schema.reviewAttempts.userId, user.id),
+            )
+          : and(
+              eq(schema.reviewAttempts.userId, user.id),
+              eq(
+                schema.reviewAttempts.idempotencyKey,
+                retryAttempt?.idempotencyKey ?? idempotencyKey,
+              ),
+            ),
+      )
+      .for("update")
+      .limit(1);
+    if (!currentAttempt || currentAttempt.gradingStatus === "succeeded") return;
+
+    await tx
+      .update(schema.reviewAttempts)
+      .set(values)
+      .where(
+        and(
+          eq(schema.reviewAttempts.id, currentAttempt.id),
+          eq(schema.reviewAttempts.userId, user.id),
+        ),
+      );
 
     if (grading.gradingStatus === "succeeded" && transition.shouldSchedule) {
       await tx
         .update(schema.mistakeConcepts)
         .set({
-          masteryState: transition.nextState,
+          masteryState: transition.nextState as MasteryState,
           intervalDays: transition.nextIntervalDays,
           dueAt: nextDueDate(transition.nextIntervalDays),
           lastReviewedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(and(eq(schema.mistakeConcepts.id, concept.id), eq(schema.mistakeConcepts.userId, user.id)));
+        .where(
+          and(
+            eq(schema.mistakeConcepts.id, concept.id),
+            eq(schema.mistakeConcepts.userId, user.id),
+          ),
+        );
     }
   });
 
   revalidatePath("/dashboard");
   revalidatePath("/review");
+
+  const [savedAttempt] = await db
+    .select({ id: schema.reviewAttempts.id })
+    .from(schema.reviewAttempts)
+    .where(
+      and(
+        eq(schema.reviewAttempts.userId, user.id),
+        eq(
+          schema.reviewAttempts.idempotencyKey,
+          retryAttempt?.idempotencyKey ?? idempotencyKey,
+        ),
+      ),
+    )
+    .limit(1);
+  if (savedAttempt) redirect(`/review/result/${savedAttempt.id}`);
 }

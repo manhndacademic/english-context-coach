@@ -58,3 +58,18 @@ Prompt snapshots may contain a generalized phrase, concept title, safe cloze, ch
 - No self-reported path can update mastery.
 - Every review answer has an auditable `ReviewAttempt`.
 - Scheduling rules are covered by unit tests.
+
+## P0 correction: attempts, mastery, and result visibility
+
+### Domain invariants
+- `ReviewAttempt` records one learner submission operation for one `MistakeConcept`; it is not a unique answer string.
+- `Attempt` records one lesson-practice submission operation for one `Exercise`; repeated practice with the same text is valid.
+- Grading retry reuses the existing attempt and saved answer.
+- Mastery is updated once for a successfully graded review attempt and is unchanged for grading failures.
+- Before submission, review UI may show only prompt, type, category, and mastery metadata; answer/explanation fields are post-result surfaces.
+
+### Transaction and concurrency boundaries
+Review submission inserts or locks the submission attempt by idempotency key before updating it. Duplicate delivery that races on the same idempotency key can only produce one row, and a later duplicate sees the already-succeeded attempt rather than scheduling mastery again. Lesson finalization locks the attempt and writes grading plus mistake-memory records in one transaction after the slow AI grading call completes.
+
+### State transitions
+`pending` or `failed` attempts may be retried. `succeeded` attempts are terminal for the same submission id. Review result pages render succeeded, partial, incorrect, and grading-failed states independently from the current due queue so feedback does not disappear when `dueAt` changes.

@@ -50,11 +50,11 @@ describe("generation progress", () => {
     expect(selected?.id).toBe("latest");
   });
 
-  it("models safe application-controlled progress milestones without thought events", () => {
-    expect(generationMilestoneCodes).toContain("text_type_started");
-    expect(generationMilestoneCodes).toContain("confusing_phrases_started");
-    expect(generationMilestoneCodes).toContain("context_analysis_started");
+  it("models safe application-controlled progress milestones without provider thought events", () => {
+    expect(generationMilestoneCodes).toContain("analysis_started");
+    expect(generationMilestoneCodes).toContain("saving_analysis");
     expect(generationMilestoneCodes).toContain("validating_lesson");
     expect(generationMilestoneCodes).toContain("retrying");
+    expect(generationMilestoneCodes).not.toContain("provider_thought" as never);
   });
 });

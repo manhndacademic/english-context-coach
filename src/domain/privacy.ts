@@ -12,6 +12,34 @@ export function containsSourceIdentifyingContent(value: string) {
   return sensitivePatterns.some((pattern) => pattern.test(trimmed));
 }
 
+export const genericSafeReviewMeaningVi =
+  "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
+export const genericSafeReviewExplanationVi =
+  "Luyện lại cách hiểu ý thay vì dựa vào chi tiết riêng của nguồn gốc.";
+
+export function sanitizeLearnerFacingText(
+  value: string,
+  fallback = genericSafeReviewMeaningVi,
+) {
+  const trimmed = value.trim();
+  if (!trimmed || containsSourceIdentifyingContent(trimmed)) return fallback;
+  return trimmed;
+}
+
+export function isLearnerSafeReviewSeed(input: {
+  normalizedPhrase: string;
+  meaningVi: string;
+  explanationVi?: string;
+  isSensitive?: boolean;
+}) {
+  return !(
+    input.isSensitive ||
+    containsSourceIdentifyingContent(input.normalizedPhrase) ||
+    containsSourceIdentifyingContent(input.meaningVi) ||
+    containsSourceIdentifyingContent(input.explanationVi ?? "")
+  );
+}
+
 export function shouldScrubMistakePattern(input: {
   normalizedPhrase: string;
   meaningVi: string;
@@ -28,7 +56,10 @@ export function shouldRetainAfterSourceDeletion(input: {
   evidenceCountBeforeDeletion: number;
   evidenceCountFromDeletedSource: number;
 }) {
-  const remainingEvidence = Math.max(0, input.evidenceCountBeforeDeletion - input.evidenceCountFromDeletedSource);
+  const remainingEvidence = Math.max(
+    0,
+    input.evidenceCountBeforeDeletion - input.evidenceCountFromDeletedSource,
+  );
   return {
     remainingEvidence,
     retainPatternOrConcept: remainingEvidence > 0,

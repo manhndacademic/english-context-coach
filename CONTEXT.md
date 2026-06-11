@@ -75,3 +75,7 @@ _Avoid_: Account, login
 **Account**:
 A login method linked to a User, such as Google OAuth or password login.
 _Avoid_: User, profile
+
+**Submission**:
+A single learner action that sends an answer for grading. A Submission is distinct from the answer text: the same answer can be submitted in different practice or review sessions, while duplicate delivery of one Submission should not create duplicate learning history.
+_Avoid_: Answer hash, retry, attempt

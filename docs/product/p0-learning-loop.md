@@ -68,3 +68,17 @@ Long-term review prompts use generalized concept seeds and must not copy origina
 - Source deletion is scoped by explicit lineage.
 - Grading failure is visibly separate from incorrect answers.
 - Generation progress exposes only application-controlled milestones.
+
+## P0 correction: submission-scoped idempotency and safe review results
+
+### Problem and previous behavior
+Review and lesson-attempt idempotency were previously tied to answer content. That made the same correct answer in a later review or practice session look like the same operation forever. Review results were also only visible while a concept stayed due, so a successful schedule move could hide feedback immediately.
+
+### Decision
+A submission is now the idempotency boundary. Lesson attempts use `lesson:{exerciseId}:{submissionId}`. Review attempts use `review:{conceptId}:{reviewSessionId}:{submissionId}`. Retrying a failed grading operation uses the saved attempt id and saved answer rather than generating a new submission id or asking the learner to retype.
+
+### Acceptance criteria
+- A later review session can create a new `ReviewAttempt` even when the answer text matches an older attempt.
+- Duplicate delivery of one submission reuses the same attempt.
+- Failed grading remains visible on `/review/result/{reviewAttemptId}` and exposes retry checking for the saved answer.
+- Mastery changes only after grading succeeds; system failures do not count as incorrect learner responses.

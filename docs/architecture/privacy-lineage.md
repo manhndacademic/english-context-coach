@@ -45,3 +45,19 @@ Evidence rows store identifiers only. Long-term review seeds are generalized and
 - Deleting one contributing source preserves concepts with evidence from another source.
 - Deleting the last contributing source removes the orphaned pattern and concept.
 - Sensitive source text is not copied into review prompts.
+
+## P0 correction: long-term learner-safe review storage and deletion
+
+### Data classes
+- Source-grounded temporary data: source text, lesson analysis, original exercises, and lesson attempts.
+- Internal audit data: `UserError` and `MistakeEvidence`, which preserve relational lineage to the source that produced evidence.
+- Long-term learner-facing data: `MistakeConcept.titleVi`, `MistakeConcept.explanationVi`, `safeReviewSeed`, and review prompt snapshots.
+
+### Decision
+Learner-facing review data is sanitized before storage. If deterministic checks see emails, URLs, ticket/project/client identifiers, names, or a sensitive source flag, the system stores a generic safe review seed instead of copying source-derived wording. Regex detection is a safety net, not ownership evidence; deletion and retention use `MistakeEvidence` relationships.
+
+### Source deletion
+Deleting a source removes only evidence from that source, recomputes retained pattern occurrence counts from remaining evidence, replaces retained concept/prompt text with generic safe wording when provenance may have changed, deletes patterns with no evidence, and deletes concepts with no evidence. Mastery history is preserved when evidence remains.
+
+### Limitations
+Regex-based sensitive-content detection cannot prove text is safe and may miss unusual identifiers. The conservative fallback is a generic privacy-safe prompt that preserves practice without replaying source details.
