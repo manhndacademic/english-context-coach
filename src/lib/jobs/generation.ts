@@ -1,13 +1,13 @@
-import { and, asc, count, desc, eq, inArray, sql as drizzleSql } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql as drizzleSql } from "drizzle-orm";
 import { db, schema, sql as rawSql } from "@/db";
 import { PROMPT_VERSIONS, SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import { buildSenseKey, hashText, normalizePhrase, normalizeSourceText } from "@/domain/text";
 import { assertCompleteExercises, prepareAnalysisForSave } from "@/domain/lesson";
-import { containsSourceIdentifyingContent, shouldScrubMistakePattern } from "@/domain/privacy";
+import { containsSourceIdentifyingContent } from "@/domain/privacy";
 import { analysisPrompt, exercisesPrompt } from "@/lib/ai/prompts";
 import { analysisSchema, exercisesSchema, type AnalysisResult } from "@/lib/ai/schemas";
 import { generateJson } from "@/lib/ai/provider";
-import { recordGenerationMilestone, recordGenerationThought } from "@/lib/jobs/progress";
+import { recordGenerationMilestone } from "@/lib/jobs/progress";
 
 export type EnqueueResult =
   | { ok: true; lessonId: string }
@@ -446,6 +446,24 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
         code: "analysis_started",
         stage: "analysis",
       });
+      await recordGenerationMilestone({
+        lessonId: job.lessonId,
+        generationJobId: job.id,
+        code: "text_type_started",
+        stage: "analysis",
+      });
+      await recordGenerationMilestone({
+        lessonId: job.lessonId,
+        generationJobId: job.id,
+        code: "confusing_phrases_started",
+        stage: "analysis",
+      });
+      await recordGenerationMilestone({
+        lessonId: job.lessonId,
+        generationJobId: job.id,
+        code: "context_analysis_started",
+        stage: "analysis",
+      });
       const result = await generateJson({
         userId: job.userId,
         lessonId: job.lessonId,
@@ -455,15 +473,14 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
         schemaVersion: "analysis",
         schema: analysisSchema,
         modelKind: "analysis",
-        onThought: (text) =>
-          recordGenerationThought({
-            lessonId: job.lessonId,
-            generationJobId: job.id,
-            stage: "analysis",
-            text,
-          }).then(() => undefined),
       });
       const analysis = prepareAnalysisForSave(result, sourceText.content);
+      await recordGenerationMilestone({
+        lessonId: job.lessonId,
+        generationJobId: job.id,
+        code: "saving_analysis",
+        stage: "analysis",
+      });
       await saveAnalysis({
         lessonId: job.lessonId,
         userId: job.userId,
@@ -499,17 +516,16 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
         schemaVersion: "exercises",
         schema: exercisesSchema,
         modelKind: "fast",
-        onThought: (text) =>
-          recordGenerationThought({
-            lessonId: job.lessonId,
-            generationJobId: job.id,
-            stage: "exercises",
-            text,
-          }).then(() => undefined),
       });
 
       try {
         assertCompleteExercises(candidate, analysis);
+        await recordGenerationMilestone({
+          lessonId: job.lessonId,
+          generationJobId: job.id,
+          code: "validating_lesson",
+          stage: "exercises",
+        });
         exercises = candidate;
         break;
       } catch (error) {
@@ -562,6 +578,12 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
           updatedAt: new Date(),
         })
         .where(eq(schema.generationJobs.id, job.id));
+      await recordGenerationMilestone({
+        lessonId: job.lessonId,
+        generationJobId: job.id,
+        code: "retrying",
+        stage: currentStage === "analysis" || currentStage === "exercises" ? currentStage : null,
+      });
       throw error;
     }
 
@@ -607,34 +629,38 @@ export async function deleteSourceTextWithPrivacy(input: {
   userId: string;
   sourceTextId: string;
 }) {
-  const lessons = await db
-    .select({ id: schema.lessons.id })
-    .from(schema.lessons)
-    .where(and(eq(schema.lessons.sourceTextId, input.sourceTextId), eq(schema.lessons.userId, input.userId)));
+  await db.transaction(async (tx) => {
+    const [sourceText] = await tx
+      .select({ id: schema.sourceTexts.id })
+      .from(schema.sourceTexts)
+      .where(and(eq(schema.sourceTexts.id, input.sourceTextId), eq(schema.sourceTexts.userId, input.userId)))
+      .limit(1);
+    if (!sourceText) return;
 
-  const lessonIds = lessons.map((lesson) => lesson.id);
-  if (lessonIds.length) {
-    const patterns = await db
-      .select()
-      .from(schema.mistakePatterns)
-      .where(eq(schema.mistakePatterns.userId, input.userId));
+    await tx
+      .delete(schema.mistakeEvidence)
+      .where(and(eq(schema.mistakeEvidence.sourceTextId, input.sourceTextId), eq(schema.mistakeEvidence.userId, input.userId)));
 
-    const sensitivePatternIds = patterns
-      .filter((pattern) =>
-        shouldScrubMistakePattern({
-          normalizedPhrase: pattern.normalizedPhrase,
-          meaningVi: pattern.meaningVi,
-          safeReviewPromptVi: pattern.safeReviewPromptVi,
-        }),
-      )
-      .map((pattern) => pattern.id);
+    await tx.execute(drizzleSql`
+      delete from mistake_patterns
+      where user_id = ${input.userId}
+        and not exists (
+          select 1 from mistake_evidence
+          where mistake_evidence.mistake_pattern_id = mistake_patterns.id
+        )
+    `);
 
-    if (sensitivePatternIds.length) {
-      await db.delete(schema.mistakePatterns).where(inArray(schema.mistakePatterns.id, sensitivePatternIds));
-    }
-  }
+    await tx.execute(drizzleSql`
+      delete from mistake_concepts
+      where user_id = ${input.userId}
+        and not exists (
+          select 1 from mistake_evidence
+          where mistake_evidence.mistake_concept_id = mistake_concepts.id
+        )
+    `);
 
-  await db
-    .delete(schema.sourceTexts)
-    .where(and(eq(schema.sourceTexts.id, input.sourceTextId), eq(schema.sourceTexts.userId, input.userId)));
+    await tx
+      .delete(schema.sourceTexts)
+      .where(and(eq(schema.sourceTexts.id, input.sourceTextId), eq(schema.sourceTexts.userId, input.userId)));
+  });
 }

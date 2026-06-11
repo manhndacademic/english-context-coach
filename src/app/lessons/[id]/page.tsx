@@ -128,8 +128,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     return {
       exercise,
       latestAttempt,
-      isSolved: Boolean(latestAttempt?.isCorrect),
-      needsRetry: Boolean(latestAttempt && !latestAttempt.isCorrect),
+      isSolved: latestAttempt?.gradingStatus === "succeeded" && latestAttempt.isCorrect === true,
+      needsRetry: latestAttempt?.gradingStatus === "succeeded" && latestAttempt.isCorrect === false,
     };
   });
   const solvedCount = exerciseSummaries.filter((summary) => summary.isSolved).length;
@@ -203,14 +203,6 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 code: milestone.code,
                 stage: milestone.stage,
                 createdAt: milestone.createdAt.toISOString(),
-              })) ?? []
-            }
-            initialThoughts={
-              progress?.thoughts.map((thought) => ({
-                id: thought.id,
-                stage: thought.stage,
-                text: thought.text,
-                createdAt: thought.createdAt.toISOString(),
               })) ?? []
             }
             lessonId={lesson.id}

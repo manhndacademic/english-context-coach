@@ -6,6 +6,7 @@ const baseExercise: Exercise = {
   id: "exercise-id",
   lessonId: "lesson-id",
   keyPhraseId: null,
+  lessonFocusId: null,
   userId: "user-id",
   type: "cloze_phrase",
   promptVi: "Điền cụm còn thiếu.",

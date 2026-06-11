@@ -50,6 +50,14 @@ export const exerciseTypeEnum = pgEnum("exercise_type", [
   "focus_question",
 ]);
 
+export const reviewExerciseTypeEnum = pgEnum("review_exercise_type", [
+  "meaning_choice",
+  "cloze_phrase",
+  "natural_interpretation",
+  "context_explanation",
+  "tone_structure_purpose",
+]);
+
 export const errorTypeEnum = pgEnum("error_type", [
   "literal_translation",
   "phrase_misunderstanding",
@@ -64,13 +72,33 @@ export const errorTypeEnum = pgEnum("error_type", [
 
 export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
 export const stageStatusEnum = pgEnum("stage_status", ["pending", "running", "succeeded", "failed"]);
+export const gradingStatusEnum = pgEnum("grading_status", ["pending", "succeeded", "failed"]);
+export const reviewResultEnum = pgEnum("review_result", [
+  "correct",
+  "partially_correct",
+  "incorrect",
+  "grading_failed",
+]);
+export const masteryStateEnum = pgEnum("mastery_state", [
+  "new",
+  "learning",
+  "reviewing",
+  "mastered",
+  "relearning",
+]);
 export const generationMilestoneCodeEnum = pgEnum("generation_milestone_code", [
   "queued",
   "claimed",
   "analysis_started",
+  "text_type_started",
+  "confusing_phrases_started",
+  "context_analysis_started",
+  "saving_analysis",
   "analysis_saved",
   "exercises_started",
+  "validating_lesson",
   "exercises_saved",
+  "retrying",
   "completed",
   "failed",
 ]);
@@ -290,15 +318,18 @@ export const attempts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     answer: text("answer").notNull(),
-    score: integer("score").notNull(),
-    isCorrect: boolean("is_correct").notNull(),
+    score: integer("score"),
+    isCorrect: boolean("is_correct"),
     feedbackVi: text("feedback_vi").notNull(),
+    gradingStatus: gradingStatusEnum("grading_status").notNull().default("succeeded"),
+    idempotencyKey: text("idempotency_key"),
     gradingMetadata: jsonb("grading_metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
     exerciseIdx: index("attempts_exercise_idx").on(table.exerciseId),
     userIdx: index("attempts_user_idx").on(table.userId),
+    idempotencyUnique: uniqueIndex("attempts_idempotency_unique").on(table.userId, table.idempotencyKey),
   }),
 );
 
@@ -325,6 +356,32 @@ export const userErrors = pgTable(
   }),
 );
 
+export const mistakeConcepts = pgTable(
+  "mistake_concepts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    conceptKey: text("concept_key").notNull(),
+    category: text("category").notNull(),
+    errorType: errorTypeEnum("error_type").notNull(),
+    titleVi: text("title_vi").notNull(),
+    explanationVi: text("explanation_vi").notNull(),
+    safeReviewSeed: jsonb("safe_review_seed").$type<Record<string, unknown>>().notNull(),
+    masteryState: masteryStateEnum("mastery_state").notNull().default("new"),
+    intervalDays: integer("interval_days").notNull().default(0),
+    dueAt: timestamp("due_at", { mode: "date" }).notNull().defaultNow(),
+    lastReviewedAt: timestamp("last_reviewed_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    conceptUnique: uniqueIndex("mistake_concepts_user_key_unique").on(table.userId, table.conceptKey),
+    dueIdx: index("mistake_concepts_due_idx").on(table.userId, table.dueAt),
+  }),
+);
+
 export const mistakePatterns = pgTable(
   "mistake_patterns",
   {
@@ -332,6 +389,7 @@ export const mistakePatterns = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    mistakeConceptId: uuid("mistake_concept_id").references(() => mistakeConcepts.id, { onDelete: "cascade" }),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
     category: phraseCategoryEnum("category").notNull(),
@@ -354,6 +412,70 @@ export const mistakePatterns = pgTable(
       table.errorType,
     ),
     dueIdx: index("mistake_patterns_due_idx").on(table.userId, table.dueAt),
+  }),
+);
+
+export const mistakeEvidence = pgTable(
+  "mistake_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mistakeConceptId: uuid("mistake_concept_id")
+      .notNull()
+      .references(() => mistakeConcepts.id, { onDelete: "cascade" }),
+    mistakePatternId: uuid("mistake_pattern_id")
+      .notNull()
+      .references(() => mistakePatterns.id, { onDelete: "cascade" }),
+    userErrorId: uuid("user_error_id")
+      .notNull()
+      .references(() => userErrors.id, { onDelete: "cascade" }),
+    sourceTextId: uuid("source_text_id")
+      .notNull()
+      .references(() => sourceTexts.id, { onDelete: "cascade" }),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("mistake_evidence_user_idx").on(table.userId),
+    sourceIdx: index("mistake_evidence_source_idx").on(table.userId, table.sourceTextId),
+    conceptIdx: index("mistake_evidence_concept_idx").on(table.mistakeConceptId),
+    userErrorUnique: uniqueIndex("mistake_evidence_user_error_unique").on(table.userErrorId),
+  }),
+);
+
+export const reviewAttempts = pgTable(
+  "review_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mistakeConceptId: uuid("mistake_concept_id")
+      .notNull()
+      .references(() => mistakeConcepts.id, { onDelete: "cascade" }),
+    mistakePatternId: uuid("mistake_pattern_id").references(() => mistakePatterns.id, { onDelete: "set null" }),
+    reviewExerciseType: reviewExerciseTypeEnum("review_exercise_type").notNull(),
+    promptSnapshot: jsonb("prompt_snapshot").$type<Record<string, unknown>>().notNull(),
+    answer: text("answer").notNull(),
+    score: integer("score"),
+    result: reviewResultEnum("result").notNull(),
+    feedbackVi: text("feedback_vi").notNull(),
+    gradingStatus: gradingStatusEnum("grading_status").notNull(),
+    previousMasteryState: masteryStateEnum("previous_mastery_state").notNull(),
+    nextMasteryState: masteryStateEnum("next_mastery_state").notNull(),
+    previousIntervalDays: integer("previous_interval_days").notNull(),
+    nextIntervalDays: integer("next_interval_days").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    conceptIdx: index("review_attempts_concept_idx").on(table.mistakeConceptId, table.createdAt),
+    idempotencyUnique: uniqueIndex("review_attempts_idempotency_unique").on(table.userId, table.idempotencyKey),
   }),
 );
 
@@ -409,25 +531,6 @@ export const generationMilestones = pgTable(
   }),
 );
 
-export const generationThoughts = pgTable(
-  "generation_thoughts",
-  {
-    id: serial("id").primaryKey(),
-    lessonId: uuid("lesson_id")
-      .notNull()
-      .references(() => lessons.id, { onDelete: "cascade" }),
-    generationJobId: uuid("generation_job_id")
-      .notNull()
-      .references(() => generationJobs.id, { onDelete: "cascade" }),
-    stage: text("stage"),
-    text: text("text").notNull(),
-    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  },
-  (table) => ({
-    lessonJobIdx: index("generation_thoughts_lesson_job_idx").on(table.lessonId, table.generationJobId, table.id),
-  }),
-);
-
 export const aiRequests = pgTable(
   "ai_requests",
   {
@@ -460,7 +563,10 @@ export type KeyPhrase = typeof keyPhrases.$inferSelect;
 export type LessonFocus = typeof lessonFocuses.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type Attempt = typeof attempts.$inferSelect;
+export type UserError = typeof userErrors.$inferSelect;
+export type MistakeConcept = typeof mistakeConcepts.$inferSelect;
 export type MistakePattern = typeof mistakePatterns.$inferSelect;
+export type MistakeEvidence = typeof mistakeEvidence.$inferSelect;
+export type ReviewAttempt = typeof reviewAttempts.$inferSelect;
 export type GenerationJob = typeof generationJobs.$inferSelect;
 export type GenerationMilestone = typeof generationMilestones.$inferSelect;
-export type GenerationThought = typeof generationThoughts.$inferSelect;

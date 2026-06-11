@@ -27,11 +27,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       stage: milestone.stage,
       createdAt: milestone.createdAt.toISOString(),
     })),
-    thoughts: progress.thoughts.map((thought) => ({
-      id: thought.id,
-      stage: thought.stage,
-      text: thought.text,
-      createdAt: thought.createdAt.toISOString(),
-    })),
   });
 }

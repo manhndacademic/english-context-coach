@@ -24,14 +24,15 @@ export function ExerciseCard({
   lessonFocus?: LessonFocus;
 }) {
   const latest = attempts[0];
-  const solved = Boolean(latest?.isCorrect);
-  const needsRetry = Boolean(latest && !latest.isCorrect);
+  const gradingFailed = latest?.gradingStatus === "failed";
+  const solved = latest?.isCorrect === true;
+  const needsRetry = Boolean(latest && latest.gradingStatus === "succeeded" && latest.isCorrect === false);
   const [answer, setAnswer] = useState(latest && !latest.isCorrect ? latest.answer : "");
-  const statusLabel = solved ? "Done" : needsRetry ? "Needs another try" : isCurrent ? "Up next" : "Not started";
+  const statusLabel = solved ? "Done" : gradingFailed ? "Check failed" : needsRetry ? "Needs another try" : isCurrent ? "Up next" : "Not started";
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
   const feedbackId = `exercise-${exercise.id}-feedback`;
-  const submitLabel = needsRetry ? "Try again" : solved ? "Practice again" : "Submit answer";
+  const submitLabel = gradingFailed ? "Retry checking" : needsRetry ? "Try again" : solved ? "Practice again" : "Submit answer";
   const choiceSet = useMemo(() => new Set([exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])].filter(Boolean)), [exercise]);
 
   return (
@@ -44,7 +45,11 @@ export function ExerciseCard({
             {statusLabel}
           </span>
         </div>
-        {latest ? <span className={latest.isCorrect ? "status-succeeded" : "status-failed"}>{latest.score}/100</span> : null}
+        {latest?.gradingStatus === "succeeded" ? (
+          <span className={latest.isCorrect ? "status-succeeded" : "status-failed"}>{latest.score}/100</span>
+        ) : gradingFailed ? (
+          <span className="status-failed">System retry needed</span>
+        ) : null}
       </div>
       {keyPhrase ? (
         <a className="exercise-phrase-link" href={`#keyphrase-${keyPhrase.id}`}>
@@ -103,9 +108,13 @@ export function ExerciseCard({
       </form>
       {latest ? (
         <div className={`exercise-feedback ${latest.isCorrect ? "exercise-feedback-correct" : "exercise-feedback-retry"}`} id={feedbackId}>
-          <strong>{latest.isCorrect ? "Good read" : "Hint for the next try"}</strong>
+          <strong>{latest.gradingStatus === "failed" ? "Checking failed" : latest.isCorrect ? "Good read" : "Hint for the next try"}</strong>
           <p>{latest.feedbackVi}</p>
-          {!latest.isCorrect ? <p className="hint">Your last answer: {latest.answer}</p> : null}
+          {latest.gradingStatus === "failed" ? (
+            <p className="hint">Your answer is saved. Retry checking without rewriting it.</p>
+          ) : !latest.isCorrect ? (
+            <p className="hint">Your last answer: {latest.answer}</p>
+          ) : null}
         </div>
       ) : null}
     </article>

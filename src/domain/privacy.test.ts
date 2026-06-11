@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { containsSourceIdentifyingContent, shouldScrubMistakePattern } from "./privacy";
+import { containsSourceIdentifyingContent, shouldRetainAfterSourceDeletion, shouldScrubMistakePattern } from "./privacy";
 
 describe("privacy scrubbing", () => {
   it("detects source-identifying content", () => {
@@ -24,5 +24,19 @@ describe("privacy scrubbing", () => {
         safeReviewPromptVi: "Ôn lại Alice Nguyen.",
       }),
     ).toBe(true);
+  });
+
+  it("retains patterns and concepts when other source evidence remains", () => {
+    expect(shouldRetainAfterSourceDeletion({
+      evidenceCountBeforeDeletion: 3,
+      evidenceCountFromDeletedSource: 1,
+    })).toEqual({ remainingEvidence: 2, retainPatternOrConcept: true });
+  });
+
+  it("removes patterns and concepts when the deleted source held the last evidence", () => {
+    expect(shouldRetainAfterSourceDeletion({
+      evidenceCountBeforeDeletion: 1,
+      evidenceCountFromDeletedSource: 1,
+    })).toEqual({ remainingEvidence: 0, retainPatternOrConcept: false });
   });
 });

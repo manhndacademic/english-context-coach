@@ -23,3 +23,14 @@ export function shouldScrubMistakePattern(input: {
     containsSourceIdentifyingContent(input.safeReviewPromptVi)
   );
 }
+
+export function shouldRetainAfterSourceDeletion(input: {
+  evidenceCountBeforeDeletion: number;
+  evidenceCountFromDeletedSource: number;
+}) {
+  const remainingEvidence = Math.max(0, input.evidenceCountBeforeDeletion - input.evidenceCountFromDeletedSource);
+  return {
+    remainingEvidence,
+    retainPatternOrConcept: remainingEvidence > 0,
+  };
+}

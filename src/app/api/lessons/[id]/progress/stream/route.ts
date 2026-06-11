@@ -6,27 +6,25 @@ const encoder = new TextEncoder();
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type ProgressSnapshot = NonNullable<Awaited<ReturnType<typeof getLessonProgress>>>;
 type ProgressMilestone = ProgressSnapshot["milestones"][number];
-type ProgressThought = ProgressSnapshot["thoughts"][number];
 
 function parseLastEventId(request: Request) {
   const value = request.headers.get("last-event-id");
-  if (!value) return { milestoneId: 0, thoughtId: 0 };
+  if (!value) return { milestoneId: 0 };
 
   const legacyMilestoneId = Number(value);
   if (Number.isInteger(legacyMilestoneId) && legacyMilestoneId > 0) {
-    return { milestoneId: legacyMilestoneId, thoughtId: 0 };
+    return { milestoneId: legacyMilestoneId };
   }
 
   const match = value.match(/^m:(\d+);t:(\d+)$/);
-  if (!match) return { milestoneId: 0, thoughtId: 0 };
+  if (!match) return { milestoneId: 0 };
   return {
     milestoneId: Number(match[1]),
-    thoughtId: Number(match[2]),
   };
 }
 
-function formatCursor(cursor: { milestoneId: number; thoughtId: number }) {
-  return `m:${cursor.milestoneId};t:${cursor.thoughtId}`;
+function formatCursor(cursor: { milestoneId: number }) {
+  return String(cursor.milestoneId);
 }
 
 function snapshotBody(snapshot: ProgressSnapshot) {
@@ -49,7 +47,7 @@ function snapshotBody(snapshot: ProgressSnapshot) {
 function writeMilestoneEvent(
   payload: ProgressMilestone,
   snapshot: ProgressSnapshot,
-  cursor: { milestoneId: number; thoughtId: number },
+  cursor: { milestoneId: number },
 ) {
   const body = {
     ...snapshotBody(snapshot),
@@ -64,24 +62,6 @@ function writeMilestoneEvent(
   return encoder.encode(`id: ${formatCursor(cursor)}\nevent: milestone\ndata: ${JSON.stringify(body)}\n\n`);
 }
 
-function writeThoughtEvent(
-  payload: ProgressThought,
-  snapshot: ProgressSnapshot,
-  cursor: { milestoneId: number; thoughtId: number },
-) {
-  const body = {
-    ...snapshotBody(snapshot),
-    thought: {
-      id: payload.id,
-      stage: payload.stage,
-      text: payload.text,
-      createdAt: payload.createdAt.toISOString(),
-    },
-  };
-
-  return encoder.encode(`id: ${formatCursor(cursor)}\nevent: thought\ndata: ${JSON.stringify(body)}\n\n`);
-}
-
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
@@ -91,7 +71,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     lessonId: id,
     userId: user.id,
     afterMilestoneId: cursor.milestoneId,
-    afterThoughtId: cursor.thoughtId,
   });
   if (!initial) {
     return new Response("Not found", { status: 404 });
@@ -104,7 +83,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           lessonId: id,
           userId: user.id,
           afterMilestoneId: cursor.milestoneId,
-          afterThoughtId: cursor.thoughtId,
         });
         if (!snapshot) {
           controller.close();
@@ -114,11 +92,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         for (const milestone of snapshot.milestones) {
           cursor.milestoneId = milestone.id;
           controller.enqueue(writeMilestoneEvent(milestone, snapshot, cursor));
-        }
-
-        for (const thought of snapshot.thoughts) {
-          cursor.thoughtId = thought.id;
-          controller.enqueue(writeThoughtEvent(thought, snapshot, cursor));
         }
 
         if (isTerminalLessonStatus(snapshot.lesson)) {

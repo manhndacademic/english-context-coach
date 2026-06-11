@@ -13,16 +13,12 @@ A generated learning version created from one SourceText. A SourceText may have 
 _Avoid_: Analysis, article lesson
 
 **GenerationProgress**:
-The learner-visible progress of turning a SourceText into a Lesson, including intermediate generation milestones before the Lesson is complete.
+The learner-visible progress of turning a SourceText into a Lesson, expressed as application-controlled milestones before the Lesson is complete.
 _Avoid_: Polling status, job status, loading state
 
 **GenerationMilestone**:
 A recorded learner-visible checkpoint reached while producing a Lesson.
 _Avoid_: Percentage, spinner message, internal log
-
-**GenerationThought**:
-A learner-visible summary of what the model is considering while producing a Lesson.
-_Avoid_: Raw chain-of-thought, hidden reasoning trace, debug log
 
 **KeyPhrase**:
 A distinct word, phrase, or term from the SourceText whose contextual sense is important for understanding it. A KeyPhrase should distinguish its reusable general meaning from its specific meaning in the SourceText.
@@ -48,16 +44,28 @@ _Avoid_: Response, submission
 A valid learner misunderstanding detected from an Attempt when the learner misses the Exercise's primary target. A UserError can come from missing a KeyPhrase or a LessonFocus, and has one primary misunderstanding type.
 _Avoid_: Mistake, failure
 
+**MistakeConcept**:
+An underlying recurring contextual misunderstanding learned from one or more UserErrors. MistakeConcepts drive review scheduling and mastery, while phrase-specific details remain evidence.
+_Avoid_: ReviewItem, MemoryItem, MistakePattern
+
 **MistakePattern**:
-A repeated learner weakness aggregated from UserErrors and scheduled for review. A MistakePattern represents the underlying misunderstanding concept, whether it came from KeyPhrase or LessonFocus practice, and has a MasteryState.
-_Avoid_: ReviewItem, MemoryItem
+A phrase-specific or focus-specific expression of a MistakeConcept, retained as evidence for why the concept exists.
+_Avoid_: MistakeConcept, ReviewItem, MemoryItem
+
+**MistakeEvidence**:
+A source-scoped link showing that a UserError from a Lesson contributed to a MistakePattern and MistakeConcept.
+_Avoid_: Heuristic ownership, source scan
 
 **MasteryState**:
-The learner-facing review state of a MistakePattern, such as due, active, or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
+The learner-facing review state of a MistakeConcept, such as new, learning, reviewing, mastered, or relearning. A mastered MistakeConcept is kept in history and can become relearning when new graded evidence shows the learner still has that weakness.
 _Avoid_: Status, schedule state
 
+**ReviewExercise**:
+A privacy-safe active-recall prompt generated from a MistakeConcept without replaying original SourceText sentences.
+_Avoid_: Self-check, source replay
+
 **ReviewAttempt**:
-A learner's app-graded answer to a privacy-safe review prompt for a MistakePattern. A ReviewAttempt updates review progress for old misunderstandings, not Lesson-grounded UserError evidence.
+A learner's app-graded answer to a ReviewExercise for a MistakeConcept. A ReviewAttempt updates mastery only after grading succeeds.
 _Avoid_: Attempt, self-check
 
 **User**:

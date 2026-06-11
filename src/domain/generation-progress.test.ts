@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   isDataAvailabilityMilestone,
-  generationThoughtMaxLength,
-  sanitizeGenerationThought,
   isTerminalLessonStatus,
   selectDisplayGenerationJob,
+  generationMilestoneCodes,
   type ProgressJobSummary,
 } from "./generation-progress";
 
@@ -27,9 +26,9 @@ describe("generation progress", () => {
 
   it("treats a lesson as terminal only when both generation stages are terminal", () => {
     expect(isTerminalLessonStatus({ analysisStatus: "succeeded", exerciseStatus: "running" })).toBe(false);
-    expect(isTerminalLessonStatus({ analysisStatus: "failed", exerciseStatus: "pending" })).toBe(false);
+    expect(isTerminalLessonStatus({ analysisStatus: "failed", exerciseStatus: "pending" })).toBe(true);
     expect(isTerminalLessonStatus({ analysisStatus: "succeeded", exerciseStatus: "succeeded" })).toBe(true);
-    expect(isTerminalLessonStatus({ analysisStatus: "failed", exerciseStatus: "failed" })).toBe(true);
+    expect(isTerminalLessonStatus({ analysisStatus: "succeeded", exerciseStatus: "failed" })).toBe(true);
   });
 
   it("selects the latest active job over completed or failed history", () => {
@@ -51,13 +50,11 @@ describe("generation progress", () => {
     expect(selected?.id).toBe("latest");
   });
 
-  it("sanitizes learner-visible generation thoughts before storage", () => {
-    expect(sanitizeGenerationThought("  Đang xem xét\nngữ cảnh chính.  ")).toBe("Đang xem xét ngữ cảnh chính.");
-    expect(sanitizeGenerationThought("")).toBeNull();
-    expect(sanitizeGenerationThought("Checking alice@example.com")).toBeNull();
-
-    const longThought = "a".repeat(generationThoughtMaxLength + 20);
-    expect(sanitizeGenerationThought(longThought)).toHaveLength(generationThoughtMaxLength);
-    expect(sanitizeGenerationThought(longThought)?.endsWith("...")).toBe(true);
+  it("models safe application-controlled progress milestones without thought events", () => {
+    expect(generationMilestoneCodes).toContain("text_type_started");
+    expect(generationMilestoneCodes).toContain("confusing_phrases_started");
+    expect(generationMilestoneCodes).toContain("context_analysis_started");
+    expect(generationMilestoneCodes).toContain("validating_lesson");
+    expect(generationMilestoneCodes).toContain("retrying");
   });
 });

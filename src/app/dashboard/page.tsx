@@ -25,20 +25,20 @@ export default async function DashboardPage() {
       .limit(6),
     db
       .select({ value: count() })
-      .from(schema.mistakePatterns)
-      .where(and(eq(schema.mistakePatterns.userId, user.id), lte(schema.mistakePatterns.dueAt, now))),
+      .from(schema.mistakeConcepts)
+      .where(and(eq(schema.mistakeConcepts.userId, user.id), lte(schema.mistakeConcepts.dueAt, now))),
     db
       .select({ value: count() })
-      .from(schema.mistakePatterns)
-      .where(eq(schema.mistakePatterns.userId, user.id)),
+      .from(schema.mistakeConcepts)
+      .where(eq(schema.mistakeConcepts.userId, user.id)),
     db.select({ value: count() }).from(schema.sourceTexts).where(eq(schema.sourceTexts.userId, user.id)),
   ]);
 
   const repeatedMistakes = await db
     .select()
-    .from(schema.mistakePatterns)
-    .where(eq(schema.mistakePatterns.userId, user.id))
-    .orderBy(desc(schema.mistakePatterns.occurrenceCount), sql`${schema.mistakePatterns.dueAt} asc`)
+    .from(schema.mistakeConcepts)
+    .where(eq(schema.mistakeConcepts.userId, user.id))
+    .orderBy(sql`${schema.mistakeConcepts.dueAt} asc`, desc(schema.mistakeConcepts.updatedAt))
     .limit(5);
 
   return (
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
               </div>
               <div className="metric">
                 <strong>{patternCount[0]?.value ?? 0}</strong>
-                <span className="muted">patterns</span>
+                <span className="muted">concepts</span>
               </div>
               <div className="metric">
                 <strong>{sourceCount[0]?.value ?? 0}</strong>
@@ -73,23 +73,23 @@ export default async function DashboardPage() {
               </div>
             </div>
             <Link className="primary-button" href="/review">
-              Review due patterns
+              Review due concepts
             </Link>
           </section>
 
           <section className="panel stack">
-            <h2>Repeated mistake highlights</h2>
+            <h2>Concept highlights</h2>
             <div className="list">
               {repeatedMistakes.length ? (
                 repeatedMistakes.map((pattern) => (
                   <div className="list-row" key={pattern.id}>
-                    <strong>{pattern.normalizedPhrase}</strong>
-                    <span className="muted">{pattern.meaningVi}</span>
+                    <strong>{pattern.titleVi}</strong>
+                    <span className="muted">{pattern.explanationVi}</span>
                     <span className="pill">{pattern.errorType.replaceAll("_", " ")}</span>
                   </div>
                 ))
               ) : (
-                <p className="muted">Mistake patterns will appear after practice attempts.</p>
+                <p className="muted">Mistake concepts will appear after practice attempts.</p>
               )}
             </div>
           </section>

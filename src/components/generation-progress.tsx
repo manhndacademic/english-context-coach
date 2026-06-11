@@ -22,13 +22,6 @@ type ProgressMilestone = {
   createdAt: string;
 };
 
-type ProgressThought = {
-  id: number;
-  stage: string | null;
-  text: string;
-  createdAt: string;
-};
-
 type ProgressJob = {
   id: string;
   status: "queued" | "running" | "succeeded" | "failed";
@@ -40,7 +33,6 @@ type ProgressSnapshot = {
   lesson: LessonStatus;
   job: ProgressJob;
   milestones: ProgressMilestone[];
-  thoughts: ProgressThought[];
 };
 
 type MilestoneStreamPayload = {
@@ -49,20 +41,20 @@ type MilestoneStreamPayload = {
   job: ProgressJob;
 };
 
-type ThoughtStreamPayload = {
-  thought: ProgressThought;
-  lesson: LessonStatus;
-  job: ProgressJob;
-};
-
 const milestoneLabels: Record<GenerationMilestoneCode, string> = {
   queued: "Queued",
   claimed: "Worker started",
-  analysis_started: "Analyzing source text",
-  analysis_saved: "Analysis ready",
-  exercises_started: "Generating Exercises",
+  analysis_started: "Starting lesson analysis",
+  text_type_started: "Identifying the text type",
+  confusing_phrases_started: "Finding potentially confusing phrases",
+  context_analysis_started: "Analyzing tone, structure and purpose",
+  saving_analysis: "Saving lesson analysis",
+  analysis_saved: "Lesson analysis saved",
+  exercises_started: "Generating exercises",
+  validating_lesson: "Validating lesson completeness",
   exercises_saved: "Exercises ready",
-  completed: "Generation complete",
+  retrying: "Retrying after a temporary provider issue",
+  completed: "Lesson ready",
   failed: "Generation failed",
 };
 
@@ -71,29 +63,21 @@ function mergeMilestone(existing: ProgressMilestone[], next: ProgressMilestone) 
   return [...existing, next].sort((a, b) => a.id - b.id);
 }
 
-function mergeThought(existing: ProgressThought[], next: ProgressThought) {
-  if (existing.some((thought) => thought.id === next.id)) return existing;
-  return [...existing, next].sort((a, b) => a.id - b.id);
-}
-
 export function GenerationProgress({
   lessonId,
   initialLesson,
   initialJob,
   initialMilestones,
-  initialThoughts,
 }: {
   lessonId: string;
   initialLesson: LessonStatus;
   initialJob: ProgressJob;
   initialMilestones: ProgressMilestone[];
-  initialThoughts: ProgressThought[];
 }) {
   const router = useRouter();
   const [lesson, setLesson] = useState(initialLesson);
   const [job, setJob] = useState(initialJob);
   const [milestones, setMilestones] = useState(initialMilestones);
-  const [thoughts, setThoughts] = useState(initialThoughts);
   const [usingFallback, setUsingFallback] = useState(false);
   const terminal = isTerminalLessonStatus(lesson);
   const active = !terminal;
@@ -102,8 +86,7 @@ export function GenerationProgress({
     setLesson(initialLesson);
     setJob(initialJob);
     setMilestones(initialMilestones);
-    setThoughts(initialThoughts);
-  }, [initialJob, initialLesson, initialMilestones, initialThoughts]);
+  }, [initialJob, initialLesson, initialMilestones]);
 
   useEffect(() => {
     if (!active || usingFallback) return;
@@ -118,16 +101,6 @@ export function GenerationProgress({
       if (isDataAvailabilityMilestone(payload.milestone.code)) {
         router.refresh();
       }
-
-      if (isTerminalLessonStatus(payload.lesson)) {
-        stream.close();
-      }
-    });
-    stream.addEventListener("thought", (event) => {
-      const payload = JSON.parse((event as MessageEvent).data) as ThoughtStreamPayload;
-      setLesson(payload.lesson);
-      setJob(payload.job);
-      setThoughts((current) => mergeThought(current, payload.thought));
 
       if (isTerminalLessonStatus(payload.lesson)) {
         stream.close();
@@ -152,7 +125,6 @@ export function GenerationProgress({
       setLesson(status.lesson);
       setJob(status.job);
       setMilestones(status.milestones);
-      setThoughts(status.thoughts);
       router.refresh();
 
       if (isTerminalLessonStatus(status.lesson)) {
@@ -171,11 +143,9 @@ export function GenerationProgress({
     return [];
   }, [lesson.analysisStatus, milestones]);
 
-  const recentThoughts = useMemo(() => thoughts.slice(-4).reverse(), [thoughts]);
-  const latestThought = recentThoughts[0];
   const successfullyCompleted = terminal && lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "succeeded";
 
-  if (successfullyCompleted && !thoughts.length) {
+  if (successfullyCompleted) {
     return (
       <div className="generation-progress">
         <div className="generation-progress-compact">
@@ -184,7 +154,6 @@ export function GenerationProgress({
           <span className="progress-divider" />
           <span>Exercises ready</span>
         </div>
-        <p className="hint">Model thinking was not captured for this generation.</p>
       </div>
     );
   }
@@ -209,30 +178,6 @@ export function GenerationProgress({
           );
         })}
       </ol>
-      {latestThought ? (
-        <div className="thought-panel">
-          <div className="thought-current">
-            <span className="thought-label">Thinking now</span>
-            <p>{latestThought.text}</p>
-          </div>
-          {recentThoughts.length > 1 ? (
-            <ol className="thought-list">
-              {recentThoughts.slice(1).map((thought) => (
-                <li key={thought.id}>{thought.text}</li>
-              ))}
-            </ol>
-          ) : null}
-        </div>
-      ) : active ? (
-        <div className="thought-panel">
-          <div className="thought-current">
-            <span className="thought-label">Thinking now</span>
-            <p className="muted">
-              Waiting for the model to publish a thought summary. Some configured models do not provide one.
-            </p>
-          </div>
-        </div>
-      ) : null}
       {usingFallback && active ? <p className="hint">Live stream unavailable. Checking progress periodically.</p> : null}
     </div>
   );
