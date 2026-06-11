@@ -5,11 +5,11 @@ English Context Coach helps Vietnamese learners understand English source materi
 ## Language
 
 **SourceText**:
-The original English material pasted by a learner.
+The original English material pasted by a learner. Use natural learner-facing copy such as "source text" or "English source text" instead of the PascalCase term in UI text.
 _Avoid_: Text, InputText, Article
 
 **Lesson**:
-A generated learning version created from one SourceText.
+A generated learning version created from one SourceText. A SourceText may have multiple Lesson versions, with the latest successful Lesson acting as the default learner surface. A complete Lesson includes SourceMeaning, distinct KeyPhrases when useful, one or more LessonFocuses, and enough Exercises to practice both phrase-level and whole-text understanding.
 _Avoid_: Analysis, article lesson
 
 **GenerationProgress**:
@@ -25,24 +25,40 @@ A learner-visible summary of what the model is considering while producing a Les
 _Avoid_: Raw chain-of-thought, hidden reasoning trace, debug log
 
 **KeyPhrase**:
-A word, phrase, or term whose contextual sense is important for understanding the SourceText.
+A distinct word, phrase, or term from the SourceText whose contextual sense is important for understanding it. A KeyPhrase should distinguish its reusable general meaning from its specific meaning in the SourceText.
 _Avoid_: Vocabulary item, word
 
+**LessonFocus**:
+A lesson-level concept that helps the learner understand the SourceText beyond individual KeyPhrases, such as tone, structure, purpose, or context. LessonFocuses can be primary Exercise targets when tone, structure, or purpose matters more than a single phrase.
+_Avoid_: Topic, theme, skill
+
+**SourceMeaning**:
+The learner-facing Vietnamese explanation of what the SourceText means as a whole, including its natural translation, summary, and context. SourceMeaning should not include a full literal translation by default.
+_Avoid_: Literal translation, raw translation
+
 **Exercise**:
-A practice prompt fixed to a specific Lesson.
+A practice prompt fixed to a specific Lesson. An Exercise may practice a KeyPhrase or a broader LessonFocus, and has a primary target for judging the learner's answer. A LessonFocus Exercise tests whole-text meaning, tone, structure, or purpose grounded in the SourceText.
 _Avoid_: Quiz question, task
 
 **Attempt**:
-A learner's submitted answer to an Exercise.
+A learner's submitted answer to an Exercise. An Attempt may be partially correct when it captures some meaning but misses the Exercise's primary target.
 _Avoid_: Response, submission
 
 **UserError**:
-A concrete misunderstanding detected from an Attempt.
+A valid learner misunderstanding detected from an Attempt when the learner misses the Exercise's primary target. A UserError can come from missing a KeyPhrase or a LessonFocus, and has one primary misunderstanding type.
 _Avoid_: Mistake, failure
 
 **MistakePattern**:
-A repeated learner weakness aggregated from UserErrors and scheduled for review.
+A repeated learner weakness aggregated from UserErrors and scheduled for review. A MistakePattern represents the underlying misunderstanding concept, whether it came from KeyPhrase or LessonFocus practice, and has a MasteryState.
 _Avoid_: ReviewItem, MemoryItem
+
+**MasteryState**:
+The learner-facing review state of a MistakePattern, such as due, active, or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
+_Avoid_: Status, schedule state
+
+**ReviewAttempt**:
+A learner's app-graded answer to a privacy-safe review prompt for a MistakePattern. A ReviewAttempt updates review progress for old misunderstandings, not Lesson-grounded UserError evidence.
+_Avoid_: Attempt, self-check
 
 **User**:
 The learner identity in the system.

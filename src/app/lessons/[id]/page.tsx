@@ -85,7 +85,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     .limit(1);
   if (!lesson) notFound();
 
-  const [sourceText, phrases, exercises, attempts, progress] = await Promise.all([
+  const [sourceText, phrases, lessonFocuses, exercises, attempts, progress] = await Promise.all([
     db
       .select()
       .from(schema.sourceTexts)
@@ -96,6 +96,11 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       .from(schema.keyPhrases)
       .where(eq(schema.keyPhrases.lessonId, lesson.id))
       .orderBy(asc(schema.keyPhrases.createdAt)),
+    db
+      .select()
+      .from(schema.lessonFocuses)
+      .where(eq(schema.lessonFocuses.lessonId, lesson.id))
+      .orderBy(asc(schema.lessonFocuses.createdAt)),
     db
       .select()
       .from(schema.exercises)
@@ -116,6 +121,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     attemptsByExercise.set(attempt.exerciseId, existing);
   }
   const phraseById = new Map(phrases.map((phrase) => [phrase.id, phrase]));
+  const focusById = new Map(lessonFocuses.map((focus) => [focus.id, focus]));
   const sourceContent = sourceText[0]?.content;
   const exerciseSummaries = exercises.map((exercise) => {
     const latestAttempt = attemptsByExercise.get(exercise.id)?.[0];
@@ -223,6 +229,23 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 <p>{lesson.naturalTranslationVi}</p>
                 <h2>Context explanation</h2>
                 <p>{lesson.contextExplanationVi}</p>
+                {lessonFocuses.length ? (
+                  <>
+                    <h2>What to notice</h2>
+                    <div className="list">
+                      {lessonFocuses.map((focus) => (
+                        <article className="list-row" id={`lessonfocus-${focus.id}`} key={focus.id}>
+                          <strong>{focus.title}</strong>
+                          <span className="muted">{focus.explanationVi}</span>
+                          <span className="cluster">
+                            <span className="pill">{formatLabel(focus.category)}</span>
+                            <span className="pill">{focus.difficulty}</span>
+                          </span>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </>
             ) : (
               <p className="muted">Analysis will appear here when it is ready.</p>
@@ -232,7 +255,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
           {sourceContent ? (
             <section className="panel stack">
               <div className="section-heading">
-                <h2>SourceText</h2>
+                <h2>Source text</h2>
                 <span className="hint">Highlighted phrases link to the list.</span>
               </div>
               <div className="source-reading-panel">{renderHighlightedSourceText(sourceContent, phrases)}</div>
@@ -274,7 +297,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                       ) : null}
                       {phrase.literalTranslationVi ? (
                         <div>
-                          <dt>Literal Vietnamese</dt>
+                          <dt>Literal trap</dt>
                           <dd>{phrase.literalTranslationVi}</dd>
                         </div>
                       ) : null}
@@ -334,6 +357,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                     exercise={exercise}
                     isCurrent={exercise.id === nextExerciseId}
                     key={exercise.id}
+                    lessonFocus={exercise.lessonFocusId ? focusById.get(exercise.lessonFocusId) : undefined}
                     keyPhrase={exercise.keyPhraseId ? phraseById.get(exercise.keyPhraseId) : undefined}
                   />
                 ))

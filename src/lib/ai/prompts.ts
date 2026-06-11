@@ -8,6 +8,14 @@ const analysisJsonShape = {
   summaryVi: "string",
   naturalTranslationVi: "string",
   contextExplanationVi: "string",
+  lessonFocuses: [
+    {
+      title: "short learner-facing focus title",
+      category: "tone | structure | purpose | context",
+      explanationVi: "Vietnamese explanation of what to notice in the whole source text",
+      difficulty: "A2 | B1 | B2 | C1",
+    },
+  ],
   keyPhrases: [
     {
       phrase: "string",
@@ -43,8 +51,15 @@ const exercisesJsonShape = {
     {
       type: "natural_translation",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt",
-      promptEn: "English sentence to translate",
+      promptVi: "Vietnamese prompt asking the learner to translate English into natural Vietnamese",
+      promptEn: "English sentence to translate into Vietnamese",
+      rubricVi: "Vietnamese grading rubric",
+    },
+    {
+      type: "focus_question",
+      focus: "lesson focus title",
+      promptVi: "Vietnamese open-ended prompt about whole-text meaning, tone, structure, or purpose",
+      promptEn: "optional English source sentence or excerpt",
       rubricVi: "Vietnamese grading rubric",
     },
   ],
@@ -70,9 +85,13 @@ export function analysisPrompt(sourceText: string) {
     "You are English Context Coach for Vietnamese learners.",
     "Analyze the English source text in context. Do not translate word by word.",
     "Return strict JSON only. No markdown.",
-    `Generate ${MIN_LESSON_ITEMS}-${MAX_LESSON_ITEMS} key phrases.`,
+    `Generate 1-${MAX_LESSON_ITEMS} distinct key phrases. Short source texts may have only 1-2 key phrases; do not add filler.`,
+    "Generate 1-3 lessonFocuses for whole-text tone, structure, purpose, or context.",
     "Choose key phrases that are useful as learner-facing list rows, including single words only when their contextual sense matters.",
     "Prefer key phrases that appear directly in the source text so the UI can highlight them.",
+    "Do not include duplicate or overlapping key phrases when they teach the same thing; keep the phrase that best matches the source text.",
+    "Keep meaningVi as reusable general meaning and meaningInContextVi as the specific meaning in this source text.",
+    "Do not include a full literal translation of the whole source text; only include literalTranslationVi for a key phrase when it is a real trap.",
     "Keep meaningInContextVi concise, and include whyConfusingVi only when there is a real learner trap.",
     "Use natural learner-friendly Vietnamese.",
     "For technical/workplace terms, keep English when that is natural in Vietnamese, then explain it.",
@@ -85,11 +104,15 @@ export function analysisPrompt(sourceText: string) {
 
 export function exercisesPrompt(analysis: AnalysisResult) {
   return [
-    "Create practice exercises for Vietnamese learners from these validated key phrases.",
+    "Create practice exercises for Vietnamese learners from these validated key phrases and lesson focuses.",
     "Return strict JSON only. No markdown.",
     `Generate ${MIN_LESSON_ITEMS}-${MAX_LESSON_ITEMS} exercises total.`,
-    "Allowed types: meaning_choice, cloze_phrase, natural_translation.",
-    "Natural translation exercises should judge contextual meaning, not literal word coverage.",
+    "Allowed types: meaning_choice, cloze_phrase, natural_translation, focus_question.",
+    "Include at least one focus_question that targets a lessonFocus.",
+    "Include at least one key-phrase exercise when keyPhrases are present.",
+    "Natural translation exercises must ask the learner to translate English into natural Vietnamese, never Vietnamese into English.",
+    "Natural translation and focus_question exercises should judge contextual meaning, not literal word coverage.",
+    "focus_question must be open-ended, grounded in the source text, and test whole-text tone, structure, purpose, or context.",
     "JSON shape:",
     JSON.stringify(exercisesJsonShape),
     "Validated analysis:",

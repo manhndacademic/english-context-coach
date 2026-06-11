@@ -8,6 +8,12 @@ import { nextDueDate } from "@/domain/review";
 import { requireUser } from "@/lib/auth/guards";
 import { gradeExercise } from "@/lib/grading";
 
+function categoryForLessonFocus(category: typeof schema.lessonFocusCategoryEnum.enumValues[number]) {
+  if (category === "structure") return "grammar_pattern" as const;
+  if (category === "tone") return "business_phrase" as const;
+  return "general_phrase" as const;
+}
+
 export async function submitAttemptAction(formData: FormData) {
   const user = await requireUser();
   const exerciseId = String(formData.get("exerciseId") ?? "");
@@ -42,10 +48,14 @@ export async function submitAttemptAction(formData: FormData) {
     const [keyPhrase] = exercise.keyPhraseId
       ? await db.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.id, exercise.keyPhraseId)).limit(1)
       : [];
-    const normalizedPhrase = keyPhrase?.normalizedPhrase ?? normalizePhrase(exercise.correctAnswer ?? exercise.promptEn ?? "");
-    const senseKey = keyPhrase?.senseKey ?? normalizedPhrase;
-    const category = keyPhrase?.category ?? "general_phrase";
-    const meaningVi = keyPhrase?.meaningVi ?? "Ôn lại nghĩa của cụm này trong ngữ cảnh.";
+    const [lessonFocus] = exercise.lessonFocusId
+      ? await db.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.id, exercise.lessonFocusId)).limit(1)
+      : [];
+    const fallbackTarget = exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi;
+    const normalizedPhrase = keyPhrase?.normalizedPhrase ?? normalizePhrase(lessonFocus?.title ?? fallbackTarget);
+    const senseKey = keyPhrase?.senseKey ?? normalizePhrase(`${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? fallbackTarget}`);
+    const category = keyPhrase?.category ?? (lessonFocus ? categoryForLessonFocus(lessonFocus.category) : "general_phrase");
+    const meaningVi = keyPhrase?.meaningVi ?? lessonFocus?.explanationVi ?? "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
     const explanationVi = grade.explanationVi ?? grade.feedbackVi;
 
     await db.transaction(async (tx) => {
@@ -54,6 +64,7 @@ export async function submitAttemptAction(formData: FormData) {
         attemptId: attempt.id,
         lessonId,
         keyPhraseId: keyPhrase?.id,
+        lessonFocusId: lessonFocus?.id,
         errorType: grade.errorType!,
         normalizedPhrase,
         senseKey,

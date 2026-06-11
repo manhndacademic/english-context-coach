@@ -20,6 +20,7 @@ export const categorySchema = z.enum([
   "business_phrase",
   "general_phrase",
 ]);
+export const lessonFocusCategorySchema = z.enum(["tone", "structure", "purpose", "context"]);
 
 export const errorTypeSchema = z.enum([
   "literal_translation",
@@ -44,6 +45,13 @@ export const keyPhraseSchema = z.object({
   difficulty: levelSchema,
 });
 
+export const lessonFocusSchema = z.object({
+  title: z.string().min(1).max(80),
+  category: lessonFocusCategorySchema,
+  explanationVi: z.string().min(1),
+  difficulty: levelSchema,
+});
+
 export const analysisSchema = z.object({
   title: z.string().min(1).max(80),
   textType: textTypeSchema,
@@ -51,7 +59,8 @@ export const analysisSchema = z.object({
   summaryVi: z.string().min(1),
   naturalTranslationVi: z.string().min(1),
   contextExplanationVi: z.string().min(1),
-  keyPhrases: z.array(keyPhraseSchema).min(3).max(7),
+  keyPhrases: z.array(keyPhraseSchema).min(1).max(7),
+  lessonFocuses: z.array(lessonFocusSchema).min(1).max(3),
 });
 
 export const exerciseSchema = z.discriminatedUnion("type", [
@@ -75,6 +84,13 @@ export const exerciseSchema = z.discriminatedUnion("type", [
     phrase: z.string().min(1),
     promptVi: z.string().min(1),
     promptEn: z.string().min(1),
+    rubricVi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("focus_question"),
+    focus: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().optional(),
     rubricVi: z.string().min(1),
   }),
 ]);

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, inArray, sql as drizzleSql } from "drizzle-o
 import { db, schema, sql as rawSql } from "@/db";
 import { PROMPT_VERSIONS, SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import { buildSenseKey, hashText, normalizePhrase, normalizeSourceText } from "@/domain/text";
+import { assertCompleteExercises, prepareAnalysisForSave } from "@/domain/lesson";
 import { containsSourceIdentifyingContent, shouldScrubMistakePattern } from "@/domain/privacy";
 import { analysisPrompt, exercisesPrompt } from "@/lib/ai/prompts";
 import { analysisSchema, exercisesSchema, type AnalysisResult } from "@/lib/ai/schemas";
@@ -16,7 +17,7 @@ export function validateSourceContent(content: string) {
   const normalized = normalizeSourceText(content);
   if (!normalized) return "Paste some English text first.";
   if (normalized.length > SOURCE_TEXT_MAX_LENGTH) {
-    return `SourceText must be ${SOURCE_TEXT_MAX_LENGTH.toLocaleString()} characters or less.`;
+    return `Source text must be ${SOURCE_TEXT_MAX_LENGTH.toLocaleString()} characters or less.`;
   }
   return null;
 }
@@ -115,7 +116,7 @@ export async function queueLessonRegeneration(input: {
       ),
     )
     .limit(1);
-  if (!sourceText) return { ok: false, error: "SourceText not found." };
+  if (!sourceText) return { ok: false, error: "Source text not found." };
 
   const [latest] = await db
     .select()
@@ -304,24 +305,37 @@ async function saveAnalysis(input: {
       })
       .where(eq(schema.lessons.id, input.lessonId));
 
-    await tx.insert(schema.keyPhrases).values(
-      input.analysis.keyPhrases.map((phrase) => ({
+    if (input.analysis.keyPhrases.length) {
+      await tx.insert(schema.keyPhrases).values(
+        input.analysis.keyPhrases.map((phrase) => ({
+          lessonId: input.lessonId,
+          userId: input.userId,
+          phrase: phrase.phrase,
+          normalizedPhrase: normalizePhrase(phrase.phrase),
+          senseKey: buildSenseKey(phrase.phrase, phrase.meaningVi, phrase.category),
+          meaningVi: phrase.meaningVi,
+          meaningInContextVi: phrase.meaningInContextVi,
+          literalTranslationVi: phrase.literalTranslationVi,
+          naturalTranslationVi: phrase.naturalTranslationVi,
+          whyConfusingVi: phrase.whyConfusingVi,
+          category: phrase.category,
+          difficulty: phrase.difficulty,
+          isSensitive:
+            containsSourceIdentifyingContent(phrase.phrase) ||
+            containsSourceIdentifyingContent(phrase.meaningVi) ||
+            containsSourceIdentifyingContent(phrase.meaningInContextVi),
+        })),
+      );
+    }
+
+    await tx.insert(schema.lessonFocuses).values(
+      input.analysis.lessonFocuses.map((focus) => ({
         lessonId: input.lessonId,
         userId: input.userId,
-        phrase: phrase.phrase,
-        normalizedPhrase: normalizePhrase(phrase.phrase),
-        senseKey: buildSenseKey(phrase.phrase, phrase.meaningVi, phrase.category),
-        meaningVi: phrase.meaningVi,
-        meaningInContextVi: phrase.meaningInContextVi,
-        literalTranslationVi: phrase.literalTranslationVi,
-        naturalTranslationVi: phrase.naturalTranslationVi,
-        whyConfusingVi: phrase.whyConfusingVi,
-        category: phrase.category,
-        difficulty: phrase.difficulty,
-        isSensitive:
-          containsSourceIdentifyingContent(phrase.phrase) ||
-          containsSourceIdentifyingContent(phrase.meaningVi) ||
-          containsSourceIdentifyingContent(phrase.meaningInContextVi),
+        title: focus.title,
+        category: focus.category,
+        explanationVi: focus.explanationVi,
+        difficulty: focus.difficulty,
       })),
     );
   });
@@ -337,6 +351,11 @@ async function buildAnalysisFromLesson(lessonId: string): Promise<AnalysisResult
     .from(schema.keyPhrases)
     .where(eq(schema.keyPhrases.lessonId, lessonId))
     .orderBy(asc(schema.keyPhrases.createdAt));
+  const lessonFocuses = await db
+    .select()
+    .from(schema.lessonFocuses)
+    .where(eq(schema.lessonFocuses.lessonId, lessonId))
+    .orderBy(asc(schema.lessonFocuses.createdAt));
 
   return {
     title: lesson.title,
@@ -355,6 +374,12 @@ async function buildAnalysisFromLesson(lessonId: string): Promise<AnalysisResult
       category: phrase.category,
       difficulty: phrase.difficulty,
     })),
+    lessonFocuses: lessonFocuses.map((focus) => ({
+      title: focus.title,
+      category: focus.category,
+      explanationVi: focus.explanationVi,
+      difficulty: focus.difficulty,
+    })),
   };
 }
 
@@ -365,17 +390,21 @@ async function saveExercises(input: {
   model: string;
 }) {
   const phrases = await db.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.lessonId, input.lessonId));
+  const lessonFocuses = await db.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.lessonId, input.lessonId));
   const phraseByNormalized = new Map(phrases.map((phrase) => [normalizePhrase(phrase.phrase), phrase]));
+  const focusByNormalized = new Map(lessonFocuses.map((focus) => [normalizePhrase(focus.title), focus]));
 
   await db.transaction(async (tx) => {
     await tx.delete(schema.exercises).where(eq(schema.exercises.lessonId, input.lessonId));
     await tx.insert(schema.exercises).values(
       input.result.exercises.map((exercise, index) => {
-        const keyPhrase = phraseByNormalized.get(normalizePhrase(exercise.phrase));
+        const keyPhrase = "phrase" in exercise ? phraseByNormalized.get(normalizePhrase(exercise.phrase)) : undefined;
+        const lessonFocus = "focus" in exercise ? focusByNormalized.get(normalizePhrase(exercise.focus)) : undefined;
         return {
           lessonId: input.lessonId,
           userId: input.userId,
           keyPhraseId: keyPhrase?.id,
+          lessonFocusId: lessonFocus?.id,
           type: exercise.type,
           promptVi: exercise.promptVi,
           promptEn: "promptEn" in exercise ? exercise.promptEn : undefined,
@@ -407,7 +436,7 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
       .from(schema.sourceTexts)
       .where(eq(schema.sourceTexts.id, job.sourceTextId))
       .limit(1);
-    if (!sourceText || sourceText.deletedAt) throw new Error("SourceText is unavailable.");
+    if (!sourceText || sourceText.deletedAt) throw new Error("Source text is unavailable.");
 
     if (job.stage === "analysis") {
       await db.update(schema.lessons).set({ analysisStatus: "running" }).where(eq(schema.lessons.id, job.lessonId));
@@ -434,10 +463,11 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
             text,
           }).then(() => undefined),
       });
+      const analysis = prepareAnalysisForSave(result, sourceText.content);
       await saveAnalysis({
         lessonId: job.lessonId,
         userId: job.userId,
-        analysis: result,
+        analysis,
         model: process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-pro-preview",
       });
       await recordGenerationMilestone({
@@ -458,23 +488,35 @@ export async function processGenerationJob(job: typeof schema.generationJobs.$in
       stage: "exercises",
     });
     const analysis = await buildAnalysisFromLesson(job.lessonId);
-    const exercises = await generateJson({
-      userId: job.userId,
-      lessonId: job.lessonId,
-      purpose: "exercise_generation",
-      prompt: exercisesPrompt(analysis),
-      promptVersion: PROMPT_VERSIONS.exercises,
-      schemaVersion: "exercises",
-      schema: exercisesSchema,
-      modelKind: "fast",
-      onThought: (text) =>
-        recordGenerationThought({
-          lessonId: job.lessonId,
-          generationJobId: job.id,
-          stage: "exercises",
-          text,
-        }).then(() => undefined),
-    });
+    let exercises: Awaited<ReturnType<typeof exercisesSchema.parse>> | null = null;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const candidate = await generateJson({
+        userId: job.userId,
+        lessonId: job.lessonId,
+        purpose: "exercise_generation",
+        prompt: exercisesPrompt(analysis),
+        promptVersion: PROMPT_VERSIONS.exercises,
+        schemaVersion: "exercises",
+        schema: exercisesSchema,
+        modelKind: "fast",
+        onThought: (text) =>
+          recordGenerationThought({
+            lessonId: job.lessonId,
+            generationJobId: job.id,
+            stage: "exercises",
+            text,
+          }).then(() => undefined),
+      });
+
+      try {
+        assertCompleteExercises(candidate, analysis);
+        exercises = candidate;
+        break;
+      } catch (error) {
+        if (attempt === 2) throw error;
+      }
+    }
+    if (!exercises) throw new Error("Exercise generation did not return a complete Lesson.");
     await saveExercises({
       lessonId: job.lessonId,
       userId: job.userId,
@@ -552,6 +594,9 @@ function isTransientGenerationError(error: unknown) {
   return (
     message.includes("ECONNRESET") ||
     message.includes("socket connection was closed") ||
+    message.includes("\"code\":429") ||
+    message.includes("Too Many Requests") ||
+    message.includes("RESOURCE_EXHAUSTED") ||
     message.includes("\"code\":503") ||
     message.includes("UNAVAILABLE") ||
     message.includes("high demand")

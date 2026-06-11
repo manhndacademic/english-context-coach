@@ -157,37 +157,44 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
   const startedAt = Date.now();
 
   try {
-    const raw = await callGemini(options.prompt, model, options.onThought);
-    const parsedJson = coerceJsonForSchema(JSON.parse(extractJson(raw)), options.schemaVersion);
-    const parsed = options.schema.safeParse(parsedJson);
-    if (parsed.success) {
-      await recordAiRequest({
-        ...options,
-        model,
-        schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
-        payloadHash,
-        status: "succeeded",
-        latencyMs: Date.now() - startedAt,
-      });
-      return parsed.data;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const raw = await callGemini(options.prompt, model, options.onThought);
+      const parsedJson = coerceJsonForSchema(JSON.parse(extractJson(raw)), options.schemaVersion);
+      const parsed = options.schema.safeParse(parsedJson);
+      if (parsed.success) {
+        await recordAiRequest({
+          ...options,
+          model,
+          schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
+          payloadHash,
+          status: "succeeded",
+          latencyMs: Date.now() - startedAt,
+        });
+        return parsed.data;
+      }
+
+      const repaired = await callGemini(repairPrompt(raw, options.schemaVersion), model);
+      const repairedJson = coerceJsonForSchema(JSON.parse(extractJson(repaired)), options.schemaVersion);
+      const repairedParsed = options.schema.safeParse(repairedJson);
+      if (repairedParsed.success) {
+        await recordAiRequest({
+          ...options,
+          purpose: "repair",
+          model,
+          schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
+          payloadHash,
+          status: "succeeded",
+          latencyMs: Date.now() - startedAt,
+        });
+        return repairedParsed.data;
+      }
+
+      if (attempt === 2) {
+        throw new AiError("AI returned JSON that did not match the expected schema after repair.", "invalid_json_schema");
+      }
     }
 
-    const repaired = await callGemini(repairPrompt(raw, options.schemaVersion), model);
-    const repairedJson = coerceJsonForSchema(JSON.parse(extractJson(repaired)), options.schemaVersion);
-    const repairedParsed = options.schema.safeParse(repairedJson);
-    if (!repairedParsed.success) {
-      throw new AiError("AI returned JSON that did not match the expected schema after repair.", "invalid_json_schema");
-    }
-    await recordAiRequest({
-      ...options,
-      purpose: "repair",
-      model,
-      schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
-      payloadHash,
-      status: "succeeded",
-      latencyMs: Date.now() - startedAt,
-    });
-    return repairedParsed.data;
+    throw new AiError("AI returned JSON that did not match the expected schema after retry.", "invalid_json_schema");
   } catch (error) {
     await recordAiRequest({
       ...options,

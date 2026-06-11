@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertCircle, CheckCircle2, Loader2, SendHorizontal, Target } from "lucide-react";
 import { submitAttemptAction } from "@/app/actions/attempts";
-import type { Attempt, Exercise, KeyPhrase } from "@/db/schema";
+import type { Attempt, Exercise, KeyPhrase, LessonFocus } from "@/db/schema";
 
 function formatLabel(value: string) {
   return value.replaceAll("_", " ");
@@ -15,11 +15,13 @@ export function ExerciseCard({
   exercise,
   isCurrent = false,
   keyPhrase,
+  lessonFocus,
 }: {
   attempts: Attempt[];
   exercise: Exercise;
   isCurrent?: boolean;
   keyPhrase?: KeyPhrase;
+  lessonFocus?: LessonFocus;
 }) {
   const latest = attempts[0];
   const solved = Boolean(latest?.isCorrect);
@@ -50,6 +52,14 @@ export function ExerciseCard({
           <strong>{keyPhrase.phrase}</strong>
           <span className="pill">{formatLabel(keyPhrase.category)}</span>
           <span className="pill">{keyPhrase.difficulty}</span>
+        </a>
+      ) : null}
+      {lessonFocus ? (
+        <a className="exercise-phrase-link" href={`#lessonfocus-${lessonFocus.id}`}>
+          <span>Practices</span>
+          <strong>{lessonFocus.title}</strong>
+          <span className="pill">{formatLabel(lessonFocus.category)}</span>
+          <span className="pill">{lessonFocus.difficulty}</span>
         </a>
       ) : null}
       <h3 id={promptId}>{exercise.promptVi}</h3>

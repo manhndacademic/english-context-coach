@@ -36,10 +36,18 @@ export const phraseCategoryEnum = pgEnum("phrase_category", [
   "general_phrase",
 ]);
 
+export const lessonFocusCategoryEnum = pgEnum("lesson_focus_category", [
+  "tone",
+  "structure",
+  "purpose",
+  "context",
+]);
+
 export const exerciseTypeEnum = pgEnum("exercise_type", [
   "meaning_choice",
   "cloze_phrase",
   "natural_translation",
+  "focus_question",
 ]);
 
 export const errorTypeEnum = pgEnum("error_type", [
@@ -220,6 +228,27 @@ export const keyPhrases = pgTable(
   }),
 );
 
+export const lessonFocuses = pgTable(
+  "lesson_focuses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    category: lessonFocusCategoryEnum("category").notNull(),
+    explanationVi: text("explanation_vi").notNull(),
+    difficulty: levelEnum("difficulty").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    lessonIdx: index("lesson_focuses_lesson_idx").on(table.lessonId),
+  }),
+);
+
 export const exercises = pgTable(
   "exercises",
   {
@@ -228,6 +257,7 @@ export const exercises = pgTable(
       .notNull()
       .references(() => lessons.id, { onDelete: "cascade" }),
     keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -282,6 +312,7 @@ export const userErrors = pgTable(
     attemptId: uuid("attempt_id").references(() => attempts.id, { onDelete: "set null" }),
     lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
     keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
     errorType: errorTypeEnum("error_type").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
@@ -426,6 +457,7 @@ export const aiRequests = pgTable(
 export type SourceText = typeof sourceTexts.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type KeyPhrase = typeof keyPhrases.$inferSelect;
+export type LessonFocus = typeof lessonFocuses.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type Attempt = typeof attempts.$inferSelect;
 export type MistakePattern = typeof mistakePatterns.$inferSelect;

@@ -58,7 +58,7 @@ type ThoughtStreamPayload = {
 const milestoneLabels: Record<GenerationMilestoneCode, string> = {
   queued: "Queued",
   claimed: "Worker started",
-  analysis_started: "Analyzing SourceText",
+  analysis_started: "Analyzing source text",
   analysis_saved: "Analysis ready",
   exercises_started: "Generating Exercises",
   exercises_saved: "Exercises ready",

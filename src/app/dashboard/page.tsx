@@ -111,7 +111,7 @@ export default async function DashboardPage() {
               </Link>
             ))
           ) : (
-            <p className="muted">No lessons yet. Paste a SourceText to start.</p>
+            <p className="muted">No lessons yet. Paste an English source text to start.</p>
           )}
         </div>
       </section>

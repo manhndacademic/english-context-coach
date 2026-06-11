@@ -18,7 +18,7 @@ function normalizeAnswer(value: string) {
 }
 
 export function gradeObjectiveExercise(exercise: Exercise, answer: string): RuleGrade | null {
-  if (exercise.type === "natural_translation") return null;
+  if (exercise.type === "natural_translation" || exercise.type === "focus_question") return null;
 
   const normalizedAnswer = normalizeAnswer(answer);
   const expected = [exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])]
