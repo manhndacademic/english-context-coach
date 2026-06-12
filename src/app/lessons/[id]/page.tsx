@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { AlertCircle, Terminal, HelpCircle } from "lucide-react";
 import type { KeyPhrase } from "@/domain/lesson";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
-import { ExerciseCard } from "@/components/exercise-card";
-import { GenerationProgress } from "@/components/generation-progress";
+import { ExerciseStepper } from "@/components/exercise-stepper";
+import { GenerationProgress, type StageStatus } from "@/components/generation-progress";
 import { KeyPhraseList } from "@/components/key-phrase-list";
 import {
   deleteSourceTextAction,
@@ -63,7 +65,11 @@ function renderHighlightedText(source: string, phrases: KeyPhrase[]) {
   for (const range of ranges) {
     if (range.start > cursor) nodes.push(source.slice(cursor, range.start));
     nodes.push(
-      <a className="source-highlight" href={`#keyphrase-${range.phraseId}`} key={`${range.phraseId}-${range.start}`}>
+      <a 
+        className="rounded-[4px] bg-accent-light border-b-2 border-accent text-accent-strong p-[1px_4px] font-bold no-underline transition-all duration-150 [box-decoration-break:clone] [-webkit-box-decoration-break:clone] hover:bg-accent hover:text-white" 
+        href={`#keyphrase-${range.phraseId}`} 
+        key={`${range.phraseId}-${range.start}`}
+      >
         {source.slice(range.start, range.end)}
       </a>,
     );
@@ -214,12 +220,6 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     progress,
   } = lessonData;
 
-  const userErrorsByAttemptId = new Map(
-    userErrors
-      .filter((err) => err.attemptId !== null)
-      .map((err) => [err.attemptId!, err])
-  );
-
   const attemptsByExercise = new Map<string, typeof attempts>();
   for (const attempt of attempts) {
     const existing = attemptsByExercise.get(attempt.exerciseId) ?? [];
@@ -229,50 +229,94 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const phraseById = new Map(phrases.map((phrase) => [phrase.id, phrase]));
   const focusById = new Map(lessonFocuses.map((focus) => [focus.id, focus]));
   const sourceContent = sourceText?.content;
-  const exerciseSummaries = exercises.map((exercise) => {
+
+  const stepperItems = exercises.map((exercise) => {
     const latestAttempt = attemptsByExercise.get(exercise.id)?.[0];
     return {
       exercise,
-      latestAttempt,
+      attempts: attemptsByExercise.get(exercise.id) ?? [],
       isSolved: Boolean(latestAttempt?.isCorrect),
       needsRetry: Boolean(latestAttempt && !latestAttempt.isCorrect),
+      keyPhrase: exercise.keyPhraseId ? phraseById.get(exercise.keyPhraseId) : undefined,
+      lessonFocus: exercise.lessonFocusId ? focusById.get(exercise.lessonFocusId) : undefined,
     };
   });
-  const solvedCount = exerciseSummaries.filter((summary) => summary.isSolved).length;
-  const retryCount = exerciseSummaries.filter((summary) => summary.needsRetry).length;
-  const notStartedCount = exerciseSummaries.filter((summary) => !summary.latestAttempt).length;
-  const nextExerciseId = exerciseSummaries.find((summary) => !summary.isSolved)?.exercise.id;
+  const serializedUserErrors: Record<string, any> = {};
+  for (const err of userErrors) {
+    if (err.attemptId) {
+      serializedUserErrors[err.attemptId] = err;
+    }
+  }
+
+  const isNotEnglishOrUnsupported = lesson.inputMode === "not_english" || lesson.inputMode === "unsupported";
+  const isDeveloperError = lesson.inputMode === "developer_error_explanation";
+  const isGrammarCorrection = lesson.inputMode === "fix_and_understand" || lesson.inputMode === "naturalize_english";
+
+  if (isNotEnglishOrUnsupported) {
+    return (
+      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
+        <AppHeader email={user.email} />
+        <section className="border-l-4 border-warning bg-warning-light p-6 rounded-lg grid gap-5 border border-y-border border-r-border shadow-md">
+          <div className="flex flex-wrap items-center gap-2 text-warning font-bold text-lg">
+            <AlertCircle size={22} />
+            <span>Phân tích không khả dụng: {lesson.inputMode === "not_english" ? "Văn bản không phải tiếng Anh" : "Văn bản không được hỗ trợ"}</span>
+          </div>
+          <p className="mt-3 text-base leading-relaxed text-text">
+            {lesson.summaryVi || "Hệ thống chỉ hỗ trợ phân tích các đoạn văn bản tiếng Anh phục vụ cho học tập hoặc công việc."}
+          </p>
+          <div className="mt-6">
+            <Link 
+              href="/dashboard" 
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] h-10"
+            >
+              Quay lại bảng điều khiển
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const hasSideColumn = phrases.length > 0 || exercises.length > 0 || lesson.exerciseStatus === "running";
 
   return (
-    <main className="app-shell">
+    <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
       <AppHeader email={user.email} />
 
-      <section className="panel">
-        <div className="lesson-header">
-          <div className="cluster">
-            <span className="pill">Phiên bản {lesson.version}</span>
-            <span className={`status-${lesson.analysisStatus}`}>
+      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md">
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold leading-none">
+              Phiên bản {lesson.version}
+            </span>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold border leading-none status-${lesson.analysisStatus}`}>
               Phân tích: {lesson.analysisStatus === "succeeded" ? "Hoàn thành" : lesson.analysisStatus === "running" ? "Đang chạy" : lesson.analysisStatus === "failed" ? "Thất bại" : "Đang chờ"}
             </span>
-            <span className={`status-${lesson.exerciseStatus}`}>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold border leading-none status-${lesson.exerciseStatus}`}>
               Bài tập: {lesson.exerciseStatus === "succeeded" ? "Hoàn thành" : lesson.exerciseStatus === "running" ? "Đang chạy" : lesson.exerciseStatus === "failed" ? "Thất bại" : "Đang chờ"}
             </span>
           </div>
-          <h1 style={{ marginTop: "12px", marginBottom: "8px" }}>{lesson.title || "Bài học không tên"}</h1>
-          <p className="muted" style={{ fontSize: "14px" }}>
+          <h1 className="text-2xl md:text-3xl font-bold font-serif mt-3 mb-2 text-text">{lesson.title || "Bài học không tên"}</h1>
+          <p className="text-muted text-sm m-0">
             Thể loại: {lesson.textType?.replaceAll("_", " ") ?? "general"} · Trình độ: {lesson.detectedLevel ?? "Đang xác định"}
           </p>
-          <div className="cluster" style={{ marginTop: "16px" }}>
+          <div className="flex flex-wrap items-center gap-3 mt-4">
             <form action={regenerateLessonAction}>
               <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
-              <button className="secondary-button" type="submit">
+              <button 
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer" 
+                type="submit"
+              >
                 Tạo bản mới (Regenerate)
               </button>
             </form>
             {lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "failed" ? (
               <form action={retryExercisesAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
-                <button className="secondary-button" type="submit">
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer" 
+                  type="submit"
+                >
                   Thử lại tạo bài tập
                 </button>
               </form>
@@ -280,14 +324,20 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
             {lesson.analysisStatus === "failed" ? (
               <form action={retryLessonGenerationAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
-                <button className="secondary-button" type="submit">
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer" 
+                  type="submit"
+                >
                   Thử lại phân tích
                 </button>
               </form>
             ) : null}
             <form action={deleteSourceTextAction}>
               <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
-              <button className="danger-button" type="submit">
+              <button 
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 font-semibold text-sm transition-all shadow-sm bg-danger text-white hover:opacity-90 hover:-translate-y-px h-[38px] cursor-pointer" 
+                type="submit"
+              >
                 Xoá nguồn
               </button>
             </form>
@@ -304,8 +354,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 : null
             }
             initialLesson={{
-              analysisStatus: lesson.analysisStatus,
-              exerciseStatus: lesson.exerciseStatus,
+              analysisStatus: lesson.analysisStatus as StageStatus,
+              exerciseStatus: lesson.exerciseStatus as StageStatus,
             }}
             initialMilestones={
               progress?.milestones.map((milestone) => ({
@@ -328,146 +378,236 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
-      <div className="lesson-workspace">
-        <div className="lesson-main-column">
-          {sourceContent ? (
-            <section className="panel stack">
-              <div className="section-heading">
-                <h2>Văn bản gốc (Source)</h2>
-                <span className="hint">Nhấp vào từ/cụm từ tô màu để xem giải nghĩa bên phải.</span>
-              </div>
-              <div className="source-reading-panel" style={{ fontFamily: "var(--font-serif)", fontSize: "17px", lineHeight: "1.7" }}>
-                {renderReadableSourceText(sourceContent, phrases)}
-              </div>
-            </section>
-          ) : null}
-
-          <section className="panel stack">
-            {lesson.summaryVi ? (
-              <>
-                <h2>Tóm tắt nội dung</h2>
-                <p style={{ lineHeight: "1.6" }}>{renderRichText(lesson.summaryVi)}</p>
-                <h2>Bản dịch tự nhiên</h2>
-                <p style={{ fontFamily: "var(--font-serif)", fontSize: "16px", fontStyle: "italic", lineHeight: "1.6", background: "var(--surface-strong)", padding: "16px", borderRadius: "var(--radius-md)" }}>
-                  {renderRichText(lesson.naturalTranslationVi)}
-                </p>
-                <h2>Giải thích ngữ cảnh</h2>
-                <p style={{ lineHeight: "1.6" }}>{renderRichText(lesson.contextExplanationVi)}</p>
-                {lessonFocuses.length ? (
-                  <>
-                    <h2>Lưu ý quan trọng</h2>
-                    <div className="list">
-                      {lessonFocuses.map((focus) => (
-                        <article className="list-row" id={`lessonfocus-${focus.id}`} key={focus.id}>
-                          <strong style={{ fontSize: "16px" }}>{focus.title}</strong>
-                          <span className="muted" style={{ fontSize: "14px", lineHeight: "1.5" }}>{renderRichText(focus.explanationVi)}</span>
-                          <span className="cluster">
-                            <span className="pill">{formatLabel(focus.category)}</span>
-                            <span className="pill">{focus.difficulty}</span>
-                          </span>
-                        </article>
-                      ))}
+      <div className={`grid grid-cols-1 ${hasSideColumn ? "min-[860px]:grid-cols-[1fr_0.72fr]" : ""} gap-4 items-start`}>
+        <div className="grid gap-4">
+          {isDeveloperError ? (
+            <>
+              {sourceContent ? (
+                <section className="bg-[#0f172a] text-[#f8fafc] border border-[#1e293b] rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                  <div className="flex flex-col min-[860px]:flex-row min-[860px]:items-baseline border-b border-[#1e293b] pb-3 gap-3">
+                    <div className="flex flex-wrap items-center gap-2 text-[#38bdf8]">
+                      <Terminal size={18} />
+                      <h2 className="text-[#f8fafc] text-lg font-mono m-0">Stack Trace / Error Code</h2>
                     </div>
-                  </>
-                ) : null}
-              </>
-            ) : (
-              <p className="muted">Bài học đang được phân tích, vui lòng đợi giây lát...</p>
-            )}
-          </section>
-
-          {sentenceBreakdowns.length ? (
-            <section className="panel stack">
-              <h2>Phân tích cấu trúc câu</h2>
-              <div className="sentence-breakdown-list">
-                {sentenceBreakdowns.map((breakdown) => (
-                  <article className="sentence-breakdown-row" key={breakdown.id} style={{ borderRadius: "var(--radius-md)" }}>
-                    <p className="sentence-source" style={{ fontFamily: "var(--font-serif)", fontSize: "16px", color: "var(--accent-strong)" }}>{breakdown.sentence}</p>
-                    <dl>
-                      <div>
-                        <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Dịch tự nhiên</dt>
-                        <dd style={{ fontSize: "15px", fontWeight: "600" }}>{renderRichText(breakdown.naturalMeaningVi)}</dd>
-                      </div>
-                      <div>
-                        <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Phân tích cấu trúc</dt>
-                        <dd style={{ fontSize: "14px", color: "var(--muted)" }}>{renderRichText(breakdown.structureNotesVi)}</dd>
-                      </div>
-                      {breakdown.toneOrContextVi ? (
-                        <div>
-                          <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Sắc thái & Ngữ cảnh</dt>
-                          <dd style={{ fontSize: "14px", color: "var(--muted)" }}>{renderRichText(breakdown.toneOrContextVi)}</dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
-        </div>
-
-        <div className="lesson-side-column">
-          <section className="panel stack">
-            <h2>Cụm từ then chốt</h2>
-            <KeyPhraseList phrases={phrases} />
-          </section>
-
-          <section className="panel stack">
-            <div className="practice-header">
-              <div>
-                <h2>Luyện tập thực hành</h2>
-                {exercises.length ? (
-                  <p className="hint">Tập trung dịch sát nghĩa tự nhiên theo ngữ cảnh, tránh bẫy dịch từng từ.</p>
-                ) : null}
-              </div>
-              {exercises.length ? (
-                <div className="practice-score" aria-label={`${solvedCount} trên ${exercises.length} bài tập đã hoàn thành`}>
-                  <strong>
-                    {solvedCount}/{exercises.length}
-                  </strong>
-                  <span>đã xong</span>
-                </div>
+                  </div>
+                  <pre className="m-0 p-4 bg-[#020617] border border-[#1e293b] rounded-md overflow-auto font-mono text-sm leading-relaxed text-[#f1f5f9]">
+                    <code>{sourceContent}</code>
+                  </pre>
+                </section>
               ) : null}
-            </div>
-            {exercises.length ? (
-              <div className="practice-status-grid">
-                <div>
-                  <strong>{notStartedCount}</strong>
-                  <span>chưa làm</span>
-                </div>
-                <div>
-                  <strong>{retryCount}</strong>
-                  <span>cần thử lại</span>
-                </div>
-                <div>
-                  <strong>{solvedCount}</strong>
-                  <span>hoàn thành</span>
-                </div>
-              </div>
-            ) : null}
-            <div className="exercise-grid">
-              {exercises.length ? (
-                exercises.map((exercise) => (
-                  <ExerciseCard
-                    attempts={attemptsByExercise.get(exercise.id) ?? []}
-                    exercise={exercise}
-                    isCurrent={exercise.id === nextExerciseId}
-                    key={exercise.id}
-                    lessonFocus={exercise.lessonFocusId ? focusById.get(exercise.lessonFocusId) : undefined}
-                    keyPhrase={exercise.keyPhraseId ? phraseById.get(exercise.keyPhraseId) : undefined}
-                    userErrorsByAttemptId={userErrorsByAttemptId}
-                  />
-                ))
-              ) : (
-                <p className="muted">
-                  {lesson.exerciseStatus === "failed"
-                    ? "Tạo bài tập thất bại. Hãy chọn thử lại sau khi phân tích hoàn tất."
-                    : "Bài tập thực hành đang được tạo tự động..."}
-                </p>
-              )}
-            </div>
-          </section>
+
+              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                {lesson.summaryVi ? (
+                  <div className="grid gap-6">
+                    <div>
+                      <h3 className="text-[17px] text-danger border-l-4 border-danger pl-2.5 mb-2 font-bold">
+                        Ý nghĩa lỗi (Error Meaning)
+                      </h3>
+                      <div className="text-[15px] leading-relaxed text-text">{renderRichText(lesson.summaryVi)}</div>
+                    </div>
+                    
+                    {lesson.naturalTranslationVi && lesson.naturalTranslationVi !== "none" ? (
+                      <div>
+                        <h3 className="text-[17px] text-muted border-l-4 border-muted pl-2.5 mb-2 font-bold">
+                          Chi tiết dịch nghĩa (Translation)
+                        </h3>
+                        <div className="text-[15px] leading-relaxed text-text">{renderRichText(lesson.naturalTranslationVi)}</div>
+                      </div>
+                    ) : null}
+
+                    <div>
+                      <h3 className="text-[17px] text-warning border-l-4 border-warning pl-2.5 mb-2 font-bold">
+                        Nguyên nhân & Cách sửa (Causes & Resolution)
+                      </h3>
+                      <div className="text-[15px] leading-relaxed text-text">{renderRichText(lesson.contextExplanationVi)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted text-sm leading-relaxed m-0">Đang phân tích lỗi lập trình...</p>
+                )}
+              </section>
+            </>
+          ) : isGrammarCorrection ? (
+            <>
+              {sentenceBreakdowns.length ? (
+                <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                  <h2 className="text-2xl font-bold text-text m-0">So sánh sửa lỗi (Grammar & Style Corrections)</h2>
+                  <p className="text-xs text-muted leading-relaxed m-0 -mt-2">So sánh trực quan giữa văn bản gốc của bạn và đề xuất chỉnh sửa tự nhiên hơn.</p>
+                  
+                  <div className="grid gap-5">
+                    {sentenceBreakdowns.map((breakdown) => (
+                      <div key={breakdown.id} className="border border-border rounded-md overflow-hidden bg-surface">
+                        <div className="grid grid-cols-1 min-[580px]:grid-cols-2 border-b border-border bg-surface-strong">
+                          <div className="p-4 border-r border-border bg-danger-light text-danger">
+                            <div className="text-[11px] font-bold uppercase mb-2">Bản gốc (Original)</div>
+                            <p className="m-0 line-through font-serif text-base leading-relaxed">
+                              {breakdown.sentence}
+                            </p>
+                          </div>
+
+                          <div className="p-4 bg-success-light text-success">
+                            <div className="text-[11px] font-bold uppercase mb-2">Bản sửa đổi (Corrected)</div>
+                            <p className="m-0 font-serif text-base font-bold leading-relaxed">
+                              {breakdown.correctedSentenceEn || breakdown.sentence}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 grid gap-3">
+                          <div>
+                            <strong className="text-[11px] font-bold uppercase text-muted tracking-wider block">Dịch nghĩa tự nhiên:</strong>
+                            <p className="m-0 mt-1 text-sm md:text-[15px] font-semibold text-text">{renderRichText(breakdown.naturalMeaningVi)}</p>
+                          </div>
+                          <div>
+                            <strong className="text-[11px] font-bold uppercase text-muted tracking-wider block">Giải thích chi tiết:</strong>
+                            <p className="m-0 mt-1 text-sm leading-relaxed text-text">{renderRichText(breakdown.structureNotesVi)}</p>
+                          </div>
+                          {breakdown.toneOrContextVi ? (
+                            <div>
+                              <strong className="text-[11px] font-bold uppercase text-muted tracking-wider block">Sắc thái / Ngữ cảnh:</strong>
+                              <p className="m-0 mt-1 text-sm leading-relaxed text-muted">{renderRichText(breakdown.toneOrContextVi)}</p>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                {lesson.summaryVi ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-text m-0">Tổng quan chỉnh sửa (Overview)</h2>
+                    <div className="text-sm md:text-base leading-relaxed text-text">{renderRichText(lesson.summaryVi)}</div>
+                    
+                    {lesson.naturalTranslationVi && lesson.naturalTranslationVi !== "none" ? (
+                      <>
+                        <h2 className="text-2xl font-bold text-text m-0">Bản dịch tự nhiên hoàn chỉnh</h2>
+                        <p className="font-serif text-base italic leading-relaxed bg-surface-strong p-4 rounded-md text-text m-0">
+                          {renderRichText(lesson.naturalTranslationVi)}
+                        </p>
+                      </>
+                    ) : null}
+                    
+                    {lesson.contextExplanationVi && lesson.contextExplanationVi !== "none" ? (
+                      <>
+                        <h2 className="text-2xl font-bold text-text m-0">Giải thích chi tiết</h2>
+                        <p className="text-sm md:text-base leading-relaxed text-text m-0">{renderRichText(lesson.contextExplanationVi)}</p>
+                      </>
+                    ) : null}
+
+                    {lessonFocuses.length ? (
+                      <>
+                        <h2 className="text-2xl font-bold text-text m-0">Lưu ý quan trọng</h2>
+                        <div className="grid divide-y divide-border border border-border rounded-md p-4 bg-surface">
+                          {lessonFocuses.map((focus) => (
+                            <article className="py-3.5 flex flex-col gap-1.5 border-b border-border last:border-none last:pb-0 first:pt-0" id={`lessonfocus-${focus.id}`} key={focus.id}>
+                              <strong className="text-base font-bold text-text m-0">{focus.title}</strong>
+                              <span className="text-muted text-xs sm:text-sm leading-relaxed m-0">{renderRichText(focus.explanationVi)}</span>
+                              <span className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">{formatLabel(focus.category)}</span>
+                                <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">{focus.difficulty}</span>
+                              </span>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-muted text-sm leading-relaxed m-0">Đang phân tích bài học...</p>
+                )}
+              </section>
+            </>
+          ) : (
+            <>
+              {sourceContent ? (
+                <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                  <div className="flex flex-col min-[860px]:flex-row min-[860px]:items-baseline gap-2">
+                    <h2 className="text-2xl font-bold text-text m-0">Văn bản gốc (Source)</h2>
+                    <span className="text-xs text-muted">Nhấp vào từ/cụm từ tô màu để xem giải nghĩa bên phải.</span>
+                  </div>
+                  <div className="border border-border rounded-md p-6 bg-surface font-serif text-[17px] md:text-lg leading-relaxed overflow-y-auto max-h-[340px] min-[860px]:max-h-[500px] shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] text-text space-y-3 [&_h3]:text-lg [&_h3]:font-bold [&_blockquote]:border-l-3 [&_blockquote]:border-accent [&_blockquote]:pl-3.5 [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_pre]:overflow-auto [&_pre]:border [&_pre]:border-border [&_pre]:rounded-md [&_pre]:bg-surface-strong [&_pre]:p-3 [&_pre]:whitespace-pre-wrap">
+                    {renderReadableSourceText(sourceContent, phrases)}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                {lesson.summaryVi ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-text m-0">Tóm tắt nội dung</h2>
+                    <p className="text-sm md:text-base leading-relaxed text-text m-0">{renderRichText(lesson.summaryVi)}</p>
+                    <h2 className="text-2xl font-bold text-text m-0">Bản dịch tự nhiên</h2>
+                    <p className="font-serif text-base italic leading-relaxed bg-surface-strong p-4 rounded-md text-text m-0">
+                      {renderRichText(lesson.naturalTranslationVi)}
+                    </p>
+                    <h2 className="text-2xl font-bold text-text m-0">Giải thích ngữ cảnh</h2>
+                    <p className="text-sm md:text-base leading-relaxed text-text m-0">{renderRichText(lesson.contextExplanationVi)}</p>
+                    {lessonFocuses.length ? (
+                      <>
+                        <h2 className="text-2xl font-bold text-text m-0">Lưu ý quan trọng</h2>
+                        <div className="grid divide-y divide-border border border-border rounded-md p-4 bg-surface">
+                          {lessonFocuses.map((focus) => (
+                            <article className="py-3.5 flex flex-col gap-1.5 border-b border-border last:border-none last:pb-0 first:pt-0" id={`lessonfocus-${focus.id}`} key={focus.id}>
+                              <strong className="text-base font-bold text-text m-0">{focus.title}</strong>
+                              <span className="text-muted text-xs sm:text-sm leading-relaxed m-0">{renderRichText(focus.explanationVi)}</span>
+                              <span className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">{formatLabel(focus.category)}</span>
+                                <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">{focus.difficulty}</span>
+                              </span>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-muted text-sm leading-relaxed m-0">Bài học đang được phân tích, vui lòng đợi giây lát...</p>
+                )}
+              </section>
+            </>
+          )}
         </div>
+
+        {hasSideColumn ? (
+          <div className="grid gap-4">
+            {phrases.length ? (
+              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                <h2 className="text-2xl font-bold text-text m-0">Cụm từ then chốt</h2>
+                <KeyPhraseList phrases={phrases} />
+              </section>
+            ) : null}
+
+            {exercises.length || lesson.exerciseStatus === "running" ? (
+              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-text m-0">Luyện tập thực hành</h2>
+                    {exercises.length ? (
+                      <p className="text-xs text-muted leading-relaxed m-0 mt-1">Tập trung dịch sát nghĩa tự nhiên theo ngữ cảnh, tránh bẫy dịch từng từ.</p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  {exercises.length ? (
+                    <ExerciseStepper
+                      items={stepperItems}
+                      serializedUserErrors={serializedUserErrors}
+                    />
+                  ) : (
+                    <p className="text-muted text-sm leading-relaxed m-0">
+                      {lesson.exerciseStatus === "failed"
+                        ? "Tạo bài tập thất bại. Hãy chọn thử lại sau khi phân tích hoàn tất."
+                        : "Bài tập thực hành đang được tạo tự động..."}
+                    </p>
+                  )}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </main>
   );

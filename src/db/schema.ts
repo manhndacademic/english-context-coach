@@ -180,6 +180,7 @@ export const lessons = pgTable(
     version: integer("version").notNull(),
     title: text("title").notNull(),
     textType: textTypeEnum("text_type").notNull().default("unknown"),
+    inputMode: text("input_mode").notNull().default("understand_and_practice"),
     detectedLevel: levelEnum("detected_level"),
     summaryVi: text("summary_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
@@ -244,6 +245,7 @@ export const sentenceBreakdowns = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     sentence: text("sentence").notNull(),
+    correctedSentenceEn: text("corrected_sentence_en"),
     naturalMeaningVi: text("natural_meaning_vi").notNull(),
     structureNotesVi: text("structure_notes_vi").notNull(),
     toneOrContextVi: text("tone_or_context_vi"),

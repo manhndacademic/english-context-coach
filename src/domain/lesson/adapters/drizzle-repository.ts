@@ -77,7 +77,8 @@ export class DrizzleLessonRepository implements LessonRepository {
     userId: string,
     content: string,
     title: string,
-    contentHash: string
+    contentHash: string,
+    requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
     return await db.transaction(async (tx) => {
       const [sourceText] = await tx
@@ -97,6 +98,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           userId,
           version: 1,
           title: "Generating lesson",
+          inputMode: requestedMode || "understand_and_practice",
           analysisStatus: "pending",
           exerciseStatus: "pending",
         })
@@ -279,6 +281,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         .set({
           title: analysis.title,
           textType: analysis.textType,
+          inputMode: analysis.inputMode,
           detectedLevel: analysis.detectedLevel,
           summaryVi: analysis.summaryVi,
           naturalTranslationVi: analysis.naturalTranslationVi,
@@ -324,6 +327,7 @@ export class DrizzleLessonRepository implements LessonRepository {
             lessonId,
             userId,
             sentence: breakdown.sentence,
+            correctedSentenceEn: breakdown.correctedSentenceEn ?? null,
             naturalMeaningVi: breakdown.naturalMeaningVi,
             structureNotesVi: breakdown.structureNotesVi,
             toneOrContextVi: breakdown.toneOrContextVi,
@@ -422,12 +426,14 @@ export class DrizzleLessonRepository implements LessonRepository {
     return {
       title: lesson.title,
       textType: lesson.textType,
+      inputMode: lesson.inputMode as any,
       detectedLevel: lesson.detectedLevel,
       summaryVi: lesson.summaryVi,
       naturalTranslationVi: lesson.naturalTranslationVi,
       contextExplanationVi: lesson.contextExplanationVi,
       sentenceBreakdowns: sentenceBreakdowns.map((breakdown) => ({
         sentence: breakdown.sentence,
+        correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
         naturalMeaningVi: breakdown.naturalMeaningVi,
         structureNotesVi: breakdown.structureNotesVi,
         toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
@@ -690,15 +696,15 @@ export class DrizzleLessonRepository implements LessonRepository {
     };
   }
 
-  async getRecentLessons(
-    userId: string,
-    limit: number
-  ): Promise<Array<{
+  async getRecentLessons(userId: string, limit: number): Promise<Array<{
     id: string;
     title: string | null;
     version: number;
     analysisStatus: "pending" | "running" | "succeeded" | "failed";
     exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown";
+    inputMode: string;
+    detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
     createdAt: Date;
   }>> {
     const rows = await db
@@ -708,6 +714,9 @@ export class DrizzleLessonRepository implements LessonRepository {
         version: schema.lessons.version,
         analysisStatus: schema.lessons.analysisStatus,
         exerciseStatus: schema.lessons.exerciseStatus,
+        textType: schema.lessons.textType,
+        inputMode: schema.lessons.inputMode,
+        detectedLevel: schema.lessons.detectedLevel,
         createdAt: schema.lessons.createdAt,
       })
       .from(schema.lessons)
@@ -719,6 +728,8 @@ export class DrizzleLessonRepository implements LessonRepository {
       ...row,
       analysisStatus: row.analysisStatus as "pending" | "running" | "succeeded" | "failed",
       exerciseStatus: row.exerciseStatus as "pending" | "running" | "succeeded" | "failed",
+      textType: row.textType as "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown",
+      detectedLevel: row.detectedLevel as "A2" | "B1" | "B2" | "C1" | null,
     }));
   }
 

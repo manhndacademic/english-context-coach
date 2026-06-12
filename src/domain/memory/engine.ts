@@ -122,7 +122,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
             lessonId: input.lessonId,
             keyPhraseId: keyPhrase?.id ?? null,
             lessonFocusId: lessonFocus?.id ?? null,
-            errorType: errorData.errorType,
+            errorType: errorData.errorType!,
             conceptKey,
             normalizedPhrase: conceptPhrase,
             senseKey,

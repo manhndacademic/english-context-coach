@@ -33,7 +33,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     private textProcessor: TextProcessor
   ) {}
 
-  async queue(userId: string, content: string): Promise<LessonGenerationResult> {
+  async queue(userId: string, content: string, requestedMode?: string): Promise<LessonGenerationResult> {
     const { normalized, hash: contentHash } = this.textProcessor.processSource(content);
     if (!normalized) {
       return {
@@ -64,7 +64,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       userId,
       normalized,
       "Untitled source",
-      contentHash
+      contentHash,
+      requestedMode
     );
 
     await this.repo.recordMilestone({
@@ -179,6 +180,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         throw new Error("Source text is unavailable.");
       }
 
+      const lesson = await this.repo.findLesson(job.lessonId, job.userId);
+      if (!lesson) {
+        throw new Error("Lesson is unavailable.");
+      }
+
       if (currentStage === "analysis") {
         await this.repo.updateLessonStatus(job.lessonId, "analysis", "running");
         await this.repo.recordMilestone({
@@ -188,17 +194,21 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           stage: "analysis",
         });
 
-        const result = await this.genEngine.generateAnalysis(sourceText.content, async (text) => {
-          const sanitized = sanitizeGenerationThought(text);
-          if (sanitized) {
-            await this.repo.recordThought({
-              lessonId: job.lessonId,
-              generationJobId: job.id,
-              stage: "analysis",
-              text: sanitized,
-            });
-          }
-        });
+        const result = await this.genEngine.generateAnalysis(
+          sourceText.content,
+          async (text) => {
+            const sanitized = sanitizeGenerationThought(text);
+            if (sanitized) {
+              await this.repo.recordThought({
+                lessonId: job.lessonId,
+                generationJobId: job.id,
+                stage: "analysis",
+                text: sanitized,
+              });
+            }
+          },
+          lesson.inputMode
+        );
 
         await this.repo.saveAnalysis(
           job.lessonId,

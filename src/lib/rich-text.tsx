@@ -21,7 +21,7 @@ export function renderRichText(text: string | null | undefined): ReactNode {
   return parts.map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code className="inline-phrase" key={index}>
+        <code className="font-mono text-[0.9em] bg-accent/8 border border-accent/18 text-accent-strong rounded-[4px] px-[5px] py-[1px] font-semibold [box-decoration-break:clone] [-webkit-box-decoration-break:clone]" key={index}>
           {part.slice(1, -1)}
         </code>
       );
@@ -34,7 +34,7 @@ export function renderRichText(text: string | null | undefined): ReactNode {
     }
     if (part.startsWith("'") && part.endsWith("'")) {
       return (
-        <code className="inline-phrase" key={index}>
+        <code className="font-mono text-[0.9em] bg-accent/8 border border-accent/18 text-accent-strong rounded-[4px] px-[5px] py-[1px] font-semibold [box-decoration-break:clone] [-webkit-box-decoration-break:clone]" key={index}>
           {part.slice(1, -1)}
         </code>
       );

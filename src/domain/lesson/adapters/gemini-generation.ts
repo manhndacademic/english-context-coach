@@ -14,13 +14,18 @@ export class GeminiGenerationEngine implements GenerationEngine {
 
   async generateAnalysis(
     sourceText: string,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    requestedMode?: string
   ): Promise<AnalysisResult> {
+    let promptText = analysisPrompt(sourceText);
+    if (requestedMode && requestedMode !== "auto") {
+      promptText += `\n\nCRITICAL: The user has requested to process this text in mode: \`${requestedMode}\`. You MUST classify the inputMode as \`${requestedMode}\` and adapt the content fields accordingly.`;
+    }
     return await this.llm.generateJson({
       userId: this.userId,
       lessonId: this.lessonId,
       purpose: "analysis",
-      prompt: analysisPrompt(sourceText),
+      prompt: promptText,
       promptVersion: PROMPT_VERSIONS.analysis,
       schemaVersion: "analysis",
       schema: analysisSchema,

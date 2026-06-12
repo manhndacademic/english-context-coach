@@ -46,42 +46,77 @@ export function ExerciseCard({
   const typeLabel = exercise.type === "meaning_choice" ? "Trắc nghiệm nghĩa" : "Dịch tự nhiên";
 
   return (
-    <article className={`exercise-card ${solved ? "exercise-card-complete" : ""} ${isCurrent ? "exercise-card-current" : ""}`} style={{ borderRadius: "var(--radius-md)" }}>
-      <div className="exercise-card-topline">
-        <div className="cluster">
-          <span className="pill">{typeLabel}</span>
-          <span className={`exercise-status ${solved ? "exercise-status-done" : needsRetry ? "exercise-status-retry" : ""}`} style={{ borderRadius: "var(--radius-sm)" }}>
+    <article className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
+      solved ? "bg-gradient-to-b from-surface to-surface-strong" : ""
+    } ${
+      isCurrent ? "border-accent ring-3 ring-accent-light" : ""
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold leading-none">
+            {typeLabel}
+          </span>
+          <span className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${
+            solved 
+              ? "bg-success-light border-success text-success" 
+              : needsRetry 
+              ? "bg-danger-light border-danger text-danger" 
+              : "bg-surface-strong border-border text-muted"
+          }`}>
             {solved ? <CheckCircle2 size={15} aria-hidden="true" /> : needsRetry ? <AlertCircle size={15} aria-hidden="true" /> : <Target size={15} aria-hidden="true" />}
             {statusLabel}
           </span>
         </div>
-        {latest ? <span className={latest.isCorrect ? "status-succeeded" : "status-failed"}>{latest.score}/100</span> : null}
+        {latest ? (
+          <span className={`text-sm font-semibold leading-none ${latest.isCorrect ? "text-success" : "text-danger"}`}>
+            {latest.score}/100
+          </span>
+        ) : null}
       </div>
+
       {keyPhrase ? (
-        <a className="exercise-phrase-link" href={`#keyphrase-${keyPhrase.id}`} style={{ fontSize: "13px" }}>
+        <a className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors" href={`#keyphrase-${keyPhrase.id}`}>
           <span>Luyện tập cụm từ:</span>
           <strong>{keyPhrase.phrase}</strong>
-          <span className="pill">{formatLabel(keyPhrase.category)}</span>
-          <span className="pill">{keyPhrase.difficulty}</span>
+          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+            {formatLabel(keyPhrase.category)}
+          </span>
+          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+            {keyPhrase.difficulty}
+          </span>
         </a>
       ) : null}
+
       {lessonFocus ? (
-        <a className="exercise-phrase-link" href={`#lessonfocus-${lessonFocus.id}`} style={{ fontSize: "13px" }}>
+        <a className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors" href={`#lessonfocus-${lessonFocus.id}`}>
           <span>Luyện tập chủ điểm:</span>
           <strong>{lessonFocus.title}</strong>
-          <span className="pill">{formatLabel(lessonFocus.category)}</span>
-          <span className="pill">{lessonFocus.difficulty}</span>
+          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+            {formatLabel(lessonFocus.category)}
+          </span>
+          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+            {lessonFocus.difficulty}
+          </span>
         </a>
       ) : null}
-      <h3 id={promptId} style={{ fontSize: "18px", marginTop: "8px", fontWeight: "600", color: "var(--text)" }}>{renderRichText(exercise.promptVi)}</h3>
-      {exercise.promptEn ? <p style={{ fontFamily: "var(--font-serif)", fontSize: "16px", fontStyle: "italic", color: "var(--muted)", margin: "4px 0" }}>{renderRichText(exercise.promptEn)}</p> : null}
-      <form action={submitAttemptAction} className="stack">
+
+      <h3 id={promptId} className="text-lg mt-2 font-semibold text-text m-0">{renderRichText(exercise.promptVi)}</h3>
+      
+      {exercise.promptEn ? (
+        <p className="font-serif text-sm md:text-base italic text-muted my-1 m-0">{renderRichText(exercise.promptEn)}</p>
+      ) : null}
+
+      <form action={submitAttemptAction} className="grid gap-5">
         <input name="exerciseId" type="hidden" value={exercise.id} />
         <input name="lessonId" type="hidden" value={exercise.lessonId} />
+        
         {exercise.type === "meaning_choice" && exercise.choices ? (
-          <div className="choice-list" style={{ marginTop: "8px" }}>
+          <div className="grid gap-2 mt-2">
             {exercise.choices.map((choice) => (
-              <label className="choice-option" key={choice} style={{ borderRadius: "var(--radius-sm)", cursor: "pointer" }}>
+              <label 
+                className="relative flex items-center gap-2.5 min-h-[42px] border border-border rounded-sm bg-surface p-2.5 px-3 font-semibold transition-all cursor-pointer has-[:checked]:border-accent has-[:checked]:bg-success-light has-[:checked]:ring-3 has-[:checked]:ring-accent-light" 
+                key={choice}
+              >
                 <input
                   aria-describedby={latest ? feedbackId : undefined}
                   aria-labelledby={promptId}
@@ -91,14 +126,17 @@ export function ExerciseCard({
                   type="radio"
                   value={choice}
                   required
+                  className="w-auto h-auto p-0 m-0 border-none bg-none shadow-none accent-accent shrink-0 focus:outline-none focus:ring-0"
                 />
-                <span style={{ fontSize: "15px" }}>{renderRichText(choice)}</span>
-                {solved && choiceSet.has(choice) ? <CheckCircle2 className="choice-correct-icon" size={15} aria-hidden="true" /> : null}
+                <span className="text-sm md:text-[15px]">{renderRichText(choice)}</span>
+                {solved && choiceSet.has(choice) ? (
+                  <CheckCircle2 className="ml-auto text-success shrink-0" size={15} aria-hidden="true" />
+                ) : null}
               </label>
             ))}
           </div>
         ) : (
-          <label style={{ fontSize: "14px", fontWeight: "600", marginTop: "8px" }}>
+          <label className="grid gap-2 text-left text-sm font-semibold text-text mt-2">
             Câu trả lời của bạn
             <textarea
               aria-describedby={latest ? feedbackId : undefined}
@@ -107,33 +145,40 @@ export function ExerciseCard({
               placeholder={needsRetry ? "Thử lại bằng cách giữ nghĩa tự nhiên của cụm trong câu..." : "Viết câu dịch tiếng Việt tự nhiên của bạn..."}
               required
               value={answer}
-              style={{ minHeight: "100px", marginTop: "4px" }}
+              className="w-full border border-border rounded-md bg-surface text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light mt-1 min-h-[100px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50"
             />
           </label>
         )}
         <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
       </form>
+
       {latest ? (
-        <div className={`exercise-feedback ${latest.isCorrect ? "exercise-feedback-correct" : "exercise-feedback-retry"}`} id={feedbackId} style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", marginTop: "8px" }}>
-          <strong style={{ fontSize: "14px" }}>{latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}</strong>
-          <p style={{ fontSize: "14px", color: "var(--text)", lineHeight: "1.5", marginTop: "4px" }}>{renderRichText(latest.feedbackVi)}</p>
+        <div className="grid gap-1.5 border-t border-border pt-4 mt-2" id={feedbackId}>
+          <strong className="text-sm font-bold">{latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}</strong>
+          <p className="text-sm text-text leading-relaxed m-0 mt-1">{renderRichText(latest.feedbackVi)}</p>
+          
           {metadata?.naturalAnswer && (
-            <div className="feedback-natural-answer" style={{ marginTop: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--success-light)', borderLeft: '4px solid var(--success)' }}>
-              <strong style={{ fontSize: '13px', color: 'var(--success)' }}>Dịch nghĩa tự nhiên gợi ý</strong>
-              <p style={{ margin: '4px 0 0 0', fontSize: '15px', lineHeight: '1.4', fontWeight: "500" }}>{metadata.naturalAnswer}</p>
+            <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
+              <strong className="text-xs font-bold text-success block">Dịch nghĩa tự nhiên gợi ý</strong>
+              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">{metadata.naturalAnswer}</p>
             </div>
           )}
+          
           {!latest.isCorrect && metadata?.literalTranslationTrap && (
-            <div className="feedback-literal-trap" style={{ marginTop: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', borderLeft: '4px solid var(--danger)' }}>
-              <strong style={{ fontSize: '13px', color: 'var(--danger)' }}>Bẫy dịch từng từ (Literal Trap)</strong>
-              <p style={{ margin: '4px 0 0 0', fontSize: '15px', lineHeight: '1.4' }}>
-                Tránh dịch: <span style={{ textDecoration: 'line-through', opacity: "0.8" }}>&quot;{metadata.literalTranslationTrap}&quot;</span>
+            <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger">
+              <strong className="text-xs font-bold text-danger block">Bẫy dịch từng từ (Literal Trap)</strong>
+              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
+                Tránh dịch: <span className="line-through opacity-80">&quot;{metadata.literalTranslationTrap}&quot;</span>
               </p>
             </div>
           )}
-          {!latest.isCorrect ? <p className="hint" style={{ marginTop: '8px', fontSize: "12px" }}>Bản dịch vừa gửi: {latest.answer}</p> : null}
+
+          {!latest.isCorrect ? (
+            <p className="text-xs text-muted mt-1.5">Bản dịch vừa gửi: {latest.answer}</p>
+          ) : null}
+
           {isRepeated && (
-            <div className="repeated-mistake-warning">
+            <div className="flex items-center gap-2 bg-[#fff5f4] border border-[#f2b8b5] text-danger p-2 px-3 rounded-md text-xs sm:text-sm mt-3">
               <AlertCircle size={14} aria-hidden="true" />
               <span>Bạn đã từng gặp lỗi này trước đây.</span>
             </div>
@@ -149,12 +194,11 @@ function SubmitAttemptButton({ disabled, label }: { disabled: boolean; label: st
 
   return (
     <button
-      className="secondary-button exercise-submit-button"
+      className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer mt-3"
       disabled={disabled || pending}
       type="submit"
-      style={{ marginTop: "12px" }}
     >
-      {pending ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <SendHorizontal size={16} aria-hidden="true" />}
+      {pending ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <SendHorizontal size={16} aria-hidden="true" />}
       {pending ? "Đang chấm..." : label}
     </button>
   );

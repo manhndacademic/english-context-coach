@@ -8,7 +8,7 @@ import {
   isTerminalLessonStatus,
 } from "@/domain/generation-progress";
 
-type StageStatus = "pending" | "running" | "succeeded" | "failed";
+export type StageStatus = "pending" | "running" | "succeeded" | "failed";
 
 type LessonStatus = {
   analysisStatus: StageStatus;
@@ -178,46 +178,52 @@ export function GenerationProgress({
 
   if (successfullyCompleted && !thoughts.length) {
     return (
-      <div className="generation-progress">
-        <div className="generation-progress-compact">
-          <span className="progress-dot progress-dot-done" />
+      <div className="grid gap-4 bg-surface-strong border border-border rounded-md p-5">
+        <div className="flex items-center gap-2 text-sm font-bold text-accent">
+          <span className="w-2 h-2 rounded-full shrink-0 bg-accent" />
           <span>Phân tích thành công</span>
-          <span className="progress-divider" />
+          <span className="w-1 h-1 rounded-full bg-border" />
           <span>Bài tập sẵn sàng</span>
         </div>
-        <p className="hint">Không có ghi chú tiến trình nào được lưu lại.</p>
+        <p className="text-xs text-muted leading-relaxed m-0">Không có ghi chú tiến trình nào được lưu lại.</p>
       </div>
     );
   }
 
   return (
-    <div className="generation-progress" aria-live="polite">
-      <div className="progress-heading">
-        <strong>{successfullyCompleted ? "Tạo bài học thành công" : terminal ? "Đã dừng tiến trình" : "Đang tạo bài học tự động"}</strong>
+    <div className="grid gap-4 bg-surface-strong border border-border rounded-md p-5" aria-live="polite">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <strong className="text-base font-bold text-text">
+          {successfullyCompleted ? "Tạo bài học thành công" : terminal ? "Đã dừng tiến trình" : "Đang tạo bài học tự động"}
+        </strong>
         {job?.attempts && job.attempts > 1 && active ? (
-          <span className="muted">Đang thử lại do sự cố tạm thời...</span>
+          <span className="text-muted text-xs sm:text-sm">Đang thử lại do sự cố tạm thời...</span>
         ) : null}
       </div>
-      <ol className="progress-list">
+      <ol className="list-none m-0 p-0 grid gap-2.5">
         {visibleMilestones.map((milestone, index) => {
           const isLatest = index === visibleMilestones.length - 1;
           const done = milestone.code === "completed" || milestone.code.endsWith("_saved");
           return (
-            <li className="progress-item" key={milestone.id}>
-              <span className={`progress-dot ${done ? "progress-dot-done" : ""} ${isLatest ? "progress-dot-current" : ""}`} />
+            <li className="flex items-center gap-2.5 text-sm text-text" key={milestone.id}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                done ? "bg-accent" : "bg-muted"
+              } ${
+                isLatest && active ? "animate-pulse bg-accent" : ""
+              }`} />
               <span>{milestoneLabels[milestone.code]}</span>
             </li>
           );
         })}
       </ol>
       {latestThought ? (
-        <div className="thought-panel">
-          <div className="thought-current">
-            <span className="thought-label">Chi tiết xử lý</span>
-            <p>{latestThought.text}</p>
+        <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+          <div className="grid gap-1.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">Chi tiết xử lý</span>
+            <p className="text-sm leading-relaxed m-0 text-text">{latestThought.text}</p>
           </div>
           {recentThoughts.length > 1 ? (
-            <ol className="thought-list">
+            <ol className="m-0 mt-1 pl-5 list-decimal grid gap-1.5 text-xs sm:text-sm text-muted">
               {recentThoughts.slice(1).map((thought) => (
                 <li key={thought.id}>{thought.text}</li>
               ))}
@@ -225,16 +231,18 @@ export function GenerationProgress({
           ) : null}
         </div>
       ) : active ? (
-        <div className="thought-panel">
-          <div className="thought-current">
-            <span className="thought-label">Chi tiết xử lý</span>
-            <p className="muted">
+        <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+          <div className="grid gap-1.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">Chi tiết xử lý</span>
+            <p className="text-sm leading-relaxed m-0 text-muted">
               Đang phân tích cấu trúc ngữ cảnh và suy nghĩ phản hồi...
             </p>
           </div>
         </div>
       ) : null}
-      {usingFallback && active ? <p className="hint">Không thể xem trực tiếp. Đang tự động làm mới tiến độ mỗi 2.5 giây.</p> : null}
+      {usingFallback && active ? (
+        <p className="text-xs text-muted leading-relaxed m-0">Không thể xem trực tiếp. Đang tự động làm mới tiến độ mỗi 2.5 giây.</p>
+      ) : null}
     </div>
   );
 }

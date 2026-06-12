@@ -21,6 +21,7 @@ export interface Lesson {
   analysisStatus: "pending" | "running" | "succeeded" | "failed";
   exerciseStatus: "pending" | "running" | "succeeded" | "failed";
   textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown" | null;
+  inputMode: string;
   detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
   summaryVi: string | null;
   naturalTranslationVi: string | null;
@@ -58,6 +59,7 @@ export interface SentenceBreakdown {
   lessonId: string;
   userId: string;
   sentence: string;
+  correctedSentenceEn: string | null;
   naturalMeaningVi: string;
   structureNotesVi: string;
   toneOrContextVi: string | null;
@@ -159,7 +161,8 @@ export interface LessonRepository {
     userId: string,
     content: string,
     title: string,
-    contentHash: string
+    contentHash: string,
+    requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }>;
 
   createLessonAndJob(
@@ -247,6 +250,9 @@ export interface LessonRepository {
     version: number;
     analysisStatus: "pending" | "running" | "succeeded" | "failed";
     exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown";
+    inputMode: string;
+    detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
     createdAt: Date;
   }>>;
   getSourceTextsCount(userId: string): Promise<number>;
@@ -255,7 +261,8 @@ export interface LessonRepository {
 export interface GenerationEngine {
   generateAnalysis(
     sourceText: string,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    requestedMode?: string
   ): Promise<AnalysisResult>;
 
   generateExercises(
@@ -282,7 +289,7 @@ export interface GenerationProgress {
 }
 
 export interface LessonGenerationEngine {
-  queue(userId: string, content: string): Promise<LessonGenerationResult>;
+  queue(userId: string, content: string, requestedMode?: string): Promise<LessonGenerationResult>;
   retry(userId: string, lessonId: string): Promise<LessonGenerationResult>;
   processNext(workerId: string): Promise<JobProcessResult>;
   getProgress(lessonId: string, userId: string): Promise<GenerationProgress | null>;

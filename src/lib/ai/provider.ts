@@ -125,10 +125,31 @@ export function coerceJsonForSchema(input: unknown, schemaVersion: keyof typeof 
     return input[0];
   }
   if (schemaVersion === "grading" && input && typeof input === "object" && !Array.isArray(input)) {
-    const record = { ...(input as Record<string, unknown>) };
-    for (const key of ["errorType", "explanationVi"] as const) {
-      if (record[key] === null || record[key] === "") {
+    const record = { ...(input as Record<string, any>) };
+    
+    // Clean top-level nulls/empty strings
+    for (const key of ["naturalAnswer", "literalTranslationTrap"] as const) {
+      if (record[key] === null || record[key] === "" || record[key] === "none") {
         delete record[key];
+      }
+    }
+    
+    // Clean nested error object
+    if (record.error && typeof record.error === "object") {
+      const errorObj = { ...record.error };
+      if (
+        errorObj.shouldSave === false ||
+        errorObj.shouldSave === "false" ||
+        record.isCorrect === true
+      ) {
+        delete record.error;
+      } else {
+        for (const key of ["errorType", "explanationVi", "targetItem"] as const) {
+          if (errorObj[key] === null || errorObj[key] === "" || errorObj[key] === "none") {
+            delete errorObj[key];
+          }
+        }
+        record.error = errorObj;
       }
     }
     return record;

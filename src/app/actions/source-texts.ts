@@ -15,7 +15,8 @@ export async function createSourceTextAction(
 ): Promise<SourceTextActionState> {
   const user = await requireUser();
   const content = String(formData.get("content") ?? "");
-  const result = await getLessonGenerationEngine().queue(user.id, content);
+  const inputMode = String(formData.get("inputMode") ?? "auto");
+  const result = await getLessonGenerationEngine().queue(user.id, content, inputMode);
   if (!result.ok) return { error: result.message };
   revalidatePath("/dashboard");
   redirect(`/lessons/${result.lessonId}`);

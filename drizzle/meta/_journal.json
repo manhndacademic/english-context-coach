@@ -43,6 +43,13 @@
       "when": 1781227600967,
       "tag": "0005_woozy_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781296599781,
+      "tag": "0006_harsh_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

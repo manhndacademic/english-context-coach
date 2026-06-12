@@ -4,6 +4,7 @@ import type { AnalysisResult } from "./schemas";
 const analysisJsonShape = {
   title: "short neutral Vietnamese/English title",
   textType: "work_message | technical_doc | email | article | academic | general | unknown",
+  inputMode: "understand_and_practice | fix_and_understand | naturalize_english | mixed_language_support | not_english | developer_error_explanation | unsupported",
   detectedLevel: "A2 | B1 | B2 | C1",
   summaryVi: "string",
   naturalTranslationVi: "string",
@@ -22,6 +23,7 @@ const analysisJsonShape = {
   sentenceBreakdowns: [
     {
       sentence: "source sentence or coherent sentence fragment",
+      correctedSentenceEn: "optional string: corrected English version of this sentence (only for fix_and_understand or naturalize_english modes)",
       naturalMeaningVi: "natural Vietnamese meaning of this sentence",
       structureNotesVi: "Vietnamese explanation of grammar, reference, or structure that affects understanding",
       toneOrContextVi: "optional Vietnamese note about tone or context",
@@ -114,6 +116,18 @@ export function analysisPrompt(sourceText: string) {
   return [
     "You are English Context Coach for Vietnamese learners.",
     "Analyze the English source text in context. Do not translate word by word.",
+    "First, classify the source text into one of these 'inputMode' categories:",
+    "  - `understand_and_practice`: Standard, grammatically correct English text.",
+    "  - `fix_and_understand`: Grammatically incorrect English (e.g. Vietlish: 'Yesterday I go to office').",
+    "  - `naturalize_english`: Grammatically correct but awkward/unnatural English ('I very like this').",
+    "  - `mixed_language_support`: Mixed English and Vietnamese ('Anh check hộ em this ticket').",
+    "  - `not_english`: Primarily non-English text (French, purely Vietnamese, etc.).",
+    "  - `developer_error_explanation`: Developer error traceback logs (TypeError, SyntaxError, etc.).",
+    "  - `unsupported`: Gibberish, too short, or meaningless input.",
+    "Adapt your output fields dynamically based on the detected inputMode:",
+    "  - For `not_english` / `unsupported`: Set `summaryVi` to a friendly warning/explanation in Vietnamese. Set `keyPhrases`, `lessonFocuses`, and `sentenceBreakdowns` to empty arrays (`[]`). Set `naturalTranslationVi` and `contextExplanationVi` to 'none'.",
+    "  - For `fix_and_understand` / `naturalize_english`: Show grammar corrections and explain why the original was wrong or awkward in `summaryVi`. In `sentenceBreakdowns`, compare the original sentences directly with the corrected English versions. Let `naturalTranslationVi` translate the corrected English.",
+    "  - For `developer_error_explanation`: Explain the developer error stack trace clearly in Vietnamese in `summaryVi` and common causes/resolutions in `contextExplanationVi`.",
     "Return strict JSON only. No markdown.",
     `Generate 1-${MAX_LESSON_ITEMS} distinct key phrases. Short source texts may have only 1-2 key phrases; do not add filler.`,
     "For each keyPhrase and lessonFocus, you MUST identify its underlying general concept. Generate:",

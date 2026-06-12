@@ -10,6 +10,16 @@ export const textTypeSchema = z.enum([
   "unknown",
 ]);
 
+export const inputModeSchema = z.enum([
+  "understand_and_practice",
+  "fix_and_understand",
+  "naturalize_english",
+  "mixed_language_support",
+  "not_english",
+  "developer_error_explanation",
+  "unsupported",
+]);
+
 export const levelSchema = z.enum(["A2", "B1", "B2", "C1"]);
 export const categorySchema = z.enum([
   "idiom",
@@ -52,6 +62,7 @@ export const keyPhraseSchema = z.object({
 
 export const sentenceBreakdownSchema = z.object({
   sentence: z.string().min(1),
+  correctedSentenceEn: z.string().optional(),
   naturalMeaningVi: z.string().min(1),
   structureNotesVi: z.string().min(1),
   toneOrContextVi: z.string().optional(),
@@ -70,13 +81,14 @@ export const lessonFocusSchema = z.object({
 export const analysisSchema = z.object({
   title: z.string().min(1).max(80),
   textType: textTypeSchema,
+  inputMode: inputModeSchema,
   detectedLevel: levelSchema,
   summaryVi: z.string().min(1),
   naturalTranslationVi: z.string().min(1),
   contextExplanationVi: z.string().min(1),
-  sentenceBreakdowns: z.array(sentenceBreakdownSchema).min(1).max(12),
-  keyPhrases: z.array(keyPhraseSchema).min(1).max(7),
-  lessonFocuses: z.array(lessonFocusSchema).min(1).max(3),
+  sentenceBreakdowns: z.array(sentenceBreakdownSchema).min(0).max(12),
+  keyPhrases: z.array(keyPhraseSchema).min(0).max(7),
+  lessonFocuses: z.array(lessonFocusSchema).min(0).max(3),
 });
 
 export const exerciseSchema = z.discriminatedUnion("type", [
@@ -112,22 +124,22 @@ export const exerciseSchema = z.discriminatedUnion("type", [
 ]);
 
 export const exercisesSchema = z.object({
-  exercises: z.array(exerciseSchema).min(3).max(7),
+  exercises: z.array(exerciseSchema).min(0).max(7),
 });
 
 export const gradingSchema = z.object({
   score: z.number().int().min(0).max(100),
   isCorrect: z.boolean(),
   feedbackVi: z.string().min(1),
-  naturalAnswer: z.string().optional(),
-  literalTranslationTrap: z.string().optional(),
+  naturalAnswer: z.string().nullable().optional(),
+  literalTranslationTrap: z.string().nullable().optional(),
   error: z.object({
     shouldSave: z.boolean(),
     confidence: z.number().int().min(0).max(100),
-    errorType: errorTypeSchema,
-    explanationVi: z.string().min(1),
-    targetItem: z.string().min(1),
-  }).optional(),
+    errorType: errorTypeSchema.nullable().optional(),
+    explanationVi: z.string().nullable().optional(),
+    targetItem: z.string().nullable().optional(),
+  }).nullable().optional(),
 });
 
 export const reviewPromptSchema = z.object({
