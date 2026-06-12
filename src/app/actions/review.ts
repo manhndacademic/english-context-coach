@@ -1,34 +1,51 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { nextDueDate, nextReviewAfterSuccess, resetDueAfterFailure } from "@/domain/review";
 import { requireUser } from "@/lib/auth/guards";
+import { getLearnerMemoryEngine } from "@/domain/memory";
 
-export async function markMistakePatternReviewAction(formData: FormData) {
-  const user = await requireUser();
-  const patternId = String(formData.get("patternId") ?? "");
-  const result = String(formData.get("result") ?? "");
-  const [pattern] = await db
-    .select()
-    .from(schema.mistakePatterns)
-    .where(and(eq(schema.mistakePatterns.id, patternId), eq(schema.mistakePatterns.userId, user.id)))
-    .limit(1);
-  if (!pattern) return;
+export type ReviewResultState = {
+  success?: boolean;
+  score?: number;
+  isCorrect?: boolean;
+  feedbackVi?: string;
+  error?: string;
+};
 
-  const intervalDays =
-    result === "success" ? nextReviewAfterSuccess(pattern.intervalDays) : 0;
-  await db
-    .update(schema.mistakePatterns)
-    .set({
-      intervalDays,
-      dueAt: result === "success" ? nextDueDate(intervalDays) : resetDueAfterFailure(),
-      lastReviewedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.mistakePatterns.id, pattern.id));
+export async function submitReviewAttemptAction(
+  _prevState: ReviewResultState,
+  formData: FormData
+): Promise<ReviewResultState> {
+  try {
+    const user = await requireUser();
+    const patternId = String(formData.get("patternId") ?? "");
+    const answer = String(formData.get("answer") ?? "").trim();
+    if (!answer) return { error: "Vui lòng nhập câu trả lời." };
 
-  revalidatePath("/dashboard");
-  revalidatePath("/review");
+    const engine = getLearnerMemoryEngine();
+    const result = await engine.submitReviewAttempt({
+      userId: user.id,
+      patternId,
+      answer,
+    });
+
+    if (!result.success) {
+      return { error: result.error ?? "Đã xảy ra lỗi khi chấm điểm ôn tập." };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/review");
+
+    return {
+      success: true,
+      score: result.score,
+      isCorrect: result.isCorrect,
+      feedbackVi: result.feedbackVi,
+    };
+  } catch (error) {
+    console.error(error);
+    return { error: error instanceof Error ? error.message : "Đã xảy ra lỗi hệ thống khi chấm điểm ôn tập." };
+  }
 }
+
+

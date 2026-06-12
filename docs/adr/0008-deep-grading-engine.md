@@ -1,0 +1,3 @@
+# Deep grading engine
+
+We decide to consolidate all grading logic—including objective rules (multiple choice, cloze phrase) and AI-based subjective evaluation (natural translation, context focus questions)—into a single deep domain module: `DefaultGradingEngine`. This replaces the previous fragmented architecture where grading logic was scattered across `src/lib/grading/` and a shallow adapter `gemini-grader.ts`. By encapsulating both grading phases behind a unified `GradingEngine` interface, we achieve high locality for grading rules and simplify mock-based unit testing without hitting live AI APIs.

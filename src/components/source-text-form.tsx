@@ -10,23 +10,24 @@ export function SourceTextForm() {
 
   return (
     <form action={action} className="stack">
-      <label>
-        Paste English source material
+      <label style={{ fontSize: "14px", fontWeight: "600" }}>
+        Dán tài liệu tiếng Anh cần phân tích
         <textarea
           name="content"
           value={value}
           maxLength={SOURCE_TEXT_MAX_LENGTH}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Paste a Slack message, email, GitHub issue, documentation excerpt, or article section..."
+          placeholder="Dán tin nhắn Slack, email, GitHub issue, PR comment, tài liệu API hoặc đoạn văn bản tiếng Anh bất kỳ..."
           required
+          style={{ marginTop: "4px" }}
         />
       </label>
-      <div className="cluster">
+      <div className="cluster" style={{ justifyContent: "space-between" }}>
         <button className="primary-button" disabled={pending || !value.trim()} type="submit">
-          {pending ? "Queueing..." : "Generate lesson"}
+          {pending ? "Đang xếp hàng xử lý..." : "Bắt đầu phân tích & tạo bài học"}
         </button>
-        <span className="hint">
-          {value.length.toLocaleString()} / {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} characters
+        <span className="hint" style={{ fontSize: "12px" }}>
+          {value.length.toLocaleString()} / {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} ký tự
         </span>
       </div>
       {state.error ? <p className="form-error">{state.error}</p> : null}

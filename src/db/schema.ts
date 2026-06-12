@@ -211,6 +211,9 @@ export const keyPhrases = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     phrase: text("phrase").notNull(),
+    conceptKey: text("concept_key").notNull(),
+    conceptPhrase: text("concept_phrase").notNull(),
+    conceptMeaningVi: text("concept_meaning_vi").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
     meaningVi: text("meaning_vi").notNull(),
@@ -263,6 +266,9 @@ export const lessonFocuses = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    conceptKey: text("concept_key").notNull(),
+    conceptPhrase: text("concept_phrase").notNull(),
+    conceptMeaningVi: text("concept_meaning_vi").notNull(),
     category: lessonFocusCategoryEnum("category").notNull(),
     explanationVi: text("explanation_vi").notNull(),
     difficulty: levelEnum("difficulty").notNull(),
@@ -338,10 +344,12 @@ export const userErrors = pgTable(
     keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
     lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
     errorType: errorTypeEnum("error_type").notNull(),
+    conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key").notNull(),
     explanationVi: text("explanation_vi").notNull(),
     isSourceSensitive: boolean("is_source_sensitive").notNull().default(false),
+    isRepeated: boolean("is_repeated").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
@@ -356,12 +364,18 @@ export const mistakePatterns = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
-    senseKey: text("sense_key").notNull(),
+    senseKey: text("sense_key"),
     category: phraseCategoryEnum("category").notNull(),
     errorType: errorTypeEnum("error_type").notNull(),
     meaningVi: text("meaning_vi").notNull(),
     safeReviewPromptVi: text("safe_review_prompt_vi").notNull(),
+    reviewPromptEn: text("review_prompt_en"),
+    reviewPromptVi: text("review_prompt_vi"),
+    reviewRubricVi: text("review_rubric_vi"),
+    reviewCorrectAnswer: text("review_correct_answer"),
+    reviewAcceptableAnswers: jsonb("review_acceptable_answers").$type<string[]>(),
     occurrenceCount: integer("occurrence_count").notNull().default(1),
     intervalDays: integer("interval_days").notNull().default(0),
     dueAt: timestamp("due_at", { mode: "date" }).notNull().defaultNow(),
@@ -373,8 +387,7 @@ export const mistakePatterns = pgTable(
   (table) => ({
     aggregateUnique: uniqueIndex("mistake_patterns_aggregate_unique").on(
       table.userId,
-      table.normalizedPhrase,
-      table.senseKey,
+      table.conceptKey,
       table.errorType,
     ),
     dueIdx: index("mistake_patterns_due_idx").on(table.userId, table.dueAt),
@@ -486,6 +499,32 @@ export type LessonFocus = typeof lessonFocuses.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type Attempt = typeof attempts.$inferSelect;
 export type MistakePattern = typeof mistakePatterns.$inferSelect;
+export type UserError = typeof userErrors.$inferSelect;
 export type GenerationJob = typeof generationJobs.$inferSelect;
 export type GenerationMilestone = typeof generationMilestones.$inferSelect;
 export type GenerationThought = typeof generationThoughts.$inferSelect;
+
+
+export const reviewAttempts = pgTable(
+  "review_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mistakePatternId: uuid("mistake_pattern_id")
+      .notNull()
+      .references(() => mistakePatterns.id, { onDelete: "cascade" }),
+    answer: text("answer").notNull(),
+    score: integer("score").notNull(),
+    isCorrect: boolean("is_correct").notNull(),
+    feedbackVi: text("feedback_vi").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("review_attempts_user_idx").on(table.userId),
+    patternIdx: index("review_attempts_pattern_idx").on(table.mistakePatternId),
+  }),
+);
+
+export type ReviewAttempt = typeof reviewAttempts.$inferSelect;

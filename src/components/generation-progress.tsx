@@ -56,14 +56,14 @@ type ThoughtStreamPayload = {
 };
 
 const milestoneLabels: Record<GenerationMilestoneCode, string> = {
-  queued: "Queued",
-  claimed: "Worker started",
-  analysis_started: "Analyzing source text",
-  analysis_saved: "Analysis ready",
-  exercises_started: "Generating Exercises",
-  exercises_saved: "Exercises ready",
-  completed: "Generation complete",
-  failed: "Generation failed",
+  queued: "Đang xếp hàng chờ",
+  claimed: "Tiến trình đã bắt đầu",
+  analysis_started: "Đang phân tích văn bản gốc",
+  analysis_saved: "Phân tích hoàn tất",
+  exercises_started: "Đang tạo bài tập thực hành",
+  exercises_saved: "Bài tập đã sẵn sàng",
+  completed: "Hoàn tất tạo bài học",
+  failed: "Xử lý lỗi",
 };
 
 function mergeMilestone(existing: ProgressMilestone[], next: ProgressMilestone) {
@@ -99,6 +99,7 @@ export function GenerationProgress({
   const active = !terminal;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLesson(initialLesson);
     setJob(initialJob);
     setMilestones(initialMilestones);
@@ -180,11 +181,11 @@ export function GenerationProgress({
       <div className="generation-progress">
         <div className="generation-progress-compact">
           <span className="progress-dot progress-dot-done" />
-          <span>Analysis complete</span>
+          <span>Phân tích thành công</span>
           <span className="progress-divider" />
-          <span>Exercises ready</span>
+          <span>Bài tập sẵn sàng</span>
         </div>
-        <p className="hint">Progress notes were not captured for this generation.</p>
+        <p className="hint">Không có ghi chú tiến trình nào được lưu lại.</p>
       </div>
     );
   }
@@ -192,9 +193,9 @@ export function GenerationProgress({
   return (
     <div className="generation-progress" aria-live="polite">
       <div className="progress-heading">
-        <strong>{successfullyCompleted ? "Generation complete" : terminal ? "Generation stopped" : "Generating lesson"}</strong>
+        <strong>{successfullyCompleted ? "Tạo bài học thành công" : terminal ? "Đã dừng tiến trình" : "Đang tạo bài học tự động"}</strong>
         {job?.attempts && job.attempts > 1 && active ? (
-          <span className="muted">Retrying after a temporary issue</span>
+          <span className="muted">Đang thử lại do sự cố tạm thời...</span>
         ) : null}
       </div>
       <ol className="progress-list">
@@ -212,7 +213,7 @@ export function GenerationProgress({
       {latestThought ? (
         <div className="thought-panel">
           <div className="thought-current">
-            <span className="thought-label">Progress note</span>
+            <span className="thought-label">Chi tiết xử lý</span>
             <p>{latestThought.text}</p>
           </div>
           {recentThoughts.length > 1 ? (
@@ -226,14 +227,14 @@ export function GenerationProgress({
       ) : active ? (
         <div className="thought-panel">
           <div className="thought-current">
-            <span className="thought-label">Progress note</span>
+            <span className="thought-label">Chi tiết xử lý</span>
             <p className="muted">
-              Waiting for a learner-facing progress note. Some configured models do not provide one.
+              Đang phân tích cấu trúc ngữ cảnh và suy nghĩ phản hồi...
             </p>
           </div>
         </div>
       ) : null}
-      {usingFallback && active ? <p className="hint">Live stream unavailable. Checking progress periodically.</p> : null}
+      {usingFallback && active ? <p className="hint">Không thể xem trực tiếp. Đang tự động làm mới tiến độ mỗi 2.5 giây.</p> : null}
     </div>
   );
 }

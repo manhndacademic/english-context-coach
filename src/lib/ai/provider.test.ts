@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerceJsonForSchema, getGeminiThinkingLevel } from "./provider";
+import { coerceJsonForSchema, getGeminiThinkingLevel, extractJson } from "./provider";
 
 describe("AI provider JSON coercion", () => {
   it("wraps top-level exercise arrays in the expected object shape", () => {
@@ -55,5 +55,22 @@ describe("AI provider JSON coercion", () => {
     expect(getGeminiThinkingLevel()).toBe("MINIMAL");
 
     process.env.GEMINI_THINKING_LEVEL = original;
+  });
+
+  describe("extractJson", () => {
+    it("extracts json inside markdown blocks", () => {
+      const raw = '```json\n{"key": "value"}\n```';
+      expect(JSON.parse(extractJson(raw))).toEqual({ key: "value" });
+    });
+
+    it("extracts json even with trailing garbage braces and brackets", () => {
+      const raw = '{"key": "value"}}\n]\n}\n]';
+      expect(JSON.parse(extractJson(raw))).toEqual({ key: "value" });
+    });
+
+    it("extracts complex nested json structure with trailing garbage", () => {
+      const raw = '{"key": {"nested": [1, 2, 3]}, "flag": true}}\n]\n}\n]';
+      expect(JSON.parse(extractJson(raw))).toEqual({ key: { nested: [1, 2, 3] }, flag: true });
+    });
   });
 });

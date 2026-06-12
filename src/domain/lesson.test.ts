@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { dedupeKeyPhrases, exerciseCompletenessIssues } from "./lesson";
+import { getTextProcessor } from "@/domain/text";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
 const basePhrase = {
+  conceptKey: "push_back",
+  conceptPhrase: "push back",
+  conceptMeaningVi: "hoãn lại / trì hoãn",
   meaningVi: "hoãn lại",
   meaningInContextVi: "dời việc này sang sau",
   exampleEn: "Can we push the review back to Friday?",
@@ -29,6 +33,9 @@ const baseAnalysis: AnalysisResult = {
   lessonFocuses: [
     {
       title: "Yêu cầu hoãn lịch",
+      conceptKey: "delay_request",
+      conceptPhrase: "delay request",
+      conceptMeaningVi: "yêu cầu hoãn lịch",
       category: "purpose",
       explanationVi: "Câu này nói về việc chờ hoặc dời lịch trong công việc.",
       difficulty: "B1",
@@ -44,6 +51,9 @@ describe("lesson product rules", () => {
         { ...basePhrase, phrase: "push this back" },
         {
           phrase: "API contract",
+          conceptKey: "api_contract",
+          conceptPhrase: "API contract",
+          conceptMeaningVi: "thỏa thuận kỹ thuật API",
           meaningVi: "thỏa thuận kỹ thuật API",
           meaningInContextVi: "tài liệu cần chốt trước khi tiếp tục",
           exampleEn: "The API contract should be finalized before implementation.",
@@ -53,6 +63,7 @@ describe("lesson product rules", () => {
         },
       ],
       "We need to push this back until the API contract is finalized.",
+      getTextProcessor(),
     );
 
     expect(phrases.map((phrase) => phrase.phrase)).toEqual(["push this back", "API contract"]);
@@ -89,6 +100,9 @@ describe("lesson product rules", () => {
         keyPhrases: [
           {
             phrase: "looks good",
+            conceptKey: "looks_good",
+            conceptPhrase: "looks good",
+            conceptMeaningVi: "ổn, được",
             meaningVi: "ổn, được",
             meaningInContextVi: "người nói thấy việc này ổn",
             exampleEn: "The schedule looks good.",
@@ -100,12 +114,16 @@ describe("lesson product rules", () => {
         lessonFocuses: [
           {
             title: "Phản hồi đồng ý ngắn",
+            conceptKey: "short_agreement",
+            conceptPhrase: "phản hồi đồng ý ngắn",
+            conceptMeaningVi: "thể hiện sự đồng ý ngắn gọn",
             category: "tone",
             explanationVi: "Câu này là phản hồi tích cực ngắn gọn.",
             difficulty: "A2",
           },
         ],
       },
+      getTextProcessor(),
     );
 
     expect(issues).toEqual([]);
@@ -139,7 +157,7 @@ describe("lesson product rules", () => {
       ],
     };
 
-    expect(exerciseCompletenessIssues(result, baseAnalysis)).toContain(
+    expect(exerciseCompletenessIssues(result, baseAnalysis, getTextProcessor())).toContain(
       "A complete Lesson needs at least one LessonFocus Exercise.",
     );
   });

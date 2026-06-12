@@ -1,19 +1,18 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { and, asc, desc, eq } from "drizzle-orm";
-import { db, schema } from "@/db";
-import type { KeyPhrase } from "@/db/schema";
+import type { KeyPhrase } from "@/domain/lesson";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { ExerciseCard } from "@/components/exercise-card";
 import { GenerationProgress } from "@/components/generation-progress";
+import { KeyPhraseList } from "@/components/key-phrase-list";
 import {
   deleteSourceTextAction,
   regenerateLessonAction,
   retryExercisesAction,
   retryLessonGenerationAction,
 } from "@/app/actions/source-texts";
-import { getLessonProgress } from "@/lib/jobs/progress";
+import { getLessonRepository } from "@/domain/lesson";
 import { renderRichText } from "@/lib/rich-text";
 
 function formatLabel(value: string) {
@@ -200,46 +199,26 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const user = await requireUser();
   const { id } = await params;
 
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(eq(schema.lessons.id, id), eq(schema.lessons.userId, user.id)))
-    .limit(1);
-  if (!lesson) notFound();
+  const lessonData = await getLessonRepository().getLessonAggregate(id, user.id);
+  if (!lessonData) notFound();
 
-  const [sourceText, phrases, sentenceBreakdowns, lessonFocuses, exercises, attempts, progress] = await Promise.all([
-    db
-      .select()
-      .from(schema.sourceTexts)
-      .where(and(eq(schema.sourceTexts.id, lesson.sourceTextId), eq(schema.sourceTexts.userId, user.id)))
-      .limit(1),
-    db
-      .select()
-      .from(schema.keyPhrases)
-      .where(eq(schema.keyPhrases.lessonId, lesson.id))
-      .orderBy(asc(schema.keyPhrases.createdAt)),
-    db
-      .select()
-      .from(schema.sentenceBreakdowns)
-      .where(eq(schema.sentenceBreakdowns.lessonId, lesson.id))
-      .orderBy(schema.sentenceBreakdowns.orderIndex),
-    db
-      .select()
-      .from(schema.lessonFocuses)
-      .where(eq(schema.lessonFocuses.lessonId, lesson.id))
-      .orderBy(asc(schema.lessonFocuses.createdAt)),
-    db
-      .select()
-      .from(schema.exercises)
-      .where(eq(schema.exercises.lessonId, lesson.id))
-      .orderBy(schema.exercises.orderIndex),
-    db
-      .select()
-      .from(schema.attempts)
-      .where(eq(schema.attempts.lessonId, lesson.id))
-      .orderBy(desc(schema.attempts.createdAt)),
-    getLessonProgress({ lessonId: lesson.id, userId: user.id }),
-  ]);
+  const {
+    lesson,
+    sourceText,
+    keyPhrases: phrases,
+    sentenceBreakdowns,
+    lessonFocuses,
+    exercises,
+    attempts,
+    userErrors,
+    progress,
+  } = lessonData;
+
+  const userErrorsByAttemptId = new Map(
+    userErrors
+      .filter((err) => err.attemptId !== null)
+      .map((err) => [err.attemptId!, err])
+  );
 
   const attemptsByExercise = new Map<string, typeof attempts>();
   for (const attempt of attempts) {
@@ -249,7 +228,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   }
   const phraseById = new Map(phrases.map((phrase) => [phrase.id, phrase]));
   const focusById = new Map(lessonFocuses.map((focus) => [focus.id, focus]));
-  const sourceContent = sourceText[0]?.content;
+  const sourceContent = sourceText?.content;
   const exerciseSummaries = exercises.map((exercise) => {
     const latestAttempt = attemptsByExercise.get(exercise.id)?.[0];
     return {
@@ -271,26 +250,30 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <section className="panel">
         <div className="lesson-header">
           <div className="cluster">
-            <span className="pill">Version {lesson.version}</span>
-            <span className={`status-${lesson.analysisStatus}`}>Analysis {lesson.analysisStatus}</span>
-            <span className={`status-${lesson.exerciseStatus}`}>Exercises {lesson.exerciseStatus}</span>
+            <span className="pill">Phiên bản {lesson.version}</span>
+            <span className={`status-${lesson.analysisStatus}`}>
+              Phân tích: {lesson.analysisStatus === "succeeded" ? "Hoàn thành" : lesson.analysisStatus === "running" ? "Đang chạy" : lesson.analysisStatus === "failed" ? "Thất bại" : "Đang chờ"}
+            </span>
+            <span className={`status-${lesson.exerciseStatus}`}>
+              Bài tập: {lesson.exerciseStatus === "succeeded" ? "Hoàn thành" : lesson.exerciseStatus === "running" ? "Đang chạy" : lesson.exerciseStatus === "failed" ? "Thất bại" : "Đang chờ"}
+            </span>
           </div>
-          <h1>{lesson.title}</h1>
-          <p className="muted">
-            {lesson.textType.replaceAll("_", " ")} · {lesson.detectedLevel ?? "level pending"}
+          <h1 style={{ marginTop: "12px", marginBottom: "8px" }}>{lesson.title || "Bài học không tên"}</h1>
+          <p className="muted" style={{ fontSize: "14px" }}>
+            Thể loại: {lesson.textType?.replaceAll("_", " ") ?? "general"} · Trình độ: {lesson.detectedLevel ?? "Đang xác định"}
           </p>
-          <div className="cluster">
+          <div className="cluster" style={{ marginTop: "16px" }}>
             <form action={regenerateLessonAction}>
               <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
               <button className="secondary-button" type="submit">
-                Regenerate as new version
+                Tạo bản mới (Regenerate)
               </button>
             </form>
             {lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "failed" ? (
               <form action={retryExercisesAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
                 <button className="secondary-button" type="submit">
-                  Retry exercises
+                  Thử lại tạo bài tập
                 </button>
               </form>
             ) : null}
@@ -298,14 +281,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
               <form action={retryLessonGenerationAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
                 <button className="secondary-button" type="submit">
-                  Retry analysis
+                  Thử lại phân tích
                 </button>
               </form>
             ) : null}
             <form action={deleteSourceTextAction}>
               <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
               <button className="danger-button" type="submit">
-                Delete source
+                Xoá nguồn
               </button>
             </form>
           </div>
@@ -350,30 +333,34 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
           {sourceContent ? (
             <section className="panel stack">
               <div className="section-heading">
-                <h2>Source text</h2>
-                <span className="hint">Highlighted phrases link to the list.</span>
+                <h2>Văn bản gốc (Source)</h2>
+                <span className="hint">Nhấp vào từ/cụm từ tô màu để xem giải nghĩa bên phải.</span>
               </div>
-              <div className="source-reading-panel">{renderReadableSourceText(sourceContent, phrases)}</div>
+              <div className="source-reading-panel" style={{ fontFamily: "var(--font-serif)", fontSize: "17px", lineHeight: "1.7" }}>
+                {renderReadableSourceText(sourceContent, phrases)}
+              </div>
             </section>
           ) : null}
 
           <section className="panel stack">
             {lesson.summaryVi ? (
               <>
-                <h2>Vietnamese summary</h2>
-                <p>{renderRichText(lesson.summaryVi)}</p>
-                <h2>Natural Vietnamese translation</h2>
-                <p>{renderRichText(lesson.naturalTranslationVi)}</p>
-                <h2>Context explanation</h2>
-                <p>{renderRichText(lesson.contextExplanationVi)}</p>
+                <h2>Tóm tắt nội dung</h2>
+                <p style={{ lineHeight: "1.6" }}>{renderRichText(lesson.summaryVi)}</p>
+                <h2>Bản dịch tự nhiên</h2>
+                <p style={{ fontFamily: "var(--font-serif)", fontSize: "16px", fontStyle: "italic", lineHeight: "1.6", background: "var(--surface-strong)", padding: "16px", borderRadius: "var(--radius-md)" }}>
+                  {renderRichText(lesson.naturalTranslationVi)}
+                </p>
+                <h2>Giải thích ngữ cảnh</h2>
+                <p style={{ lineHeight: "1.6" }}>{renderRichText(lesson.contextExplanationVi)}</p>
                 {lessonFocuses.length ? (
                   <>
-                    <h2>What to notice</h2>
+                    <h2>Lưu ý quan trọng</h2>
                     <div className="list">
                       {lessonFocuses.map((focus) => (
                         <article className="list-row" id={`lessonfocus-${focus.id}`} key={focus.id}>
-                          <strong>{focus.title}</strong>
-                          <span className="muted">{renderRichText(focus.explanationVi)}</span>
+                          <strong style={{ fontSize: "16px" }}>{focus.title}</strong>
+                          <span className="muted" style={{ fontSize: "14px", lineHeight: "1.5" }}>{renderRichText(focus.explanationVi)}</span>
                           <span className="cluster">
                             <span className="pill">{formatLabel(focus.category)}</span>
                             <span className="pill">{focus.difficulty}</span>
@@ -385,30 +372,30 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 ) : null}
               </>
             ) : (
-              <p className="muted">Analysis will appear here when it is ready.</p>
+              <p className="muted">Bài học đang được phân tích, vui lòng đợi giây lát...</p>
             )}
           </section>
 
           {sentenceBreakdowns.length ? (
             <section className="panel stack">
-              <h2>Sentence breakdown</h2>
+              <h2>Phân tích cấu trúc câu</h2>
               <div className="sentence-breakdown-list">
                 {sentenceBreakdowns.map((breakdown) => (
-                  <article className="sentence-breakdown-row" key={breakdown.id}>
-                    <p className="sentence-source">{breakdown.sentence}</p>
+                  <article className="sentence-breakdown-row" key={breakdown.id} style={{ borderRadius: "var(--radius-md)" }}>
+                    <p className="sentence-source" style={{ fontFamily: "var(--font-serif)", fontSize: "16px", color: "var(--accent-strong)" }}>{breakdown.sentence}</p>
                     <dl>
                       <div>
-                        <dt>Natural meaning</dt>
-                        <dd>{renderRichText(breakdown.naturalMeaningVi)}</dd>
+                        <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Dịch tự nhiên</dt>
+                        <dd style={{ fontSize: "15px", fontWeight: "600" }}>{renderRichText(breakdown.naturalMeaningVi)}</dd>
                       </div>
                       <div>
-                        <dt>Structure</dt>
-                        <dd>{renderRichText(breakdown.structureNotesVi)}</dd>
+                        <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Phân tích cấu trúc</dt>
+                        <dd style={{ fontSize: "14px", color: "var(--muted)" }}>{renderRichText(breakdown.structureNotesVi)}</dd>
                       </div>
                       {breakdown.toneOrContextVi ? (
                         <div>
-                          <dt>Tone/context</dt>
-                          <dd>{renderRichText(breakdown.toneOrContextVi)}</dd>
+                          <dt style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Sắc thái & Ngữ cảnh</dt>
+                          <dd style={{ fontSize: "14px", color: "var(--muted)" }}>{renderRichText(breakdown.toneOrContextVi)}</dd>
                         </div>
                       ) : null}
                     </dl>
@@ -421,72 +408,24 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
         <div className="lesson-side-column">
           <section className="panel stack">
-            <h2>Key phrases</h2>
-            <div className="phrase-list">
-              {phrases.length ? (
-                phrases.map((phrase) => (
-                  <details className="phrase-row" id={`keyphrase-${phrase.id}`} key={phrase.id}>
-                    <summary>
-                      <span className="phrase-row-main">
-                        <span className="phrase-title">{phrase.phrase}</span>
-                        <span className="phrase-meta">
-                          <span className="pill">{formatLabel(phrase.category)}</span>
-                          <span className="pill">{phrase.difficulty}</span>
-                        </span>
-                        <span className="phrase-meaning">{renderRichText(phrase.meaningInContextVi)}</span>
-                      </span>
-                    </summary>
-                    <dl className="phrase-details">
-                      <div>
-                        <dt>General meaning</dt>
-                        <dd>{renderRichText(phrase.meaningVi)}</dd>
-                      </div>
-                      {phrase.exampleEn || phrase.exampleVi ? (
-                        <div>
-                          <dt>Example</dt>
-                          <dd>
-                            {phrase.exampleEn ? <span className="example-en">{phrase.exampleEn}</span> : null}
-                            {phrase.exampleVi ? <span className="example-vi">{phrase.exampleVi}</span> : null}
-                          </dd>
-                        </div>
-                      ) : null}
-                      {phrase.naturalTranslationVi ? (
-                        <div>
-                          <dt>Natural Vietnamese</dt>
-                          <dd>{renderRichText(phrase.naturalTranslationVi)}</dd>
-                        </div>
-                      ) : null}
-                      {phrase.literalTranslationVi || phrase.whyConfusingVi ? (
-                        <div>
-                          <dt>Common trap</dt>
-                          <dd>
-                            {renderRichText([phrase.literalTranslationVi, phrase.whyConfusingVi].filter(Boolean).join(" "))}
-                          </dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                  </details>
-                ))
-              ) : (
-                <p className="muted">Key phrases will appear after analysis succeeds.</p>
-              )}
-            </div>
+            <h2>Cụm từ then chốt</h2>
+            <KeyPhraseList phrases={phrases} />
           </section>
 
           <section className="panel stack">
             <div className="practice-header">
               <div>
-                <h2>Practice</h2>
+                <h2>Luyện tập thực hành</h2>
                 {exercises.length ? (
-                  <p className="hint">Focus on contextual meaning, not word-by-word translation.</p>
+                  <p className="hint">Tập trung dịch sát nghĩa tự nhiên theo ngữ cảnh, tránh bẫy dịch từng từ.</p>
                 ) : null}
               </div>
               {exercises.length ? (
-                <div className="practice-score" aria-label={`${solvedCount} of ${exercises.length} exercises complete`}>
+                <div className="practice-score" aria-label={`${solvedCount} trên ${exercises.length} bài tập đã hoàn thành`}>
                   <strong>
                     {solvedCount}/{exercises.length}
                   </strong>
-                  <span>complete</span>
+                  <span>đã xong</span>
                 </div>
               ) : null}
             </div>
@@ -494,15 +433,15 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
               <div className="practice-status-grid">
                 <div>
                   <strong>{notStartedCount}</strong>
-                  <span>not started</span>
+                  <span>chưa làm</span>
                 </div>
                 <div>
                   <strong>{retryCount}</strong>
-                  <span>need retry</span>
+                  <span>cần thử lại</span>
                 </div>
                 <div>
                   <strong>{solvedCount}</strong>
-                  <span>done</span>
+                  <span>hoàn thành</span>
                 </div>
               </div>
             ) : null}
@@ -516,13 +455,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                     key={exercise.id}
                     lessonFocus={exercise.lessonFocusId ? focusById.get(exercise.lessonFocusId) : undefined}
                     keyPhrase={exercise.keyPhraseId ? phraseById.get(exercise.keyPhraseId) : undefined}
+                    userErrorsByAttemptId={userErrorsByAttemptId}
                   />
                 ))
               ) : (
                 <p className="muted">
                   {lesson.exerciseStatus === "failed"
-                    ? "Exercise generation failed. Use retry after analysis has succeeded."
-                    : "Exercises will appear after generation succeeds."}
+                    ? "Tạo bài tập thất bại. Hãy chọn thử lại sau khi phân tích hoàn tất."
+                    : "Bài tập thực hành đang được tạo tự động..."}
                 </p>
               )}
             </div>

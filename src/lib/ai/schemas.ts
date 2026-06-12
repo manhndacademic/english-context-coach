@@ -36,6 +36,9 @@ export const errorTypeSchema = z.enum([
 
 export const keyPhraseSchema = z.object({
   phrase: z.string().min(1),
+  conceptKey: z.string().min(1),
+  conceptPhrase: z.string().min(1),
+  conceptMeaningVi: z.string().min(1),
   meaningVi: z.string().min(1),
   meaningInContextVi: z.string().min(1),
   exampleEn: z.string().min(1),
@@ -56,6 +59,9 @@ export const sentenceBreakdownSchema = z.object({
 
 export const lessonFocusSchema = z.object({
   title: z.string().min(1).max(80),
+  conceptKey: z.string().min(1),
+  conceptPhrase: z.string().min(1),
+  conceptMeaningVi: z.string().min(1),
   category: lessonFocusCategorySchema,
   explanationVi: z.string().min(1),
   difficulty: levelSchema,
@@ -113,10 +119,26 @@ export const gradingSchema = z.object({
   score: z.number().int().min(0).max(100),
   isCorrect: z.boolean(),
   feedbackVi: z.string().min(1),
-  errorType: errorTypeSchema.optional(),
-  explanationVi: z.string().optional(),
+  naturalAnswer: z.string().optional(),
+  literalTranslationTrap: z.string().optional(),
+  error: z.object({
+    shouldSave: z.boolean(),
+    confidence: z.number().int().min(0).max(100),
+    errorType: errorTypeSchema,
+    explanationVi: z.string().min(1),
+    targetItem: z.string().min(1),
+  }).optional(),
+});
+
+export const reviewPromptSchema = z.object({
+  reviewPromptEn: z.string().min(1),
+  reviewPromptVi: z.string().min(1),
+  reviewRubricVi: z.string().min(1),
+  reviewCorrectAnswer: z.string().min(1),
+  reviewAcceptableAnswers: z.array(z.string().min(1)).min(1).max(5),
 });
 
 export type AnalysisResult = z.infer<typeof analysisSchema>;
 export type ExercisesResult = z.infer<typeof exercisesSchema>;
 export type GradingResult = z.infer<typeof gradingSchema>;
+export type ReviewPromptResult = z.infer<typeof reviewPromptSchema>;

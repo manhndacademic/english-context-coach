@@ -11,6 +11,9 @@ const analysisJsonShape = {
   lessonFocuses: [
     {
       title: "short learner-facing focus title",
+      conceptKey: "snake_case identifier for the concept (e.g. polite_request)",
+      conceptPhrase: "generalized canonical title/phrase of the concept",
+      conceptMeaningVi: "generalized Vietnamese explanation of the concept",
       category: "tone | structure | purpose | context",
       explanationVi: "Vietnamese explanation of what to notice in the whole source text",
       difficulty: "A2 | B1 | B2 | C1",
@@ -27,6 +30,9 @@ const analysisJsonShape = {
   keyPhrases: [
     {
       phrase: "string",
+      conceptKey: "snake_case identifier for the concept (e.g. push_back)",
+      conceptPhrase: "generalized canonical English phrase of the concept (e.g. push back)",
+      conceptMeaningVi: "generalized Vietnamese meaning of the concept (e.g. dời lại / trì hoãn)",
       meaningVi: "string",
       meaningInContextVi: "string",
       exampleEn: "related English example sentence using the phrase",
@@ -78,13 +84,27 @@ const exercisesJsonShape = {
 const gradingJsonShape = {
   score: "integer 0-100",
   isCorrect: "boolean",
-  feedbackVi: "Vietnamese learner-friendly feedback",
-  errorType:
-    "optional: literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
-  explanationVi: "optional Vietnamese explanation of the error",
+  feedbackVi: "concise, actionable Vietnamese learner-friendly feedback",
+  naturalAnswer: "optional natural translation/answer in Vietnamese, showing the correct/natural way to translate/understand in context",
+  literalTranslationTrap: "optional literal/word-by-word Vietnamese translation trap if the user fell into it (e.g. 'lấy một cái nhìn' for 'take a look')",
+  error: {
+    shouldSave: "boolean: true if this is a high-value structured error that should be saved to the learner's error memory for later review (e.g., a real misunderstanding of a phrasal verb, collocation, literal trap, context or tone, etc. - false if it is just a minor typo, layout/formatting issue, or random noise)",
+    confidence: "integer 0-100: AI confidence score that this structured error is correct and worth saving",
+    errorType: "literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
+    explanationVi: "concise Vietnamese explanation of the error",
+    targetItem: "the specific English key phrase or structure that was misunderstood/translated incorrectly (e.g., 'take a look')"
+  }
 };
 
-const repairJsonShapes = {
+const reviewPromptJsonShape = {
+  reviewPromptEn: "new English practice sentence containing the concept",
+  reviewPromptVi: "Vietnamese prompt asking the learner to translate, e.g. 'Dịch câu sau sang tiếng Việt tự nhiên...'",
+  reviewRubricVi: "Vietnamese grading rubric containing key context details and translation traps to check",
+  reviewCorrectAnswer: "canonical correct natural Vietnamese translation",
+  reviewAcceptableAnswers: ["alternative correct Vietnamese translation 1", "alternative correct Vietnamese translation 2"],
+};
+
+export const repairJsonShapes = {
   analysis: analysisJsonShape,
   exercises: exercisesJsonShape,
   grading: gradingJsonShape,
@@ -96,6 +116,10 @@ export function analysisPrompt(sourceText: string) {
     "Analyze the English source text in context. Do not translate word by word.",
     "Return strict JSON only. No markdown.",
     `Generate 1-${MAX_LESSON_ITEMS} distinct key phrases. Short source texts may have only 1-2 key phrases; do not add filler.`,
+    "For each keyPhrase and lessonFocus, you MUST identify its underlying general concept. Generate:",
+    "  - `conceptKey`: A snake_case identifier that groups this phrase or focus semantically (e.g., `push_back` for 'push this back' or 'push the meeting back').",
+    "  - `conceptPhrase`: The generalized canonical form in English (e.g., `push back` for 'push this back').",
+    "  - `conceptMeaningVi`: The generalized Vietnamese meaning (e.g., `dời lại / trì hoãn`).",
     "Generate sentenceBreakdowns for the important source sentences. Keep each breakdown useful for reading comprehension, not a grammar dump.",
     "Generate 1-3 lessonFocuses for whole-text tone, structure, purpose, or context.",
     "Choose key phrases that are useful as learner-facing list rows, including single words only when their contextual sense matters.",
@@ -143,6 +167,14 @@ export function gradingPrompt(input: {
   return [
     "Grade this Vietnamese learner answer.",
     "Prioritize whether the answer captures the English meaning in context naturally. Do not require word-by-word translation.",
+    "Grading translation must focus on contextual meaning, not exact matching. Accept multiple natural Vietnamese answers when they preserve the meaning.",
+    "Provide concise, actionable Vietnamese feedback.",
+    "Identify if the learner fell into any literal translation traps (e.g. translating 'take a look' as 'lấy một cái nhìn').",
+    "If the learner's answer is wrong or inaccurate:",
+    "  - Set 'isCorrect' to false.",
+    "  - Provide the 'naturalAnswer' in Vietnamese.",
+    "  - If they fell into a literal/word-by-word translation trap, specify it in 'literalTranslationTrap'.",
+    "  - Populate the 'error' object with structured details for memory if it is a real misunderstanding (not a minor spelling typo). Set 'shouldSave' to true and 'confidence' to your confidence score (0-100). Keep the Vietnamese feedback and error explanation concise.",
     "Return strict JSON only. No markdown.",
     "JSON shape:",
     JSON.stringify(gradingJsonShape),
@@ -164,6 +196,32 @@ export function repairPrompt(rawJson: string, schemaName: string) {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+export function reviewPromptGenerationPrompt(input: {
+  conceptPhrase: string;
+  conceptMeaningVi: string;
+  category: string;
+  errorType: string;
+}) {
+  return [
+    "You are English Context Coach for Vietnamese learners.",
+    "Create a new context review practice exercise for a learner who previously misunderstood this concept.",
+    "Concept English phrase: " + input.conceptPhrase,
+    "Concept Vietnamese meaning: " + input.conceptMeaningVi,
+    "Concept category: " + input.category,
+    "Previous error type: " + input.errorType,
+    "Instructions:",
+    "1. Generate a NEW, privacy-safe, realistic English sentence (`reviewPromptEn`) that uses the concept phrase naturally. Do not reuse any project names, private details, or sensitive context.",
+    "2. The sentence must test the same understanding that the learner failed (e.g. if category is phrasal_verb, ensure the verb has the correct phrasal sense in the new sentence).",
+    "3. The sentence should be appropriate for business or general English context, depending on the category.",
+    "4. Generate a Vietnamese translation prompt (`reviewPromptVi`), e.g. 'Dịch câu sau sang nghĩa tự nhiên: ...'",
+    "5. Provide a clear, natural Vietnamese correct translation (`reviewCorrectAnswer`) and 1-3 alternative translations (`reviewAcceptableAnswers`) that capture the exact contextual meaning naturally.",
+    "6. Provide a short Vietnamese grading rubric (`reviewRubricVi`) highlighting what key meaning components the translation must preserve and what word-by-word traps to penalize.",
+    "7. Return strict JSON only. No markdown.",
+    "JSON shape:",
+    JSON.stringify(reviewPromptJsonShape),
+  ].join("\n\n");
 }
 
 export const promptVersions = PROMPT_VERSIONS;

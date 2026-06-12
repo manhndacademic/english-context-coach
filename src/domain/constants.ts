@@ -6,10 +6,12 @@ export const PROMPT_VERSIONS = {
   analysis: "analysis-v2",
   exercises: "exercises-v1",
   grading: "grading-v1",
+  review_prompt: "review_prompt-v1",
 } as const;
 
 export const SCHEMA_VERSIONS = {
   analysis: "analysis-schema-v1",
   exercises: "exercises-schema-v1",
   grading: "grading-schema-v1",
+  review_prompt: "review_prompt-schema-v1",
 } as const;

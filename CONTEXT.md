@@ -56,6 +56,10 @@ _Avoid_: Mistake, failure
 A repeated learner weakness aggregated from UserErrors and scheduled for review. A MistakePattern represents the underlying misunderstanding concept, whether it came from KeyPhrase or LessonFocus practice, and has a MasteryState.
 _Avoid_: ReviewItem, MemoryItem
 
+**Concept**:
+A generalized language understanding unit (e.g., a phrasal verb root or grammatical pattern) that groups related KeyPhrases or LessonFocuses. MistakePatterns aggregate UserErrors by Concept rather than exact phrase spelling, helping the learner review related mistakes together.
+_Avoid_: Lemma, root phrase, category key
+
 **MasteryState**:
 The learner-facing review state of a MistakePattern, such as due, active, or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
 _Avoid_: Status, schedule state

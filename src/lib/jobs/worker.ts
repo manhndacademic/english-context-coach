@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid";
-import type { schema } from "@/db";
-import { claimGenerationJob, processGenerationJob } from "./generation";
+import { getLessonGenerationEngine } from "@/domain/lesson";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -11,22 +10,24 @@ export async function runWorker(options: {
 } = {}) {
   const workerId = options.workerId ?? `worker-${nanoid(8)}`;
   const concurrency = options.concurrency ?? Number(process.env.WORKER_CONCURRENCY ?? "1");
+  const engine = getLessonGenerationEngine();
 
   async function tick() {
-    const jobs = await Promise.all(
-      Array.from({ length: Math.max(1, concurrency) }, () => claimGenerationJob(workerId)),
+    const results = await Promise.allSettled(
+      Array.from({ length: Math.max(1, concurrency) }, () => engine.processNext(workerId))
     );
 
-    const claimed = jobs.filter(
-      (job): job is typeof schema.generationJobs.$inferSelect => Boolean(job),
-    );
-    const results = await Promise.allSettled(claimed.map((job) => processGenerationJob(job)));
+    let processedCount = 0;
     for (const result of results) {
-      if (result.status === "rejected") {
+      if (result.status === "fulfilled") {
+        if (result.value.status === "processed") {
+          processedCount += 1;
+        }
+      } else {
         console.error(result.reason);
       }
     }
-    return claimed.length;
+    return processedCount;
   }
 
   if (options.once) {

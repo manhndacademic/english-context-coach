@@ -1,13 +1,13 @@
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
-import { normalizePhrase } from "./text";
+import type { TextProcessor } from "@/domain/text";
 
 function includesPhrase(sourceText: string, phrase: string) {
   return sourceText.toLowerCase().includes(phrase.toLowerCase());
 }
 
-function isOverlappingDuplicate(a: string, b: string) {
-  const normalizedA = normalizePhrase(a);
-  const normalizedB = normalizePhrase(b);
+function isOverlappingDuplicate(a: string, b: string, textProcessor: TextProcessor) {
+  const normalizedA = textProcessor.normalizePhrase(a);
+  const normalizedB = textProcessor.normalizePhrase(b);
   const tokensA = normalizedA.split(" ");
   const tokensB = normalizedB.split(" ");
   const isSubsequence = (shorter: string[], longer: string[]) => {
@@ -38,14 +38,18 @@ function choosePhrase(current: AnalysisResult["keyPhrases"][number], candidate: 
   return current;
 }
 
-export function dedupeKeyPhrases(phrases: AnalysisResult["keyPhrases"], sourceText: string) {
+export function dedupeKeyPhrases(
+  phrases: AnalysisResult["keyPhrases"],
+  sourceText: string,
+  textProcessor: TextProcessor
+) {
   const deduped: AnalysisResult["keyPhrases"] = [];
 
   for (const phrase of phrases) {
     const existingIndex = deduped.findIndex(
       (existing) =>
         existing.category === phrase.category &&
-        isOverlappingDuplicate(existing.phrase, phrase.phrase),
+        isOverlappingDuplicate(existing.phrase, phrase.phrase, textProcessor),
     );
 
     if (existingIndex === -1) {
@@ -59,14 +63,22 @@ export function dedupeKeyPhrases(phrases: AnalysisResult["keyPhrases"], sourceTe
   return deduped;
 }
 
-export function prepareAnalysisForSave(analysis: AnalysisResult, sourceText: string): AnalysisResult {
+export function prepareAnalysisForSave(
+  analysis: AnalysisResult,
+  sourceText: string,
+  textProcessor: TextProcessor
+): AnalysisResult {
   return {
     ...analysis,
-    keyPhrases: dedupeKeyPhrases(analysis.keyPhrases, sourceText),
+    keyPhrases: dedupeKeyPhrases(analysis.keyPhrases, sourceText, textProcessor),
   };
 }
 
-export function exerciseCompletenessIssues(result: ExercisesResult, analysis: AnalysisResult) {
+export function exerciseCompletenessIssues(
+  result: ExercisesResult,
+  analysis: AnalysisResult,
+  textProcessor: TextProcessor
+) {
   const issues: string[] = [];
   if (result.exercises.length < 3) issues.push("A complete Lesson needs at least 3 Exercises.");
   if (!result.exercises.some((exercise) => exercise.type === "focus_question")) {
@@ -79,9 +91,9 @@ export function exerciseCompletenessIssues(result: ExercisesResult, analysis: An
     issues.push("A complete Lesson with KeyPhrases needs at least one KeyPhrase Exercise.");
   }
 
-  const focusTitles = new Set(analysis.lessonFocuses.map((focus) => normalizePhrase(focus.title)));
+  const focusTitles = new Set(analysis.lessonFocuses.map((focus) => textProcessor.normalizePhrase(focus.title)));
   const invalidFocus = result.exercises.find(
-    (exercise) => exercise.type === "focus_question" && !focusTitles.has(normalizePhrase(exercise.focus)),
+    (exercise) => exercise.type === "focus_question" && !focusTitles.has(textProcessor.normalizePhrase(exercise.focus)),
   );
   const invalidFocusTitle = invalidFocus?.type === "focus_question" ? invalidFocus.focus : null;
   if (invalidFocusTitle) issues.push(`Focus question targets an unknown LessonFocus: ${invalidFocusTitle}`);
@@ -89,9 +101,14 @@ export function exerciseCompletenessIssues(result: ExercisesResult, analysis: An
   return issues;
 }
 
-export function assertCompleteExercises(result: ExercisesResult, analysis: AnalysisResult) {
-  const issues = exerciseCompletenessIssues(result, analysis);
+export function assertCompleteExercises(
+  result: ExercisesResult,
+  analysis: AnalysisResult,
+  textProcessor: TextProcessor
+) {
+  const issues = exerciseCompletenessIssues(result, analysis, textProcessor);
   if (issues.length) {
     throw new Error(`Exercise generation is incomplete: ${issues.join(" ")}`);
   }
 }
+

@@ -1,10 +1,10 @@
 import { requireUser } from "@/lib/auth/guards";
-import { getLessonProgress } from "@/lib/jobs/progress";
+import { getLessonRepository } from "@/domain/lesson";
 import { isTerminalLessonStatus } from "@/domain/generation-progress";
 
 const encoder = new TextEncoder();
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-type ProgressSnapshot = NonNullable<Awaited<ReturnType<typeof getLessonProgress>>>;
+type ProgressSnapshot = NonNullable<Awaited<ReturnType<ReturnType<typeof getLessonRepository>["getLessonProgress"]>>>;
 type ProgressMilestone = ProgressSnapshot["milestones"][number];
 type ProgressThought = ProgressSnapshot["thoughts"][number];
 
@@ -86,8 +86,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const user = await requireUser();
   const { id } = await params;
   const cursor = parseLastEventId(request);
+  const repo = getLessonRepository();
 
-  const initial = await getLessonProgress({
+  const initial = await repo.getLessonProgress({
     lessonId: id,
     userId: user.id,
     afterMilestoneId: cursor.milestoneId,
@@ -100,7 +101,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const stream = new ReadableStream({
     async start(controller) {
       while (!request.signal.aborted) {
-        const snapshot = await getLessonProgress({
+        const snapshot = await repo.getLessonProgress({
           lessonId: id,
           userId: user.id,
           afterMilestoneId: cursor.milestoneId,

@@ -9,3 +9,6 @@ coverage
 !.env.example
 docker-data
 .codex-*.png
+.agents/
+package-lock.json
+

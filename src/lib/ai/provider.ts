@@ -1,9 +1,14 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { db, schema } from "@/db";
 import { SCHEMA_VERSIONS } from "@/domain/constants";
-import { hashCanonicalPayload } from "@/domain/text";
 import { repairPrompt } from "./prompts";
+
+function hashCanonicalPayload(payload: unknown): string {
+  const serialized = JSON.stringify(payload, Object.keys(payload as object).sort());
+  return createHash("sha256").update(serialized).digest("hex");
+}
 
 export type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
 
@@ -43,12 +48,73 @@ export function getGeminiThinkingLevel() {
   return ThinkingLevel[value as keyof typeof ThinkingLevel];
 }
 
-function extractJson(text: string) {
+function cleanJsonString(str: string): string {
+  const trimmed = str.trim();
+  const firstBrace = trimmed.indexOf("{");
+  const firstBracket = trimmed.indexOf("[");
+
+  if (firstBrace === -1 && firstBracket === -1) {
+    return trimmed;
+  }
+
+  const startIdx =
+    firstBrace === -1
+      ? firstBracket
+      : firstBracket === -1
+        ? firstBrace
+        : Math.min(firstBrace, firstBracket);
+  const charStack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIdx; i < trimmed.length; i += 1) {
+    const char = trimmed[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "{" || char === "[") {
+        charStack.push(char);
+      } else if (char === "}") {
+        if (charStack.length > 0 && charStack[charStack.length - 1] === "{") {
+          charStack.pop();
+        }
+      } else if (char === "]") {
+        if (charStack.length > 0 && charStack[charStack.length - 1] === "[") {
+          charStack.pop();
+        }
+      }
+
+      if (charStack.length === 0) {
+        return trimmed.substring(startIdx, i + 1);
+      }
+    }
+  }
+
+  return trimmed.substring(startIdx);
+}
+
+export function extractJson(text: string) {
   const trimmed = text.trim();
-  if (trimmed.startsWith("{")) return trimmed;
-  if (trimmed.startsWith("[")) return trimmed;
-  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return match?.[1]?.trim() ?? trimmed;
+  let candidate = trimmed;
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    candidate = match?.[1]?.trim() ?? trimmed;
+  }
+  return cleanJsonString(candidate);
 }
 
 export function coerceJsonForSchema(input: unknown, schemaVersion: keyof typeof SCHEMA_VERSIONS) {

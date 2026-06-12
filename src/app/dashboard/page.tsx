@@ -1,45 +1,36 @@
 import Link from "next/link";
-import { and, count, desc, eq, lte, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { SourceTextForm } from "@/components/source-text-form";
+import { getLessonRepository } from "@/domain/lesson";
+import { getLearnerMemoryRepository } from "@/domain/memory";
 
 export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
 
-  const [recentLessons, dueCount, patternCount, sourceCount] = await Promise.all([
-    db
-      .select({
-        id: schema.lessons.id,
-        title: schema.lessons.title,
-        version: schema.lessons.version,
-        analysisStatus: schema.lessons.analysisStatus,
-        exerciseStatus: schema.lessons.exerciseStatus,
-        createdAt: schema.lessons.createdAt,
-      })
-      .from(schema.lessons)
-      .where(eq(schema.lessons.userId, user.id))
-      .orderBy(desc(schema.lessons.createdAt))
-      .limit(6),
-    db
-      .select({ value: count() })
-      .from(schema.mistakePatterns)
-      .where(and(eq(schema.mistakePatterns.userId, user.id), lte(schema.mistakePatterns.dueAt, now))),
-    db
-      .select({ value: count() })
-      .from(schema.mistakePatterns)
-      .where(eq(schema.mistakePatterns.userId, user.id)),
-    db.select({ value: count() }).from(schema.sourceTexts).where(eq(schema.sourceTexts.userId, user.id)),
+  const memoryRepo = getLearnerMemoryRepository();
+  const lessonRepo = getLessonRepository();
+
+  const [recentLessons, sourceCount, metrics] = await Promise.all([
+    lessonRepo.getRecentLessons(user.id, 6),
+    lessonRepo.getSourceTextsCount(user.id),
+    memoryRepo.getDashboardMetrics(user.id, now),
   ]);
 
-  const repeatedMistakes = await db
-    .select()
-    .from(schema.mistakePatterns)
-    .where(eq(schema.mistakePatterns.userId, user.id))
-    .orderBy(desc(schema.mistakePatterns.occurrenceCount), sql`${schema.mistakePatterns.dueAt} asc`)
-    .limit(5);
+  const dueCount = metrics.dueCount;
+  const patternCount = metrics.patternCount;
+  const repeatedMistakes = metrics.repeatedMistakes;
+
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case "pending": return "Đang chờ";
+      case "running": return "Đang xử lý";
+      case "succeeded": return "Hoàn thành";
+      case "failed": return "Lỗi";
+      default: return status;
+    }
+  };
 
   return (
     <main className="app-shell">
@@ -47,9 +38,9 @@ export default async function DashboardPage() {
       <div className="page-grid">
         <section className="panel stack">
           <div>
-            <h1>Understand English in context.</h1>
-            <p className="muted">
-              Paste real English from work, study, docs, emails, or messages. The lesson runs in the background.
+            <h1 style={{ marginBottom: "8px" }}>Hiểu Tiếng Anh Trong Ngữ Cảnh</h1>
+            <p className="muted" style={{ fontSize: "15px", lineHeight: "1.5" }}>
+              Dán văn bản tiếng Anh thực tế từ công việc, học tập, tài liệu, email hoặc tin nhắn. Bài học sẽ được phân tích và tạo tự động trong nền.
             </p>
           </div>
           <SourceTextForm />
@@ -57,39 +48,39 @@ export default async function DashboardPage() {
 
         <aside className="stack">
           <section className="panel stack">
-            <h2>Today</h2>
+            <h2>Hôm nay</h2>
             <div className="metric-grid">
               <div className="metric">
-                <strong>{dueCount[0]?.value ?? 0}</strong>
-                <span className="muted">due reviews</span>
+                <strong>{dueCount}</strong>
+                <span className="muted">lượt ôn tập</span>
               </div>
               <div className="metric">
-                <strong>{patternCount[0]?.value ?? 0}</strong>
-                <span className="muted">patterns</span>
+                <strong>{patternCount}</strong>
+                <span className="muted">mẫu lỗi</span>
               </div>
               <div className="metric">
-                <strong>{sourceCount[0]?.value ?? 0}</strong>
-                <span className="muted">sources</span>
+                <strong>{sourceCount}</strong>
+                <span className="muted">nguồn đã dán</span>
               </div>
             </div>
-            <Link className="primary-button" href="/review">
-              Review due patterns
+            <Link className="primary-button" href="/review" style={{ marginTop: "8px" }}>
+              Bắt đầu ôn tập
             </Link>
           </section>
 
           <section className="panel stack">
-            <h2>Repeated mistake highlights</h2>
+            <h2>Mẫu lỗi lặp lại nổi bật</h2>
             <div className="list">
               {repeatedMistakes.length ? (
                 repeatedMistakes.map((pattern) => (
                   <div className="list-row" key={pattern.id}>
                     <strong>{pattern.normalizedPhrase}</strong>
-                    <span className="muted">{pattern.meaningVi}</span>
+                    <span className="muted" style={{ fontSize: "14px" }}>{pattern.meaningVi}</span>
                     <span className="pill">{pattern.errorType.replaceAll("_", " ")}</span>
                   </div>
                 ))
               ) : (
-                <p className="muted">Mistake patterns will appear after practice attempts.</p>
+                <p className="muted" style={{ fontSize: "14px" }}>Các mẫu lỗi sẽ xuất hiện ở đây sau khi bạn tích lũy bộ nhớ lỗi từ các bài tập.</p>
               )}
             </div>
           </section>
@@ -97,21 +88,21 @@ export default async function DashboardPage() {
       </div>
 
       <section className="panel stack" style={{ marginTop: 22 }}>
-        <h2>Recent lessons</h2>
+        <h2>Bài học gần đây</h2>
         <div className="list">
           {recentLessons.length ? (
             recentLessons.map((lesson) => (
               <Link className="list-row" href={`/lessons/${lesson.id}`} key={lesson.id}>
                 <strong>
-                  {lesson.title} <span className="muted">v{lesson.version}</span>
+                  {lesson.title || "Bài học không tên"} <span className="muted" style={{ fontSize: "13px", fontWeight: "normal" }}>v{lesson.version}</span>
                 </strong>
-                <span className="muted">
-                  Analysis: {lesson.analysisStatus} · Exercises: {lesson.exerciseStatus}
+                <span className="muted" style={{ fontSize: "13px" }}>
+                  Phân tích: {translateStatus(lesson.analysisStatus)} · Bài tập: {translateStatus(lesson.exerciseStatus)}
                 </span>
               </Link>
             ))
           ) : (
-            <p className="muted">No lessons yet. Paste an English source text to start.</p>
+            <p className="muted" style={{ fontSize: "14px" }}>Chưa có bài học nào. Hãy dán một đoạn văn bản tiếng Anh ở trên để bắt đầu.</p>
           )}
         </div>
       </section>

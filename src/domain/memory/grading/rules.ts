@@ -4,8 +4,24 @@ export type RuleGrade = {
   score: number;
   isCorrect: boolean;
   feedbackVi: string;
-  errorType?: "literal_translation" | "phrase_misunderstanding";
-  explanationVi?: string;
+  naturalAnswer?: string;
+  literalTranslationTrap?: string;
+  error?: {
+    shouldSave: boolean;
+    confidence: number;
+    errorType:
+      | "literal_translation"
+      | "phrase_misunderstanding"
+      | "technical_term_misunderstanding"
+      | "phrasal_verb_error"
+      | "collocation_error"
+      | "grammar_structure_misread"
+      | "pronoun_reference_misread"
+      | "tone_register_misread"
+      | "missing_context";
+    explanationVi: string;
+    targetItem: string;
+  };
 };
 
 function normalizeAnswer(value: string) {
@@ -32,7 +48,15 @@ export function gradeObjectiveExercise(exercise: Exercise, answer: string): Rule
     feedbackVi: isCorrect
       ? "Đúng. Bạn đã hiểu cụm này theo đúng ngữ cảnh."
       : "Chưa đúng. Hãy chú ý nghĩa của cụm trong câu, không chỉ dịch từng từ.",
-    errorType: isCorrect ? undefined : "phrase_misunderstanding",
-    explanationVi: isCorrect ? undefined : "Câu trả lời chưa khớp với nghĩa tự nhiên trong ngữ cảnh.",
+    naturalAnswer: exercise.correctAnswer ?? undefined,
+    error: isCorrect
+      ? undefined
+      : {
+          shouldSave: true,
+          confidence: 100,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Câu trả lời chưa khớp với nghĩa tự nhiên trong ngữ cảnh.",
+          targetItem: exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi,
+        },
   };
 }

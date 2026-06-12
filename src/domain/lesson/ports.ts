@@ -1,0 +1,289 @@
+import type { Attempt, UserError } from "@/domain/memory/types";
+import type { GenerationMilestoneCode, GenerationStage } from "@/domain/generation-progress";
+import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
+
+export interface SourceText {
+  id: string;
+  userId: string;
+  content: string;
+  title: string;
+  contentHash: string;
+  createdAt: Date;
+  deletedAt: Date | null;
+}
+
+export interface Lesson {
+  id: string;
+  sourceTextId: string;
+  userId: string;
+  version: number;
+  title: string;
+  analysisStatus: "pending" | "running" | "succeeded" | "failed";
+  exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+  textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown" | null;
+  detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
+  summaryVi: string | null;
+  naturalTranslationVi: string | null;
+  contextExplanationVi: string | null;
+  exerciseModel: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface KeyPhrase {
+  id: string;
+  lessonId: string;
+  userId: string;
+  phrase: string;
+  conceptKey: string;
+  conceptPhrase: string;
+  conceptMeaningVi: string;
+  normalizedPhrase: string;
+  senseKey: string;
+  meaningVi: string;
+  meaningInContextVi: string | null;
+  exampleEn: string | null;
+  exampleVi: string | null;
+  literalTranslationVi: string | null;
+  naturalTranslationVi: string | null;
+  whyConfusingVi: string | null;
+  category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
+  difficulty: "A2" | "B1" | "B2" | "C1";
+  isSensitive: boolean;
+  createdAt: Date;
+}
+
+export interface SentenceBreakdown {
+  id: string;
+  lessonId: string;
+  userId: string;
+  sentence: string;
+  naturalMeaningVi: string;
+  structureNotesVi: string;
+  toneOrContextVi: string | null;
+  orderIndex: number;
+  createdAt: Date;
+}
+
+export interface LessonFocus {
+  id: string;
+  lessonId: string;
+  userId: string;
+  title: string;
+  conceptKey: string;
+  conceptPhrase: string;
+  conceptMeaningVi: string;
+  category: "tone" | "structure" | "purpose" | "context";
+  explanationVi: string;
+  difficulty: "A2" | "B1" | "B2" | "C1";
+  createdAt: Date;
+}
+
+export interface Exercise {
+  id: string;
+  lessonId: string;
+  userId: string;
+  keyPhraseId: string | null;
+  lessonFocusId: string | null;
+  type: "meaning_choice" | "cloze_phrase" | "natural_translation" | "focus_question";
+  promptVi: string;
+  promptEn: string | null;
+  choices: string[] | null;
+  correctAnswer: string | null;
+  acceptableAnswers: string[] | null;
+  rubricVi: string | null;
+  orderIndex: number;
+  createdAt: Date;
+}
+
+export interface GenerationJob {
+  id: string;
+  userId: string;
+  sourceTextId: string;
+  lessonId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  stage: string;
+  attempts: number;
+  errorMessage: string | null;
+  lockedAt: Date | null;
+  lockedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GenerationMilestone {
+  id: number;
+  lessonId: string;
+  generationJobId: string;
+  code: GenerationMilestoneCode;
+  stage: string | null;
+  createdAt: Date;
+}
+
+export interface GenerationThought {
+  id: number;
+  lessonId: string;
+  generationJobId: string;
+  stage: string | null;
+  text: string;
+  createdAt: Date;
+}
+
+export interface LessonAggregate {
+  lesson: Lesson;
+  sourceText: SourceText | null;
+  keyPhrases: KeyPhrase[];
+  sentenceBreakdowns: SentenceBreakdown[];
+  lessonFocuses: LessonFocus[];
+  exercises: Exercise[];
+  attempts: Attempt[];
+  userErrors: UserError[];
+  progress: {
+    lesson: {
+      id: string;
+      analysisStatus: "pending" | "running" | "succeeded" | "failed";
+      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    };
+    job: GenerationJob | null;
+    milestones: GenerationMilestone[];
+    thoughts: GenerationThought[];
+  } | null;
+}
+
+export interface LessonRepository {
+  findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
+  findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null>;
+  findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
+
+  createSourceTextAndLessonAndJob(
+    userId: string,
+    content: string,
+    title: string,
+    contentHash: string
+  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
+
+  createLessonAndJob(
+    userId: string,
+    sourceTextId: string,
+    version: number,
+    stage: "analysis" | "exercises"
+  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
+
+  createJob(
+    userId: string,
+    sourceTextId: string,
+    lessonId: string,
+    stage: "analysis" | "exercises"
+  ): Promise<GenerationJob>;
+
+  claimJob(workerId: string): Promise<GenerationJob | null>;
+  updateJobStatus(
+    jobId: string,
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: Partial<GenerationJob>
+  ): Promise<void>;
+
+  assertQueueCapacity(userId: string): Promise<string | null>;
+
+  updateLessonStatus(
+    lessonId: string,
+    stage: "analysis" | "exercise",
+    status: "pending" | "running" | "succeeded" | "failed",
+    extra?: Partial<Lesson>
+  ): Promise<void>;
+
+  saveAnalysis(
+    lessonId: string,
+    userId: string,
+    analysis: AnalysisResult,
+    model: string
+  ): Promise<void>;
+
+  saveExercises(
+    lessonId: string,
+    userId: string,
+    exercises: ExercisesResult,
+    model: string
+  ): Promise<void>;
+
+  buildAnalysisFromLesson(lessonId: string): Promise<AnalysisResult>;
+
+  deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
+
+  recordMilestone(input: {
+    lessonId: string;
+    generationJobId: string;
+    code: GenerationMilestoneCode;
+    stage: GenerationStage;
+  }): Promise<void>;
+
+  recordThought(input: {
+    lessonId: string;
+    generationJobId: string;
+    stage: GenerationStage;
+    text: string;
+  }): Promise<void>;
+
+  getLessonProgress(input: {
+    lessonId: string;
+    userId: string;
+    afterMilestoneId?: number;
+    afterThoughtId?: number;
+  }): Promise<{
+    lesson: {
+      id: string;
+      analysisStatus: "pending" | "running" | "succeeded" | "failed";
+      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    };
+    job: GenerationJob | null;
+    milestones: GenerationMilestone[];
+    thoughts: GenerationThought[];
+  } | null>;
+
+  getLessonAggregate(lessonId: string, userId: string): Promise<LessonAggregate | null>;
+  getRecentLessons(userId: string, limit: number): Promise<Array<{
+    id: string;
+    title: string | null;
+    version: number;
+    analysisStatus: "pending" | "running" | "succeeded" | "failed";
+    exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    createdAt: Date;
+  }>>;
+  getSourceTextsCount(userId: string): Promise<number>;
+}
+
+export interface GenerationEngine {
+  generateAnalysis(
+    sourceText: string,
+    onThought?: (text: string) => Promise<void>
+  ): Promise<AnalysisResult>;
+
+  generateExercises(
+    analysis: AnalysisResult,
+    onThought?: (text: string) => Promise<void>
+  ): Promise<ExercisesResult>;
+}
+
+export type LessonGenerationResult =
+  | { ok: true; lessonId: string; sourceTextId: string }
+  | { ok: false; error: "VALIDATION_FAILED" | "CAPACITY_EXCEEDED" | "NOT_FOUND" | "INVALID_STATE"; message: string };
+
+export type JobProcessResult =
+  | { status: "processed"; jobId: string; lessonId: string; success: boolean }
+  | { status: "idle" }
+  | { status: "failed"; error: string };
+
+export interface GenerationProgress {
+  lessonId: string;
+  analysisStatus: "pending" | "running" | "succeeded" | "failed";
+  exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+  latestMilestone: string | null;
+  thoughts: Array<{ stage: "analysis" | "exercises"; text: string; createdAt: Date }>;
+}
+
+export interface LessonGenerationEngine {
+  queue(userId: string, content: string): Promise<LessonGenerationResult>;
+  retry(userId: string, lessonId: string): Promise<LessonGenerationResult>;
+  processNext(workerId: string): Promise<JobProcessResult>;
+  getProgress(lessonId: string, userId: string): Promise<GenerationProgress | null>;
+}

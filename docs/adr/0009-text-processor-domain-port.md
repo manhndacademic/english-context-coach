@@ -1,0 +1,3 @@
+# Text processor domain port
+
+We decide to encapsulate text normalization, hashing, and privacy filtering rules (such as redacting email, URLs, and project names) under a unified `TextProcessor` port and `DefaultTextProcessor` adapter. Previously, these were implemented as loose global utility functions, leading to scattered regex patterns and a circular dependency where the infrastructure AI provider layer (`src/lib/ai/provider.ts`) imported text utilities from the domain layer. Introducing the `TextProcessor` port and resolving the circular dependency by defining infrastructure-specific hashing locally enforces proper layering boundaries and allows text processing policies to be mocked or replaced easily during testing.

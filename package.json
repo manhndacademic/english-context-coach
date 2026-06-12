@@ -17,7 +17,7 @@
     "docker:local:reset": "docker compose -f docker-compose.local.yml down -v",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
@@ -26,18 +26,20 @@
     "drizzle-orm": "^0.44.2",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.9",
-    "next": "^15.3.4",
+    "next": "^16.2.9",
     "next-auth": "^5.0.0-beta.29",
     "postgres": "^3.4.5",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "@types/react": "^19.0.1",
-    "@types/react-dom": "^19.0.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.1",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.9",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
