@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import type { TextProcessor } from "../ports";
+import { sha256, hashCanonicalPayload } from "@/lib/crypto";
 
 const sensitivePatterns = [
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
@@ -12,7 +12,7 @@ const sensitivePatterns = [
 export class DefaultTextProcessor implements TextProcessor {
   processSource(content: string): { normalized: string; hash: string } {
     const normalized = content.replace(/\s+/g, " ").trim();
-    const hash = createHash("sha256").update(normalized).digest("hex");
+    const hash = sha256(normalized);
     return { normalized, hash };
   }
 
@@ -25,13 +25,8 @@ export class DefaultTextProcessor implements TextProcessor {
       .trim();
   }
 
-  private hashCanonicalPayload(payload: unknown): string {
-    const serialized = JSON.stringify(payload, Object.keys(payload as object).sort());
-    return createHash("sha256").update(serialized).digest("hex");
-  }
-
   buildSenseKey(phrase: string, meaningVi: string, category: string): string {
-    return this.hashCanonicalPayload({
+    return hashCanonicalPayload({
       category,
       meaningVi: meaningVi.toLowerCase().trim(),
       phrase: this.normalizePhrase(phrase),

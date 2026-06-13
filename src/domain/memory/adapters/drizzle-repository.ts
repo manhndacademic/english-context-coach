@@ -1,5 +1,5 @@
 import { and, eq, sql, lte, count, desc, asc } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, sql as rawSql } from "@/db";
 import type { LearnerMemoryRepository } from "../ports";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson/ports";
 import type { Attempt, UserError, MistakePattern, ReviewAttempt } from "../types";
@@ -45,24 +45,6 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
           eq(schema.mistakePatterns.errorType, errorType as any)
         )
       )
-      .limit(1);
-    return row ?? null;
-  }
-
-  async findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null> {
-    const [row] = await this.dbClient
-      .select()
-      .from(schema.keyPhrases)
-      .where(eq(schema.keyPhrases.id, keyPhraseId))
-      .limit(1);
-    return row ?? null;
-  }
-
-  async findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null> {
-    const [row] = await this.dbClient
-      .select()
-      .from(schema.lessonFocuses)
-      .where(eq(schema.lessonFocuses.id, lessonFocusId))
       .limit(1);
     return row ?? null;
   }
@@ -143,6 +125,8 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         intervalDays: 0,
         dueAt: new Date(),
         isSensitive: input.isSensitive,
+        reviewPromptStatus: "queued",
+        reviewPromptAttempts: 0,
       })
       .onConflictDoUpdate({
         target: [
@@ -152,8 +136,10 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         ],
         set: {
           occurrenceCount: sql`${schema.mistakePatterns.occurrenceCount} + 1`,
+          intervalDays: 0,
           dueAt: new Date(),
           updatedAt: new Date(),
+          reviewPromptStatus: sql`case when ${schema.mistakePatterns.reviewPromptEn} is null then 'queued'::job_status else ${schema.mistakePatterns.reviewPromptStatus} end`,
         },
       })
       .returning();
@@ -176,6 +162,84 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         lastReviewedAt: updates.lastReviewedAt,
         updatedAt: new Date(),
       })
+      .where(eq(schema.mistakePatterns.id, patternId));
+  }
+
+  async claimReviewPromptJob(workerId: string): Promise<MistakePattern | null> {
+    const rows = await rawSql`
+      update mistake_patterns
+      set review_prompt_status = 'running',
+          review_prompt_locked_at = now(),
+          review_prompt_locked_by = ${workerId},
+          review_prompt_attempts = review_prompt_attempts + 1,
+          updated_at = now()
+      where id = (
+        select id
+        from mistake_patterns
+        where review_prompt_status = 'queued'
+           or (review_prompt_status = 'running' and review_prompt_locked_at < now() - interval '10 minutes')
+        order by created_at asc
+        for update skip locked
+        limit 1
+      )
+      returning
+        id,
+        user_id as "userId",
+        concept_key as "conceptKey",
+        normalized_phrase as "normalizedPhrase",
+        sense_key as "senseKey",
+        category,
+        error_type as "errorType",
+        meaning_vi as "meaningVi",
+        safe_review_prompt_vi as "safeReviewPromptVi",
+        occurrence_count as "occurrenceCount",
+        interval_days as "intervalDays",
+        due_at as "dueAt",
+        last_reviewed_at as "lastReviewedAt",
+        is_sensitive as "isSensitive",
+        created_at as "createdAt",
+        updated_at as "updatedAt",
+        review_prompt_en as "reviewPromptEn",
+        review_prompt_vi as "reviewPromptVi",
+        review_rubric_vi as "reviewRubricVi",
+        review_correct_answer as "reviewCorrectAnswer",
+        review_acceptable_answers as "reviewAcceptableAnswers",
+        review_prompt_status as "reviewPromptStatus",
+        review_prompt_attempts as "reviewPromptAttempts",
+        review_prompt_error as "reviewPromptError",
+        review_prompt_locked_at as "reviewPromptLockedAt",
+        review_prompt_locked_by as "reviewPromptLockedBy"
+    `;
+    const pattern = rows[0] as any;
+    return pattern ?? null;
+  }
+
+  async updateReviewPromptJobStatus(
+    patternId: string,
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: Partial<MistakePattern>
+  ): Promise<void> {
+    const updates: any = {
+      reviewPromptStatus: status,
+      updatedAt: new Date(),
+    };
+
+    if (extra) {
+      if (extra.reviewPromptError !== undefined) updates.reviewPromptError = extra.reviewPromptError;
+      if (extra.reviewPromptAttempts !== undefined) updates.reviewPromptAttempts = extra.reviewPromptAttempts;
+      if (extra.reviewPromptLockedAt !== undefined) updates.reviewPromptLockedAt = extra.reviewPromptLockedAt;
+      if (extra.reviewPromptLockedBy !== undefined) updates.reviewPromptLockedBy = extra.reviewPromptLockedBy;
+      
+      if (extra.reviewPromptEn !== undefined) updates.reviewPromptEn = extra.reviewPromptEn;
+      if (extra.reviewPromptVi !== undefined) updates.reviewPromptVi = extra.reviewPromptVi;
+      if (extra.reviewRubricVi !== undefined) updates.reviewRubricVi = extra.reviewRubricVi;
+      if (extra.reviewCorrectAnswer !== undefined) updates.reviewCorrectAnswer = extra.reviewCorrectAnswer;
+      if (extra.reviewAcceptableAnswers !== undefined) updates.reviewAcceptableAnswers = extra.reviewAcceptableAnswers;
+    }
+
+    await this.dbClient
+      .update(schema.mistakePatterns)
+      .set(updates)
       .where(eq(schema.mistakePatterns.id, patternId));
   }
 

@@ -156,6 +156,8 @@ export interface LessonRepository {
   findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
   findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null>;
   findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
+  findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
+  findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null>;
 
   createSourceTextAndLessonAndJob(
     userId: string,

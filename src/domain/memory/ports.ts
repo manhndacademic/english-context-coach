@@ -6,8 +6,6 @@ export interface LearnerMemoryRepository {
   findExercise(exerciseId: string, userId: string): Promise<Exercise | null>;
   findMistakePattern(patternId: string, userId: string): Promise<MistakePattern | null>;
   findPatternByConcept(userId: string, conceptKey: string, errorType: string): Promise<MistakePattern | null>;
-  findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
-  findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null>;
 
   runInTransaction<T>(operation: (tx: LearnerMemoryRepository) => Promise<T>): Promise<T>;
 
@@ -56,6 +54,13 @@ export interface LearnerMemoryRepository {
       dueAt: Date;
       lastReviewedAt?: Date;
     }
+  ): Promise<void>;
+
+  claimReviewPromptJob(workerId: string): Promise<MistakePattern | null>;
+  updateReviewPromptJobStatus(
+    patternId: string,
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: Partial<MistakePattern>
   ): Promise<void>;
 
   createReviewAttempt(attempt: {

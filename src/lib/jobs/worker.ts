@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { getLessonGenerationEngine } from "@/domain/lesson";
+import { getLearnerMemoryEngine } from "@/domain/memory";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -10,12 +11,14 @@ export async function runWorker(options: {
 } = {}) {
   const workerId = options.workerId ?? `worker-${nanoid(8)}`;
   const concurrency = options.concurrency ?? Number(process.env.WORKER_CONCURRENCY ?? "1");
-  const engine = getLessonGenerationEngine();
+  const lessonEngine = getLessonGenerationEngine();
+  const memoryEngine = getLearnerMemoryEngine();
 
   async function tick() {
-    const results = await Promise.allSettled(
-      Array.from({ length: Math.max(1, concurrency) }, () => engine.processNext(workerId))
-    );
+    const lessonPromises = Array.from({ length: Math.max(1, concurrency) }, () => lessonEngine.processNext(workerId));
+    const memoryPromises = Array.from({ length: Math.max(1, concurrency) }, () => memoryEngine.processNextReviewPromptJob(workerId));
+
+    const results = await Promise.allSettled([...lessonPromises, ...memoryPromises]);
 
     let processedCount = 0;
     for (const result of results) {
@@ -34,8 +37,14 @@ export async function runWorker(options: {
     return tick();
   }
 
+  let currentDelay = 2000;
   for (;;) {
     const processed = await tick();
-    await delay(processed > 0 ? 250 : 2_000);
+    if (processed > 0) {
+      currentDelay = 250;
+    } else {
+      currentDelay = Math.min(currentDelay * 1.5, 10000);
+    }
+    await delay(currentDelay);
   }
 }

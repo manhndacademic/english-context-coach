@@ -5,6 +5,7 @@ import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator"
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getLLMProvider } from "@/domain/ai";
 import { getTextProcessor } from "@/domain/text";
+import { getLessonRepository } from "@/domain/lesson";
 import type { LearnerMemoryEngine } from "./types";
 import type { LearnerMemoryRepository } from "./ports";
 
@@ -21,11 +22,19 @@ export function getLearnerMemoryRepository(): LearnerMemoryRepository {
 export function getLearnerMemoryEngine(): LearnerMemoryEngine {
   if (!cachedEngine) {
     const repo = getLearnerMemoryRepository();
+    const lessonRepo = getLessonRepository();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
-    const dispatcher = new QueueJobDispatcherAdapter(() => getLearnerMemoryEngine());
+    const dispatcher = new QueueJobDispatcherAdapter(() => getLearnerMemoryRepository());
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
-    cachedEngine = new DefaultLearnerMemoryEngine(repo, grader, dispatcher, reviewGenerator, getTextProcessor());
+    cachedEngine = new DefaultLearnerMemoryEngine(
+      repo,
+      lessonRepo,
+      grader,
+      dispatcher,
+      reviewGenerator,
+      getTextProcessor()
+    );
   }
   return cachedEngine;
 }

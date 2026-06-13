@@ -1,4 +1,4 @@
-import type { GenerationJob, GenerationMilestone, GenerationThought, Lesson } from "@/db/schema";
+import type { GenerationJob, GenerationMilestone, GenerationThought, Lesson } from "./lesson/ports";
 import { getTextProcessor } from "@/domain/text";
 
 export const generationMilestoneCodes = [

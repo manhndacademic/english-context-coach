@@ -19,7 +19,7 @@ describe("AI provider JSON coercion", () => {
         keyPhrases: [],
       },
     ];
-    expect(coerceJsonForSchema(input, "analysis")).toBe(input[0]);
+    expect(coerceJsonForSchema(input, "analysis")).toEqual(input[0]);
   });
 
   it("leaves multi-item non-exercise arrays unchanged", () => {
@@ -43,6 +43,29 @@ describe("AI provider JSON coercion", () => {
       score: 80,
       isCorrect: false,
       feedbackVi: "Gần đúng.",
+    });
+  });
+
+  it("recursively strips null values from nested structures for any schema", () => {
+    const input = {
+      title: "Nested Null Test",
+      keyPhrases: [
+        {
+          phrase: "test",
+          meaningVi: "thử nghiệm",
+          whyConfusingVi: null, // should be stripped
+        }
+      ],
+      sentenceBreakdowns: null, // should be stripped
+    };
+    expect(coerceJsonForSchema(input, "analysis")).toEqual({
+      title: "Nested Null Test",
+      keyPhrases: [
+        {
+          phrase: "test",
+          meaningVi: "thử nghiệm",
+        }
+      ],
     });
   });
 

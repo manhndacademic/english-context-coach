@@ -1,5 +1,6 @@
 import type { TextProcessor } from "@/domain/text";
 import { nextDueDate, nextReviewAfterSuccess, resetDueAfterFailure } from "@/domain/review";
+import type { LessonRepository } from "@/domain/lesson/ports";
 import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
 import type {
   LearnerMemoryEngine as LearnerMemoryEngineInterface,
@@ -18,6 +19,7 @@ function categoryForLessonFocus(category: "tone" | "structure" | "purpose" | "co
 export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface {
   constructor(
     private repo: LearnerMemoryRepository,
+    private lessonRepo: LessonRepository,
     private grader: GradingEngine,
     private dispatcher: JobDispatcher,
     private reviewGenerator: ReviewPromptGenerator,
@@ -39,7 +41,6 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         };
       }
 
-      // 1. Grade the attempt (AI call is done outside transaction block)
       const grade = await this.grader.grade({
         userId: input.userId,
         lessonId: input.lessonId,
@@ -70,10 +71,10 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         const errorData = grade.error!;
 
         if (exercise.keyPhraseId) {
-          keyPhrase = await this.repo.findKeyPhrase(exercise.keyPhraseId);
+          keyPhrase = await this.lessonRepo.findKeyPhrase(exercise.keyPhraseId);
         }
         if (exercise.lessonFocusId) {
-          lessonFocus = await this.repo.findLessonFocus(exercise.lessonFocusId);
+          lessonFocus = await this.lessonRepo.findLessonFocus(exercise.lessonFocusId);
         }
 
         const fallbackTarget = exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi;
@@ -289,6 +290,73 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       await this.repo.updateMistakePatternReviewPrompt(patternId, generated);
     } catch (error) {
       console.error(`[LearnerMemoryEngine] generateReviewPrompt failed for pattern ${patternId}:`, error);
+    }
+  }
+
+  async processNextReviewPromptJob(
+    workerId: string
+  ): Promise<
+    | { status: "processed"; patternId: string; success: boolean }
+    | { status: "idle" }
+    | { status: "failed"; error: string }
+  > {
+    try {
+      const pattern = await this.repo.claimReviewPromptJob(workerId);
+      if (!pattern) {
+        return { status: "idle" };
+      }
+
+      try {
+        const generated = await this.reviewGenerator.generate({
+          userId: pattern.userId,
+          conceptPhrase: pattern.normalizedPhrase,
+          conceptMeaningVi: pattern.meaningVi,
+          category: pattern.category,
+          errorType: pattern.errorType,
+        });
+
+        await this.repo.updateReviewPromptJobStatus(pattern.id, "succeeded", {
+          ...generated,
+          reviewPromptError: null,
+          reviewPromptLockedAt: null,
+          reviewPromptLockedBy: null,
+        });
+
+        return {
+          status: "processed",
+          patternId: pattern.id,
+          success: true,
+        };
+      } catch (genError) {
+        const message = genError instanceof Error ? genError.message : String(genError);
+        const attempts = pattern.reviewPromptAttempts ?? 0;
+
+        if (attempts < 3) {
+          await this.repo.updateReviewPromptJobStatus(pattern.id, "queued", {
+            reviewPromptError: message,
+            reviewPromptLockedAt: null,
+            reviewPromptLockedBy: null,
+          });
+        } else {
+          await this.repo.updateReviewPromptJobStatus(pattern.id, "failed", {
+            reviewPromptError: message,
+            reviewPromptLockedAt: null,
+            reviewPromptLockedBy: null,
+          });
+        }
+
+        return {
+          status: "processed",
+          patternId: pattern.id,
+          success: false,
+        };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        status: "failed",
+        error: message,
+      };
     }
   }
 }

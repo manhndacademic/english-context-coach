@@ -73,6 +73,24 @@ export class DrizzleLessonRepository implements LessonRepository {
     return row ?? null;
   }
 
+  async findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null> {
+    const [row] = await db
+      .select()
+      .from(schema.keyPhrases)
+      .where(eq(schema.keyPhrases.id, keyPhraseId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null> {
+    const [row] = await db
+      .select()
+      .from(schema.lessonFocuses)
+      .where(eq(schema.lessonFocuses.id, lessonFocusId))
+      .limit(1);
+    return row ?? null;
+  }
+
   async createSourceTextAndLessonAndJob(
     userId: string,
     content: string,
@@ -199,6 +217,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         select id
         from generation_jobs
         where status = 'queued'
+           or (status = 'running' and locked_at < now() - interval '10 minutes')
         order by created_at asc
         for update skip locked
         limit 1

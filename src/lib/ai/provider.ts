@@ -1,14 +1,8 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
-import { createHash } from "node:crypto";
-import { db, schema } from "@/db";
 import { SCHEMA_VERSIONS } from "@/domain/constants";
+import { hashCanonicalPayload } from "@/lib/crypto";
 import { repairPrompt } from "./prompts";
-
-function hashCanonicalPayload(payload: unknown): string {
-  const serialized = JSON.stringify(payload, Object.keys(payload as object).sort());
-  return createHash("sha256").update(serialized).digest("hex");
-}
 
 export type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
 
@@ -22,6 +16,18 @@ export type GenerateJsonOptions<T> = {
   schema: z.ZodType<T>;
   modelKind: "analysis" | "fast";
   onThought?: (text: string) => Promise<void>;
+  onRecordRequest?: (record: {
+    userId?: string;
+    lessonId?: string;
+    purpose: AiPurpose;
+    model: string;
+    promptVersion: string;
+    schemaVersion: string;
+    payloadHash: string;
+    status: "succeeded" | "failed";
+    latencyMs: number;
+    errorClass?: string;
+  }) => Promise<void>;
 };
 
 export class AiError extends Error {
@@ -117,18 +123,36 @@ export function extractJson(text: string) {
   return cleanJsonString(candidate);
 }
 
+function stripNulls(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(stripNulls);
+  }
+  if (obj !== null && typeof obj === "object") {
+    const newObj: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== null) {
+        newObj[key] = stripNulls(val);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}
+
 export function coerceJsonForSchema(input: unknown, schemaVersion: keyof typeof SCHEMA_VERSIONS) {
-  if (schemaVersion === "exercises" && Array.isArray(input)) {
-    return { exercises: input };
+  const cleaned = stripNulls(input);
+  if (schemaVersion === "exercises" && Array.isArray(cleaned)) {
+    return { exercises: cleaned };
   }
-  if ((schemaVersion === "analysis" || schemaVersion === "grading") && Array.isArray(input) && input.length === 1) {
-    return input[0];
+  if ((schemaVersion === "analysis" || schemaVersion === "grading") && Array.isArray(cleaned) && cleaned.length === 1) {
+    return cleaned[0];
   }
-  if (schemaVersion === "grading" && input && typeof input === "object" && !Array.isArray(input)) {
-    const record = { ...(input as Record<string, any>) };
+  if (schemaVersion === "grading" && cleaned && typeof cleaned === "object" && !Array.isArray(cleaned)) {
+    const record = { ...(cleaned as Record<string, any>) };
     
     // Clean top-level nulls/empty strings
-    for (const key of ["naturalAnswer", "literalTranslationTrap"] as const) {
+    for (const key of ["naturalAnswer", "literalTranslationTrap", "errorType", "explanationVi"] as const) {
       if (record[key] === null || record[key] === "" || record[key] === "none") {
         delete record[key];
       }
@@ -154,7 +178,7 @@ export function coerceJsonForSchema(input: unknown, schemaVersion: keyof typeof 
     }
     return record;
   }
-  return input;
+  return cleaned;
 }
 
 async function callGemini(prompt: string, model: string, onThought?: (text: string) => Promise<void>) {
@@ -207,33 +231,6 @@ async function callGemini(prompt: string, model: string, onThought?: (text: stri
   return result.text ?? "";
 }
 
-async function recordAiRequest(input: {
-  userId?: string;
-  lessonId?: string;
-  purpose: AiPurpose;
-  model: string;
-  promptVersion: string;
-  schemaVersion: string;
-  payloadHash: string;
-  status: "succeeded" | "failed";
-  latencyMs: number;
-  errorClass?: string;
-}) {
-  await db.insert(schema.aiRequests).values({
-    userId: input.userId,
-    lessonId: input.lessonId,
-    purpose: input.purpose,
-    provider: "gemini",
-    model: input.model,
-    promptVersion: input.promptVersion,
-    schemaVersion: input.schemaVersion,
-    payloadHash: input.payloadHash,
-    status: input.status,
-    latencyMs: input.latencyMs,
-    errorClass: input.errorClass,
-  });
-}
-
 export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<T> {
   const model = getModel(options.modelKind);
   const payloadHash = hashCanonicalPayload({
@@ -262,14 +259,19 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
 
       const parsed = options.schema.safeParse(parsedJson);
       if (parsed.success) {
-        await recordAiRequest({
-          ...options,
-          model,
-          schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
-          payloadHash,
-          status: "succeeded",
-          latencyMs: Date.now() - startedAt,
-        });
+        if (options.onRecordRequest) {
+          await options.onRecordRequest({
+            userId: options.userId,
+            lessonId: options.lessonId,
+            purpose: options.purpose,
+            model,
+            promptVersion: options.promptVersion,
+            schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
+            payloadHash,
+            status: "succeeded",
+            latencyMs: Date.now() - startedAt,
+          });
+        }
         return parsed.data;
       }
 
@@ -293,15 +295,19 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
 
       const repairedParsed = options.schema.safeParse(repairedJson);
       if (repairedParsed.success) {
-        await recordAiRequest({
-          ...options,
-          purpose: "repair",
-          model,
-          schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
-          payloadHash,
-          status: "succeeded",
-          latencyMs: Date.now() - startedAt,
-        });
+        if (options.onRecordRequest) {
+          await options.onRecordRequest({
+            userId: options.userId,
+            lessonId: options.lessonId,
+            purpose: "repair",
+            model,
+            promptVersion: options.promptVersion,
+            schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
+            payloadHash,
+            status: "succeeded",
+            latencyMs: Date.now() - startedAt,
+          });
+        }
         return repairedParsed.data;
       }
 
@@ -314,15 +320,20 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
 
     throw new AiError("AI returned JSON that did not match the expected schema after retry.", "invalid_json_schema");
   } catch (error) {
-    await recordAiRequest({
-      ...options,
-      model,
-      schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
-      payloadHash,
-      status: "failed",
-      latencyMs: Date.now() - startedAt,
-      errorClass: error instanceof AiError ? error.code : error instanceof Error ? error.name : "unknown",
-    });
+    if (options.onRecordRequest) {
+      await options.onRecordRequest({
+        userId: options.userId,
+        lessonId: options.lessonId,
+        purpose: options.purpose,
+        model,
+        promptVersion: options.promptVersion,
+        schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
+        payloadHash,
+        status: "failed",
+        latencyMs: Date.now() - startedAt,
+        errorClass: error instanceof AiError ? error.code : error instanceof Error ? error.name : "unknown",
+      });
+    }
     throw error;
   }
 }

@@ -6,6 +6,7 @@ describe("AI schemas", () => {
     const result = analysisSchema.safeParse({
       title: "Short work reply",
       textType: "work_message",
+      inputMode: "understand_and_practice",
       detectedLevel: "A2",
       summaryVi: "Người viết phản hồi rằng mọi thứ ổn.",
       naturalTranslationVi: "Cảm ơn, vậy là ổn rồi.",

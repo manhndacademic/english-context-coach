@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLessonGenerationEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
 import type { LessonRepository, GenerationEngine, LessonGenerationEngine } from "./ports";
-import type { SourceText, Lesson, GenerationJob, GenerationMilestone, GenerationThought } from "@/db/schema";
+import type { SourceText, Lesson, GenerationJob, GenerationMilestone, GenerationThought } from "./ports";
 
 class MockLessonRepository implements LessonRepository {
   lessons = new Map<string, any>();

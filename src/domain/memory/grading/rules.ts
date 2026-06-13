@@ -1,4 +1,4 @@
-import type { Exercise } from "@/db/schema";
+import type { Exercise } from "@/domain/lesson/ports";
 
 export type RuleGrade = {
   score: number;

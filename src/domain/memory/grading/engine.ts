@@ -1,4 +1,4 @@
-import type { Exercise } from "@/db/schema";
+import type { Exercise } from "@/domain/lesson/ports";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { LLMProvider } from "@/domain/ai";
 import { gradingPrompt } from "@/lib/ai/prompts";

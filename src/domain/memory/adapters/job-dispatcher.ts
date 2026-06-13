@@ -1,10 +1,13 @@
-import type { LearnerMemoryEngine } from "../types";
+import type { LearnerMemoryRepository } from "../ports";
 import type { JobDispatcher } from "../ports";
 
 export class QueueJobDispatcherAdapter implements JobDispatcher {
-  constructor(private engineResolver: () => LearnerMemoryEngine) {}
+  constructor(private repoResolver: () => LearnerMemoryRepository) {}
 
   async triggerReviewPromptGeneration(mistakePatternId: string): Promise<void> {
-    await this.engineResolver().generateReviewPrompt(mistakePatternId);
+    await this.repoResolver().updateReviewPromptJobStatus(mistakePatternId, "queued", {
+      reviewPromptAttempts: 0,
+      reviewPromptError: null,
+    });
   }
 }

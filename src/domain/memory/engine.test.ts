@@ -1,13 +1,12 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
+import type { LessonRepository } from "@/domain/lesson/ports";
 import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
 
 class MockLearnerMemoryRepository implements LearnerMemoryRepository {
   exercises = new Map<string, any>();
   mistakePatterns = new Map<string, any>();
-  keyPhrases = new Map<string, any>();
-  lessonFocuses = new Map<string, any>();
 
   attempts: any[] = [];
   userErrors: any[] = [];
@@ -36,14 +35,6 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
       }
     }
     return null;
-  }
-
-  async findKeyPhrase(keyPhraseId: string) {
-    return this.keyPhrases.get(keyPhraseId) ?? null;
-  }
-
-  async findLessonFocus(lessonFocusId: string) {
-    return this.lessonFocuses.get(lessonFocusId) ?? null;
   }
 
   async runInTransaction<T>(operation: (tx: LearnerMemoryRepository) => Promise<T>): Promise<T> {
@@ -121,6 +112,35 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
       Object.assign(pattern, prompts);
     }
   }
+
+  async claimReviewPromptJob(workerId: string): Promise<any> {
+    for (const pattern of this.mistakePatterns.values()) {
+      if (pattern.reviewPromptStatus === "queued") {
+        pattern.reviewPromptStatus = "running";
+        pattern.reviewPromptAttempts = (pattern.reviewPromptAttempts ?? 0) + 1;
+        pattern.reviewPromptLockedAt = new Date();
+        pattern.reviewPromptLockedBy = workerId;
+        pattern.updatedAt = new Date();
+        return pattern;
+      }
+    }
+    return null;
+  }
+
+  async updateReviewPromptJobStatus(
+    patternId: string,
+    status: any,
+    extra?: any
+  ): Promise<void> {
+    const pattern = this.mistakePatterns.get(patternId);
+    if (pattern) {
+      pattern.reviewPromptStatus = status;
+      pattern.updatedAt = new Date();
+      if (extra) {
+        Object.assign(pattern, extra);
+      }
+    }
+  }
 }
 
 class MockGradingEngine implements GradingEngine {
@@ -151,14 +171,51 @@ class MockReviewPromptGenerator implements ReviewPromptGenerator {
     reviewCorrectAnswer: "Mock Correct Answer",
     reviewAcceptableAnswers: ["Acceptable Answer"],
   };
+  error: Error | null = null;
 
   async generate(input: any) {
+    if (this.error) throw this.error;
     return this.result;
+  }
+}
+
+class MockLessonRepository implements LessonRepository {
+  keyPhrases = new Map<string, any>();
+  lessonFocuses = new Map<string, any>();
+
+  async findLesson(lessonId: string, userId: string): Promise<any> { return null; }
+  async findSourceText(sourceTextId: string, userId: string): Promise<any> { return null; }
+  async findLatestLesson(sourceTextId: string): Promise<any> { return null; }
+  async createSourceTextAndLessonAndJob(userId: string, content: string, title: string, contentHash: string, requestedMode?: string): Promise<any> { return null as any; }
+  async createLessonAndJob(userId: string, sourceTextId: string, version: number, stage: "analysis" | "exercises"): Promise<any> { return null as any; }
+  async createJob(userId: string, sourceTextId: string, lessonId: string, stage: "analysis" | "exercises"): Promise<any> { return null as any; }
+  async claimJob(workerId: string): Promise<any> { return null; }
+  async updateJobStatus(jobId: string, status: any, extra?: any): Promise<void> {}
+  async assertQueueCapacity(userId: string): Promise<any> { return null; }
+  async updateLessonStatus(lessonId: string, stage: any, status: any, extra?: any): Promise<void> {}
+  async saveAnalysis(lessonId: string, userId: string, analysis: any, model: string): Promise<void> {}
+  async saveExercises(lessonId: string, userId: string, exercises: any, model: string): Promise<void> {}
+  async buildAnalysisFromLesson(lessonId: string): Promise<any> { return null as any; }
+  async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {}
+  async recordMilestone(input: any): Promise<void> {}
+  async recordThought(input: any): Promise<void> {}
+  async getLessonProgress(input: any): Promise<any> { return null; }
+  async getLessonAggregate(lessonId: string, userId: string): Promise<any> { return null; }
+  async getRecentLessons(userId: string, limit: number): Promise<any[]> { return []; }
+  async getSourceTextsCount(userId: string): Promise<number> { return 0; }
+
+  async findKeyPhrase(keyPhraseId: string) {
+    return this.keyPhrases.get(keyPhraseId) ?? null;
+  }
+
+  async findLessonFocus(lessonFocusId: string) {
+    return this.lessonFocuses.get(lessonFocusId) ?? null;
   }
 }
 
 describe("LearnerMemoryEngine Domain Orchestrator", () => {
   let repo: MockLearnerMemoryRepository;
+  let lessonRepo: MockLessonRepository;
   let grader: MockGradingEngine;
   let dispatcher: MockJobDispatcher;
   let reviewGenerator: MockReviewPromptGenerator;
@@ -166,10 +223,11 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
   beforeEach(() => {
     repo = new MockLearnerMemoryRepository();
+    lessonRepo = new MockLessonRepository();
     grader = new MockGradingEngine();
     dispatcher = new MockJobDispatcher();
     reviewGenerator = new MockReviewPromptGenerator();
-    engine = new DefaultLearnerMemoryEngine(repo, grader, dispatcher, reviewGenerator, getTextProcessor());
+    engine = new DefaultLearnerMemoryEngine(repo, lessonRepo, grader, dispatcher, reviewGenerator, getTextProcessor());
   });
 
   describe("submitAttempt", () => {
@@ -218,7 +276,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         keyPhraseId: "phrase-1",
       });
 
-      repo.keyPhrases.set("phrase-1", {
+      lessonRepo.keyPhrases.set("phrase-1", {
         id: "phrase-1",
         normalizedPhrase: "push back",
         conceptKey: "push_back",
@@ -270,7 +328,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         keyPhraseId: "phrase-1",
       });
 
-      repo.keyPhrases.set("phrase-1", {
+      lessonRepo.keyPhrases.set("phrase-1", {
         id: "phrase-1",
         normalizedPhrase: "push back",
         conceptKey: "push_back",
@@ -444,6 +502,60 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
     it("does nothing if mistake pattern is not found", async () => {
       await engine.generateReviewPrompt("pattern-nonexistent");
       // should not crash or throw
+    });
+  });
+
+  describe("processNextReviewPromptJob", () => {
+    it("processes queued prompt generation jobs successfully", async () => {
+      const pattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "dời lại / trì hoãn",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+      });
+
+      pattern.reviewPromptStatus = "queued";
+
+      const res = await engine.processNextReviewPromptJob("worker-1");
+      expect(res.status).toBe("processed");
+      expect(res.success).toBe(true);
+
+      const updatedPattern = repo.mistakePatterns.get(pattern.id);
+      expect(updatedPattern.reviewPromptStatus).toBe("succeeded");
+      expect(updatedPattern.reviewPromptEn).toBe("Mock Prompt En");
+    });
+
+    it("handles generator failures by putting jobs back in queue or marking failed", async () => {
+      const pattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "dời lại / trì hoãn",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+      });
+
+      pattern.reviewPromptStatus = "queued";
+      pattern.reviewPromptAttempts = 0;
+
+      reviewGenerator.error = new Error("Quota exceeded");
+
+      const res = await engine.processNextReviewPromptJob("worker-1");
+      expect(res.status).toBe("processed");
+      expect(res.success).toBe(false);
+
+      const updatedPattern = repo.mistakePatterns.get(pattern.id);
+      expect(updatedPattern.reviewPromptStatus).toBe("queued");
+      expect(updatedPattern.reviewPromptAttempts).toBe(1);
+      expect(updatedPattern.reviewPromptError).toBe("Quota exceeded");
     });
   });
 });

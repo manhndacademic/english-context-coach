@@ -52,6 +52,11 @@ export interface MistakePattern {
   reviewRubricVi: string | null;
   reviewCorrectAnswer: string | null;
   reviewAcceptableAnswers: string[] | null;
+  reviewPromptStatus?: "queued" | "running" | "succeeded" | "failed";
+  reviewPromptAttempts?: number;
+  reviewPromptError?: string | null;
+  reviewPromptLockedAt?: Date | null;
+  reviewPromptLockedBy?: string | null;
 }
 
 export interface ReviewAttempt {
@@ -105,4 +110,5 @@ export interface LearnerMemoryEngine {
   submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult>;
   submitReviewAttempt(input: SubmitReviewAttemptInput): Promise<ReviewFormResult>;
   generateReviewPrompt(patternId: string): Promise<void>;
+  processNextReviewPromptJob(workerId: string): Promise<{ status: "processed"; patternId: string; success: boolean } | { status: "idle" } | { status: "failed"; error: string }>;
 }
