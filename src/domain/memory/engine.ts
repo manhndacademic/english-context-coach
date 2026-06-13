@@ -1,4 +1,7 @@
 import type { TextProcessor } from "@/domain/text";
+import { getLogger, parseDbDate } from "@/lib/logger";
+
+const log = getLogger("d.m.engine.LearnerMemoryEngine");
 import { nextDueDate, nextReviewAfterSuccess, resetDueAfterFailure } from "@/domain/review";
 import type { LessonRepository } from "@/domain/lesson/ports";
 import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
@@ -279,6 +282,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       const pattern = await this.repo.findMistakePatternById(patternId);
       if (!pattern) return;
 
+      log.info(`Generating review prompt directly for pattern ${patternId}...`);
+      const startTime = Date.now();
       const generated = await this.reviewGenerator.generate({
         userId: pattern.userId,
         conceptPhrase: pattern.normalizedPhrase,
@@ -288,8 +293,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       });
 
       await this.repo.updateMistakePatternReviewPrompt(patternId, generated);
+      log.info(`Review prompt generated directly for pattern ${patternId} in ${Date.now() - startTime}ms.`);
     } catch (error) {
-      console.error(`[LearnerMemoryEngine] generateReviewPrompt failed for pattern ${patternId}:`, error);
+      log.error(`generateReviewPrompt failed for pattern ${patternId}`, error);
     }
   }
 
@@ -305,6 +311,13 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       if (!pattern) {
         return { status: "idle" };
       }
+
+      const parsedLockedVal = parseDbDate(pattern.reviewPromptLockedAt);
+      const queueLatency = parsedLockedVal 
+        ? Date.now() - parsedLockedVal.getTime() 
+        : 0;
+      log.info(`Claimed review prompt job ${pattern.id} for pattern. Queue latency: ${queueLatency}ms.`, workerId);
+      const startTime = Date.now();
 
       try {
         const generated = await this.reviewGenerator.generate({
@@ -322,6 +335,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           reviewPromptLockedBy: null,
         });
 
+        log.info(`Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`, workerId);
+
         return {
           status: "processed",
           patternId: pattern.id,
@@ -330,6 +345,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       } catch (genError) {
         const message = genError instanceof Error ? genError.message : String(genError);
         const attempts = pattern.reviewPromptAttempts ?? 0;
+
+        log.warn(`Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`, workerId);
 
         if (attempts < 3) {
           await this.repo.updateReviewPromptJobStatus(pattern.id, "queued", {
@@ -353,6 +370,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      log.error(`processNextReviewPromptJob failed`, error, workerId);
       return {
         status: "failed",
         error: message,

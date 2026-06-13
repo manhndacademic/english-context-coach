@@ -12,6 +12,10 @@ import type {
 } from "./ports";
 import type { ExercisesResult } from "@/lib/ai/schemas";
 
+import { getLogger, parseDbDate } from "@/lib/logger";
+
+const log = getLogger("d.l.engine.LessonGenerationEngine");
+
 function isTransientGenerationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -24,6 +28,16 @@ function isTransientGenerationError(error: unknown) {
     message.includes("UNAVAILABLE") ||
     message.includes("high demand")
   );
+}
+
+function logSpringStyle(level: "INFO" | "WARN" | "ERROR", workerId: string, message: string) {
+  if (level === "ERROR") {
+    log.error(message, undefined, workerId);
+  } else if (level === "WARN") {
+    log.warn(message, workerId);
+  } else {
+    log.info(message, workerId);
+  }
 }
 
 export class DefaultLessonGenerationEngine implements LessonGenerationEngineInterface {
@@ -165,6 +179,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       return { status: "idle" };
     }
 
+    const jobClaimTime = Date.now();
+    const parsedCreatedVal = parseDbDate(job.createdAt);
+    const queueLatency = parsedCreatedVal ? (jobClaimTime - parsedCreatedVal.getTime()) : 0;
+    logSpringStyle("INFO", workerId, `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`);
+
     await this.repo.recordMilestone({
       lessonId: job.lessonId,
       generationJobId: job.id,
@@ -186,6 +205,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       }
 
       if (currentStage === "analysis") {
+        logSpringStyle("INFO", workerId, `Starting stage "analysis" for Lesson ${job.lessonId}...`);
+        const analysisStart = Date.now();
         await this.repo.updateLessonStatus(job.lessonId, "analysis", "running");
         await this.repo.recordMilestone({
           lessonId: job.lessonId,
@@ -224,10 +245,15 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           stage: "analysis",
         });
 
+        const analysisDuration = Date.now() - analysisStart;
+        logSpringStyle("INFO", workerId, `Stage "analysis" succeeded in ${analysisDuration}ms.`);
+
         await this.repo.updateJobStatus(job.id, "running", { stage: "exercises" });
         currentStage = "exercises";
       }
 
+      logSpringStyle("INFO", workerId, `Starting stage "exercises" for Lesson ${job.lessonId}...`);
+      const exercisesStart = Date.now();
       await this.repo.updateLessonStatus(job.lessonId, "exercise", "running");
       await this.repo.recordMilestone({
         lessonId: job.lessonId,
@@ -281,6 +307,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         stage: "exercises",
       });
 
+      const exercisesDuration = Date.now() - exercisesStart;
+      logSpringStyle("INFO", workerId, `Stage "exercises" succeeded in ${exercisesDuration}ms.`);
+
       await this.repo.updateJobStatus(job.id, "succeeded", { errorMessage: null });
 
       await this.repo.recordMilestone({
@@ -290,6 +319,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         stage: null,
       });
 
+      const totalProcessingTime = Date.now() - jobClaimTime;
+      const parsedCreatedVal2 = parseDbDate(job.createdAt);
+      const totalJobLifetime = parsedCreatedVal2 ? (Date.now() - parsedCreatedVal2.getTime()) : 0;
+      logSpringStyle("INFO", workerId, `Job ${job.id} completed successfully. Active processing: ${totalProcessingTime}ms (Total lifetime: ${totalJobLifetime}ms).`);
+
       return {
         status: "processed",
         jobId: job.id,
@@ -298,6 +332,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown generation error";
+      logSpringStyle("ERROR", workerId, `Job ${job.id} failed with error: ${message}`);
       const transient = isTransientGenerationError(error);
 
       if (transient && job.attempts < 3) {

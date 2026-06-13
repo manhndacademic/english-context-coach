@@ -1,8 +1,10 @@
 import { nanoid } from "nanoid";
 import { getLessonGenerationEngine } from "@/domain/lesson";
 import { getLearnerMemoryEngine } from "@/domain/memory";
+import { getLogger } from "@/lib/logger";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const log = getLogger("c.c.worker.WorkerDaemon");
 
 export async function runWorker(options: {
   workerId?: string;
@@ -13,6 +15,10 @@ export async function runWorker(options: {
   const concurrency = options.concurrency ?? Number(process.env.WORKER_CONCURRENCY ?? "1");
   const lessonEngine = getLessonGenerationEngine();
   const memoryEngine = getLearnerMemoryEngine();
+
+  if (!options.once) {
+    log.info(`Starting Worker Daemon [${workerId}] with concurrency=${concurrency}...`);
+  }
 
   async function tick() {
     const lessonPromises = Array.from({ length: Math.max(1, concurrency) }, () => lessonEngine.processNext(workerId));
@@ -27,7 +33,7 @@ export async function runWorker(options: {
           processedCount += 1;
         }
       } else {
-        console.error(result.reason);
+        log.error("Worker tick failure", result.reason);
       }
     }
     return processedCount;

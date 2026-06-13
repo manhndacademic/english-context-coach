@@ -291,13 +291,109 @@ async function resolveApiKeyWithExclusions(
     }
   }
 
-  // 3. Fall back to process.env.GEMINI_API_KEY
-  const envKey = process.env.GEMINI_API_KEY;
-  if (envKey) {
-    return { key: envKey, isUserKey: false };
+  // 3. Fall back to process.env.GEMINI_API_KEYS (comma-separated list) or process.env.GEMINI_API_KEY
+  const envKeysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
+  if (envKeysStr) {
+    const envKeys = envKeysStr.split(",").map((k) => k.trim()).filter(Boolean);
+    const activeEnvKeys = envKeys
+      .map((key, index) => ({ key, id: `env-key-${index}` }))
+      .filter((k) => !excludedKeyIds || !excludedKeyIds.has(k.id));
+
+    if (activeEnvKeys.length > 0) {
+      const picked = activeEnvKeys[Math.floor(Math.random() * activeEnvKeys.length)];
+      return { key: picked.key, id: picked.id, isUserKey: false };
+    }
   }
 
   throw new Error("No active system, user, or fallback API keys available.");
+}
+
+function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
+  let schema = zodSchema;
+  while (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
+    schema = schema.unwrap();
+  }
+
+  if (schema instanceof z.ZodEffects) {
+    schema = schema.innerType();
+  }
+
+  if (schema instanceof z.ZodString) {
+    return { type: "STRING" };
+  }
+
+  if (schema instanceof z.ZodNumber) {
+    const isInteger = schema._def.checks.some((c: any) => c.kind === "int");
+    return { type: isInteger ? "INTEGER" : "NUMBER" };
+  }
+
+  if (schema instanceof z.ZodBoolean) {
+    return { type: "BOOLEAN" };
+  }
+
+  if (schema instanceof z.ZodLiteral) {
+    return {
+      type: "STRING",
+      enum: [schema._def.value],
+    };
+  }
+
+  if (schema instanceof z.ZodEnum) {
+    return {
+      type: "STRING",
+      enum: schema._def.values,
+    };
+  }
+
+  if (schema instanceof z.ZodArray) {
+    return {
+      type: "ARRAY",
+      items: zodToGeminiSchema(schema.element),
+    };
+  }
+
+  if (schema instanceof z.ZodObject) {
+    const properties: Record<string, any> = {};
+    const required: string[] = [];
+
+    for (const [key, value] of Object.entries(schema.shape)) {
+      properties[key] = zodToGeminiSchema(value as z.ZodTypeAny);
+      
+      let isOptional = false;
+      let valSchema = value as z.ZodTypeAny;
+      while (valSchema instanceof z.ZodEffects) {
+        valSchema = valSchema.innerType();
+      }
+      if (valSchema instanceof z.ZodOptional || valSchema instanceof z.ZodNullable) {
+        isOptional = true;
+      }
+      if (!isOptional) {
+        required.push(key);
+      }
+    }
+
+    return {
+      type: "OBJECT",
+      properties,
+      required: required.length > 0 ? required : undefined,
+    };
+  }
+
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    const options = Array.from(schema.options.values()).map(opt => zodToGeminiSchema(opt as z.ZodTypeAny));
+    return {
+      anyOf: options,
+    };
+  }
+
+  if (schema instanceof z.ZodUnion) {
+    const options = schema._def.options.map((opt: z.ZodTypeAny) => zodToGeminiSchema(opt));
+    return {
+      anyOf: options,
+    };
+  }
+
+  return { type: "STRING" };
 }
 
 async function callGeminiWithKeyRetry(
@@ -305,6 +401,7 @@ async function callGeminiWithKeyRetry(
   prompt: string,
   model: string,
   thinkingLevel: ThinkingLevel,
+  zodSchema?: z.ZodTypeAny,
   onThought?: (text: string) => Promise<void>
 ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   let attempts = 0;
@@ -327,6 +424,7 @@ async function callGeminiWithKeyRetry(
       const ai = new GoogleGenAI({ apiKey: key });
       const config = {
         responseMimeType: "application/json",
+        responseSchema: zodSchema ? zodToGeminiSchema(zodSchema) : undefined,
         systemInstruction:
           "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
         thinkingConfig: onThought
@@ -376,7 +474,7 @@ async function callGeminiWithKeyRetry(
       }
 
       // If key was rate-limited or had errors but succeeded now, restore it
-      if (keyId && !isUserKey) {
+      if (keyId && !isUserKey && !keyId.startsWith("env-key-")) {
         await db
           .update(schema.aiApiKeys)
           .set({ status: "active", errorMessage: null, rateLimitedAt: null, updatedAt: new Date() })
@@ -396,10 +494,12 @@ async function callGeminiWithKeyRetry(
 
       if (keyId) {
         excludedKeyIds.add(keyId);
-        if (isRateLimitError(err)) {
-          await markKeyRateLimited(keyId, err.message || "Rate limit exceeded");
-        } else if (isInvalidKeyError(err)) {
-          await markKeyInvalid(keyId, err.message || "Invalid API key");
+        if (!keyId.startsWith("env-key-")) {
+          if (isRateLimitError(err)) {
+            await markKeyRateLimited(keyId, err.message || "Rate limit exceeded");
+          } else if (isInvalidKeyError(err)) {
+            await markKeyInvalid(keyId, err.message || "Invalid API key");
+          }
         }
       } else {
         // env fallback key failed — re-throw directly, no more keys to try
@@ -428,6 +528,7 @@ async function callGeminiWithRetry(
   userId: string | undefined,
   prompt: string,
   modelKind: "analysis" | "fast",
+  zodSchema?: z.ZodTypeAny,
   onThought?: (text: string) => Promise<void>
 ): Promise<{ text: string; inputTokens: number; outputTokens: number; model: string }> {
   const globalThinkingLevel = getGeminiThinkingLevel();
@@ -445,7 +546,7 @@ async function callGeminiWithRetry(
     const thinkingLevel = providerRotationPool.getThinkingLevel(model, globalThinkingLevel);
 
     try {
-      const result = await callGeminiWithKeyRetry(userId, prompt, model, thinkingLevel, onThought);
+      const result = await callGeminiWithKeyRetry(userId, prompt, model, thinkingLevel, zodSchema, onThought);
       // Success — clear any lingering model cooldown
       providerRotationPool.clearCooldown(model);
       return { ...result, model };
@@ -489,6 +590,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
         options.userId,
         options.prompt,
         options.modelKind,
+        options.schema,
         options.onThought
       );
       resolvedModel = model;
@@ -536,7 +638,8 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
       const { text: repaired, inputTokens: repairIn, outputTokens: repairOut, model: repairModel } = await callGeminiWithRetry(
         options.userId,
         repairPrompt(raw, options.schemaVersion),
-        options.modelKind
+        options.modelKind,
+        options.schema
       );
       resolvedModel = repairModel;
       

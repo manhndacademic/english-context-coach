@@ -114,4 +114,35 @@ describe("AI Key Rotation & Error Handling", () => {
       process.env.GEMINI_API_KEY = originalEnvKey;
     }
   });
+
+  it("should rotately try multiple keys configured in GEMINI_API_KEYS", async () => {
+    await db
+      .update(schema.users)
+      .set({ customGeminiApiKey: null })
+      .where(eq(schema.users.id, testUser.id));
+    await db.delete(schema.aiApiKeys);
+
+    const originalEnvKey = process.env.GEMINI_API_KEY;
+    const originalEnvKeys = process.env.GEMINI_API_KEYS;
+    
+    process.env.GEMINI_API_KEYS = "AIzaSyEnvKey1,AIzaSyEnvKey2";
+    delete process.env.GEMINI_API_KEY;
+
+    try {
+      const options = {
+        userId: testUser.id,
+        purpose: "repair" as const,
+        prompt: "Hello",
+        promptVersion: "1.0",
+        schemaVersion: "grading" as const,
+        schema: z.object({ isCorrect: z.boolean() }),
+        modelKind: "fast" as const,
+      };
+
+      await expect(generateJson(options)).rejects.toThrow();
+    } finally {
+      process.env.GEMINI_API_KEY = originalEnvKey;
+      process.env.GEMINI_API_KEYS = originalEnvKeys;
+    }
+  });
 });
