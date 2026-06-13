@@ -119,6 +119,7 @@ Review is the retention engine. A review item should help the user practice an o
 ## 9. Progress Dashboard
 
 Signals to display:
+*   LearningStreak (consecutive active days)
 *   Due reviews
 *   Repeated mistake count
 *   Mastered phrases
