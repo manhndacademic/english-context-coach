@@ -75,3 +75,15 @@ _Avoid_: Account, login
 **Account**:
 A login method linked to a User, such as Google OAuth or password login.
 _Avoid_: User, profile
+
+**LearningStreak**:
+The number of consecutive days a learner has completed at least one Attempt or ReviewAttempt. A LearningStreak resets to zero when the learner misses a full calendar day.
+_Avoid_: Streak, daily streak, login streak
+
+**CompletionSummary**:
+A learner-facing summary shown after the learner completes all Exercises in a Lesson, including new phrases learned, mistakes made, and next review date. CompletionSummary is distinct from a Lesson's SourceMeaning summary.
+_Avoid_: LessonSummary, report, recap
+
+**ReviewNudge**:
+A homepage prompt showing due MistakePatterns that encourages the learner to start reviewing before pasting new text.
+_Avoid_: Reminder, notification, alert

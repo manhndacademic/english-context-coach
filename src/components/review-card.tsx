@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { AlertCircle, CheckCircle2, Loader2, SendHorizontal } from "lucide-react";
 import { submitReviewAttemptAction, type ReviewResultState } from "@/app/actions/review";
-import type { MistakePattern } from "@/db/schema";
+import type { MistakePattern } from "@/domain/memory";
 import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
 

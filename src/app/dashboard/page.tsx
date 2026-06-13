@@ -4,6 +4,11 @@ import { AppHeader } from "@/components/app-header";
 import { SourceTextForm } from "@/components/source-text-form";
 import { getLessonRepository } from "@/domain/lesson";
 import { getLearnerMemoryRepository } from "@/domain/memory";
+import { getLearningStreak } from "@/lib/queries/streak";
+import { getMasteredCount, getReviewSuccessRate, getMasteredTrend } from "@/lib/queries/dashboard-stats";
+import { StreakBadge } from "@/components/dashboard/streak-badge";
+import { ReviewNudge } from "@/components/dashboard/review-nudge";
+import { MasteredTrendChart } from "@/components/dashboard/mastered-trend-chart";
 import { 
   FileText, 
   BrainCircuit, 
@@ -18,7 +23,8 @@ import {
   Mail,
   Code,
   MessageSquare,
-  FileCode2
+  FileCode2,
+  TrendingUp,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -28,10 +34,14 @@ export default async function DashboardPage() {
   const memoryRepo = getLearnerMemoryRepository();
   const lessonRepo = getLessonRepository();
 
-  const [recentLessons, sourceCount, metrics] = await Promise.all([
+  const [recentLessons, sourceCount, metrics, streakDays, masteredCount, reviewSuccessRate, masteredTrend] = await Promise.all([
     lessonRepo.getRecentLessons(user.id, 6),
     lessonRepo.getSourceTextsCount(user.id),
     memoryRepo.getDashboardMetrics(user.id, now),
+    getLearningStreak(user.id),
+    getMasteredCount(user.id),
+    getReviewSuccessRate(user.id),
+    getMasteredTrend(user.id),
   ]);
 
   const dueCount = metrics.dueCount;
@@ -83,12 +93,18 @@ export default async function DashboardPage() {
         </section>
 
         <aside className="grid gap-6">
+          {/* Review Nudge — shown when there are due review items */}
+          <ReviewNudge count={dueCount} />
+
+          {/* Learning Streak */}
+          <StreakBadge days={streakDays} />
+
           {/* Spaced Repetition Summary Box */}
           <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
             <h2 className="text-xl font-bold text-text flex items-center gap-2 m-0">
               <Calendar size={18} className="text-muted" /> Hôm nay của bạn
             </h2>
-            <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
                 <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">Cần ôn tập</span>
                 <strong className={`text-2xl font-bold block leading-tight ${dueCount > 0 ? "text-warning" : "text-text"}`}>{dueCount}</strong>
@@ -98,16 +114,22 @@ export default async function DashboardPage() {
                 <strong className="text-2xl font-bold block leading-tight">{patternCount}</strong>
               </div>
               <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
-                <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">Nguồn dán</span>
-                <strong className="text-2xl font-bold block leading-tight">{sourceCount}</strong>
+                <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">Đã thành thạo</span>
+                <strong className="text-2xl font-bold block leading-tight text-success">{masteredCount}</strong>
+              </div>
+              <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
+                <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">Tỷ lệ ôn đúng</span>
+                <strong className="text-2xl font-bold block leading-tight">{reviewSuccessRate > 0 ? `${reviewSuccessRate}%` : "—"}</strong>
               </div>
             </div>
-            <Link 
-              className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] w-full" 
-              href="/review"
-            >
-              Bắt đầu ôn tập lỗi <ArrowRight size={14} />
-            </Link>
+            {dueCount === 0 && (
+              <Link 
+                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] w-full" 
+                href="/review"
+              >
+                Bắt đầu ôn tập lỗi <ArrowRight size={14} />
+              </Link>
+            )}
           </section>
 
           {/* Repeated Mistakes Card */}
@@ -118,7 +140,7 @@ export default async function DashboardPage() {
             <div className="grid divide-y divide-border">
               {repeatedMistakes.length ? (
                 repeatedMistakes.map((pattern) => (
-                  <div className="py-3 flex flex-col gap-1 first:pt-0 last:pb-0" key={pattern.id}>
+                  <div className="py-3 flex flex-col gap-1.5 first:pt-0 last:pb-0" key={pattern.id}>
                     <div className="flex justify-between items-center gap-2">
                       <strong className="text-accent-strong text-[15px] font-bold">{pattern.normalizedPhrase}</strong>
                       <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2 py-0.5 text-muted text-[10px] font-extrabold leading-none">
@@ -126,9 +148,17 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                     <span className="text-muted text-sm leading-relaxed">Nghĩa đúng: {pattern.meaningVi}</span>
-                    <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider mt-1 leading-none">
-                      {pattern.errorType.replaceAll("_", " ")}
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none">
+                        {pattern.errorType.replaceAll("_", " ")}
+                      </span>
+                      <Link
+                        href="/review"
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
+                      >
+                        Ôn tập <ArrowRight size={10} />
+                      </Link>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -141,8 +171,19 @@ export default async function DashboardPage() {
         </aside>
       </div>
 
+      {/* Progress Trend Chart */}
+      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
+        <h2 className="text-2xl font-bold text-text flex items-center gap-2.5 m-0">
+          <TrendingUp size={20} className="text-muted" /> Tiến bộ theo thời gian
+        </h2>
+        <p className="text-muted text-sm m-0 -mt-2">
+          Số mẫu lỗi đã thành thạo tích lũy theo tuần
+        </p>
+        <MasteredTrendChart data={masteredTrend} />
+      </section>
+
       {/* Recent Lessons Section */}
-      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-[18px] mt-6">
+      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-[18px]">
         <h2 className="text-2xl font-bold text-text flex items-center gap-2.5 m-0">
           <BookOpen size={20} className="text-muted" /> Các bài học gần đây
         </h2>

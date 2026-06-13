@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Target, Sparkles } from "lucide-react";
 import { ExerciseCard } from "./exercise-card";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
 import type { Attempt } from "@/domain/memory";
 import { Button } from "@/components/ui/button";
+import { CompletionSummary } from "@/components/completion-summary";
+import type { CompletionStats } from "@/components/completion-summary";
 
 interface ExerciseItem {
   exercise: Exercise;
@@ -30,6 +32,8 @@ export function ExerciseStepper({
   }, [items]);
 
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  // Track whether the user dismissed the CompletionSummary to redo exercises
+  const [showSummary, setShowSummary] = useState(true);
 
   // Clamp index if items change or if it is out of bounds
   const currentIndex = activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
@@ -46,6 +50,31 @@ export function ExerciseStepper({
   const activeItem = items[currentIndex];
   const total = items.length;
   const solvedCount = items.filter((item) => item.isSolved).length;
+  const allSolved = solvedCount === total;
+
+  // Derive CompletionStats from server-rendered data (attempts + userErrors)
+  const completionStats = useMemo<CompletionStats>(() => {
+    let correctFirstTry = 0;
+    let repeatedErrors = 0;
+    for (const item of items) {
+      if (!item.attempts.length) continue;
+      // Oldest attempt = first try (attempts are stored newest-first)
+      const firstAttempt = item.attempts[item.attempts.length - 1];
+      if (firstAttempt?.isCorrect) correctFirstTry++;
+      // Check if the latest incorrect attempt has a repeated error
+      const latestAttempt = item.attempts[0];
+      if (latestAttempt && !latestAttempt.isCorrect) {
+        const err = userErrorsMap.get(latestAttempt.id);
+        if (err?.isRepeated) repeatedErrors++;
+      }
+    }
+    return { total, correctFirstTry, repeatedErrors };
+  }, [items, userErrorsMap, total]);
+
+  const handleRetry = useCallback(() => {
+    setActiveIndex(0);
+    setShowSummary(false);
+  }, []);
 
   const handlePrev = () => {
     if (currentIndex > 0) {
@@ -59,6 +88,11 @@ export function ExerciseStepper({
     }
   };
 
+  // Show CompletionSummary when all exercises are solved and user hasn't dismissed
+  if (allSolved && showSummary) {
+    return <CompletionSummary stats={completionStats} onRetry={handleRetry} />;
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {/* Stepper Progress bar */}
@@ -67,7 +101,7 @@ export function ExerciseStepper({
           <span className="text-sm font-semibold text-text">
             Bài tập <strong className="font-bold">{currentIndex + 1}</strong> / {total}
           </span>
-          {solvedCount === total ? (
+          {allSolved ? (
             <span className="inline-flex items-center gap-1 text-success text-xs sm:text-sm font-bold">
               <Sparkles size={14} /> Hoàn thành tất cả
             </span>
