@@ -85,5 +85,5 @@ A learner-facing summary shown after the learner completes all Exercises in a Le
 _Avoid_: LessonSummary, report, recap
 
 **ReviewNudge**:
-A homepage prompt showing due MistakePatterns that encourages the learner to start reviewing before pasting new text.
+A dashboard prompt showing due MistakePatterns that encourages the learner to start reviewing before pasting new text.
 _Avoid_: Reminder, notification, alert
