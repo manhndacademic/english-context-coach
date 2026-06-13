@@ -9,11 +9,11 @@ import { ExerciseStepper } from "@/components/exercise-stepper";
 import { GenerationProgress, type StageStatus } from "@/components/generation-progress";
 import { KeyPhraseList } from "@/components/key-phrase-list";
 import {
-  deleteSourceTextAction,
   regenerateLessonAction,
   retryExercisesAction,
   retryLessonGenerationAction,
 } from "@/app/actions/source-texts";
+import { DeleteLessonButton } from "@/components/delete-lesson-button";
 import { getLessonRepository } from "@/domain/lesson";
 import { renderRichText } from "@/lib/rich-text";
 
@@ -332,22 +332,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 </button>
               </form>
             ) : null}
-            <form 
-              action={deleteSourceTextAction}
-              onSubmit={(e) => {
-                if (!confirm("Bạn có chắc chắn muốn xoá bài học này không? Mọi lịch sử làm bài và lỗi liên quan sẽ bị xoá vĩnh viễn và không thể hoàn tác.")) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
-              <button 
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 font-semibold text-sm transition-all shadow-sm bg-danger text-white hover:opacity-90 hover:-translate-y-px h-[38px] cursor-pointer" 
-                type="submit"
-              >
-                Xoá nguồn
-              </button>
-            </form>
+            <DeleteLessonButton sourceTextId={lesson.sourceTextId} />
           </div>
           <GenerationProgress
             initialJob={

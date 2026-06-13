@@ -52,7 +52,7 @@ export function MasteredTrendChart({ data }: MasteredTrendChartProps) {
 
         {/* Muted skeleton preview chart to tease functionality */}
         <div className="w-full h-full opacity-25 pointer-events-none select-none">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={mockData} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="skeletonGradient" x1="0" y1="0" x2="0" y2="1">
