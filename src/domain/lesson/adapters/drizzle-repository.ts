@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, sql as drizzleSql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, or, sql as drizzleSql, type SQL } from "drizzle-orm";
 import { db, schema, sql as rawSql } from "@/db";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
@@ -256,17 +256,21 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async assertQueueCapacity(userId: string): Promise<string | null> {
-    const [running] = await db
+    const [active] = await db
       .select({ value: count() })
       .from(schema.generationJobs)
-      .where(and(eq(schema.generationJobs.userId, userId), eq(schema.generationJobs.status, "running")));
-    if ((running?.value ?? 0) >= 1) return "You already have a generation job running.";
-
-    const [queued] = await db
-      .select({ value: count() })
-      .from(schema.generationJobs)
-      .where(and(eq(schema.generationJobs.userId, userId), eq(schema.generationJobs.status, "queued")));
-    if ((queued?.value ?? 0) >= 3) return "You already have three queued generation jobs.";
+      .where(
+        and(
+          eq(schema.generationJobs.userId, userId),
+          or(
+            eq(schema.generationJobs.status, "running"),
+            eq(schema.generationJobs.status, "queued")
+          )
+        )
+      );
+    if ((active?.value ?? 0) >= 1) {
+      return "Bạn đang có bài học đang xử lý hoặc đang chờ trong hàng đợi. Vui lòng đợi bài học trước hoàn thành.";
+    }
 
     return null;
   }

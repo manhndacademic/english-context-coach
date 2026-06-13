@@ -37,6 +37,9 @@ export class GeminiLLMProvider implements LLMProvider {
           payloadHash: record.payloadHash,
           status: record.status,
           latencyMs: record.latencyMs,
+          inputTokens: record.inputTokens ?? null,
+          outputTokens: record.outputTokens ?? null,
+          costMicros: record.costMicros ?? null,
           errorClass: record.errorClass ?? null,
         });
       },

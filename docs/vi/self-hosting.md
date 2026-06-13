@@ -28,11 +28,13 @@ Mở file `.env` và thiết lập các giá trị cấu hình:
 | `AUTH_TRUST_HOST` | Cho phép tin cậy reverse proxy để xử lý URL redirect. | Thiết lập là `true` (Bắt buộc khi chạy sau proxy) |
 | `GOOGLE_CLIENT_ID` | Client ID từ Google Cloud Console. | Xem hướng dẫn ở phần 3 |
 | `GOOGLE_CLIENT_SECRET` | Client Secret từ Google Cloud Console. | Xem hướng dẫn ở phần 3 |
-| `GEMINI_API_KEY` | API Key của Google Gemini. | Lấy từ [Google AI Studio](https://aistudio.google.com/) |
+| `GEMINI_API_KEY` | API Key của Google Gemini. | Key dự phòng nếu không cấu hình key xoay vòng trong DB. |
 | `GEMINI_ANALYSIS_MODEL` | Model mạnh mẽ để phân tích & chấm điểm. | Khuyên dùng: `gemini-3.1-flash-lite` (Giới hạn TPM/TPD cao hơn và phản hồi nhanh hơn) hoặc `gemini-2.5-pro` / `gemini-1.5-pro` |
 | `GEMINI_FAST_MODEL` | Model nhanh để sinh bài tập. | Khuyên dùng: `gemini-3.1-flash-lite` (Giới hạn TPM/TPD cao hơn và phản hồi nhanh hơn) hoặc `gemini-2.5-flash` / `gemini-1.5-flash` |
 | `GEMINI_THINKING_LEVEL` | Cấp độ suy nghĩ của mô hình. | `MINIMAL`, `LOW`, `MEDIUM`, hoặc `HIGH` |
 | `WORKER_CONCURRENCY` | Số lượng tác vụ nền xử lý đồng thời. | Mặc định là `1` (Khuyên dùng cho server RAM nhỏ) |
+| `ENCRYPTION_SECRET` | Khóa bảo mật mã hóa API Keys lưu trong database. | Tạo bằng lệnh: `openssl rand -hex 16` (Cần tối thiểu 32 ký tự) |
+| `ADMIN_EMAIL` | Email của tài khoản Admin hệ thống để tự động nâng cấp quyền. | Ví dụ: `your.email@gmail.com` |
 
 ---
 
@@ -261,3 +263,35 @@ docker exec -t $(docker compose ps -q postgres) pg_dump -U postgres -d english_c
 # Xóa sạch DB hiện tại và khôi phục (Cẩn thận trước khi chạy!)
 docker exec -i $(docker compose ps -q postgres) psql -U postgres -d english_context_coach < backup_file.sql
 ```
+
+---
+
+## 7. Cấu hình Admin và Quản lý API Key
+
+Để truy cập bảng thống kê LLM metrics (`/admin`) và cấu hình cơ chế xoay vòng API key hệ thống, hãy thực hiện các bước sau:
+
+### Cấu hình quyền Admin
+1. Khai báo biến môi trường `ADMIN_EMAIL` trong file `.env` với địa chỉ email tài khoản Google của bạn:
+   ```env
+   ADMIN_EMAIL=your.email@gmail.com
+   ```
+2. Đăng nhập vào ứng dụng. NextAuth sẽ tự động kiểm tra, xác thực email của bạn khớp với `ADMIN_EMAIL` và thăng cấp người dùng của bạn thành vai trò `admin` trong cơ sở dữ liệu.
+3. Khi đã được nâng cấp, đường dẫn **Quản trị** sẽ xuất hiện trên thanh điều hướng đầu trang để truy cập Dashboard.
+4. Ngoài ra, bạn cũng có thể tự chạy script thăng cấp thủ công bên trong container web:
+   ```bash
+   docker compose exec web bun src/scratch/promote-admin.ts your.email@gmail.com
+   ```
+
+### Cấu hình xoay vòng API Keys hệ thống
+1. Tạo một khóa bảo mật đối xứng ngẫu nhiên (tối thiểu 32 ký tự) để mã hóa API keys lưu trong database:
+   ```bash
+   openssl rand -hex 16
+   ```
+2. Khai báo khóa bí mật này trong file `.env` của bạn:
+   ```env
+   ENCRYPTION_SECRET=your_32_character_hex_secret
+   ```
+3. Truy cập vào **Quản trị** > **Vòng xoay API Keys** (`/admin/keys`).
+4. Tiến hành thêm các API Key lấy từ Google AI Studio của bạn. Các API key sẽ được mã hóa an toàn bằng thuật toán `AES-256-GCM` trước khi lưu vào database.
+5. Hệ thống sẽ tự động xoay vòng qua các key này trên mỗi request và tạm ngưng sử dụng key bị rate limit (lỗi 429) để hạ nhiệt tự động.
+

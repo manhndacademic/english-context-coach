@@ -83,9 +83,12 @@ export const users = pgTable("users", {
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
   passwordHash: text("password_hash"),
+  role: text("role").default("user").notNull(),
+  customGeminiApiKey: text("custom_gemini_api_key"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
+
 
 export const accounts = pgTable(
   "accounts",
@@ -535,3 +538,24 @@ export const reviewAttempts = pgTable(
 );
 
 export type ReviewAttempt = typeof reviewAttempts.$inferSelect;
+
+export const aiApiKeys = pgTable(
+  "ai_api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    provider: text("provider").notNull().default("gemini"),
+    encryptedKey: text("encrypted_key").notNull(),
+    status: text("status").notNull().default("active"), // 'active' | 'rate_limited' | 'invalid'
+    errorMessage: text("error_message"),
+    rateLimitedAt: timestamp("rate_limited_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusIdx: index("ai_api_keys_status_idx").on(table.status),
+  }),
+);
+
+export type AiApiKey = typeof aiApiKeys.$inferSelect;
+

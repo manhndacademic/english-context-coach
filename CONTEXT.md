@@ -87,3 +87,16 @@ _Avoid_: LessonSummary, report, recap
 **ReviewNudge**:
 A dashboard prompt showing due MistakePatterns that encourages the learner to start reviewing before pasting new text.
 _Avoid_: Reminder, notification, alert
+
+**SystemApiKey**:
+An AI provider API key managed by administrators and shared in a rotated pool.
+_Avoid_: Global API key, system token
+
+**UserApiKey**:
+A personal AI provider API key supplied by a User in settings and used exclusively for their own requests.
+_Avoid_: Custom API key, personal token
+
+**ApiRotationPool**:
+The mechanism that rotates and selects active SystemApiKeys based on availability, health, and rate limits.
+_Avoid_: Key balancer, key switcher
+

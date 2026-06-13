@@ -38,14 +38,9 @@ export function ExerciseStepper({
   // Clamp index if items change or if it is out of bounds
   const currentIndex = activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
 
-  // Reconstruct user errors map on the client side
   const userErrorsMap = useMemo(() => {
     return new Map(Object.entries(serializedUserErrors));
   }, [serializedUserErrors]);
-
-  if (!items.length) {
-    return null;
-  }
 
   const activeItem = items[currentIndex];
   const total = items.length;
@@ -75,6 +70,10 @@ export function ExerciseStepper({
     setActiveIndex(0);
     setShowSummary(false);
   }, []);
+
+  if (!items.length) {
+    return null;
+  }
 
   const handlePrev = () => {
     if (currentIndex > 0) {

@@ -12,3 +12,11 @@ export async function requireUser() {
 
   return user;
 }
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") {
+    redirect("/dashboard");
+  }
+  return user;
+}

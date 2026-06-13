@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -30,6 +31,17 @@ function formatWeek(isoDate: string): string {
 }
 
 export function MasteredTrendChart({ data }: MasteredTrendChartProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="w-full h-[180px] bg-surface-strong/10 animate-pulse rounded-md" />;
+  }
+
   if (data.length === 0) {
     const mockData = [
       { label: "T1", cumulative: 0 },

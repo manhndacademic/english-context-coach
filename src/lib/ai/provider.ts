@@ -1,8 +1,11 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { SCHEMA_VERSIONS } from "@/domain/constants";
-import { hashCanonicalPayload } from "@/lib/crypto";
+import { hashCanonicalPayload, decryptApiKey } from "@/lib/crypto";
 import { repairPrompt } from "./prompts";
+import { db, schema } from "@/db";
+import { eq, and, or, gt } from "drizzle-orm";
+
 
 export type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
 
@@ -26,6 +29,9 @@ export type GenerateJsonOptions<T> = {
     payloadHash: string;
     status: "succeeded" | "failed";
     latencyMs: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    costMicros?: number;
     errorClass?: string;
   }) => Promise<void>;
 };
@@ -181,54 +187,233 @@ export function coerceJsonForSchema(input: unknown, schemaVersion: keyof typeof 
   return cleaned;
 }
 
-async function callGemini(prompt: string, model: string, onThought?: (text: string) => Promise<void>) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new AiError("GEMINI_API_KEY is not configured.", "missing_api_key");
+function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const name = model.toLowerCase();
+  let inputRate = 0.075; // USD per 1M tokens -> micro-dollars per token
+  let outputRate = 0.30;
+  
+  if (name.includes("pro")) {
+    inputRate = 1.25;
+    outputRate = 5.00;
   }
+  return Math.round(inputTokens * inputRate + outputTokens * outputRate);
+}
 
-  const ai = new GoogleGenAI({ apiKey });
-  const config = {
-    responseMimeType: "application/json",
-    systemInstruction:
-      "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
-    thinkingConfig: onThought
-      ? {
-          includeThoughts: true,
-          thinkingLevel: getGeminiThinkingLevel(),
+function isRateLimitError(err: any): boolean {
+  const msg = String(err.message || "").toUpperCase();
+  const status = err.status || err.statusCode;
+  return status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("RATE_LIMIT") || msg.includes("QUOTA");
+}
+
+function isInvalidKeyError(err: any): boolean {
+  const msg = String(err.message || "").toUpperCase();
+  const status = err.status || err.statusCode;
+  return status === 400 || status === 403 || msg.includes("400") || msg.includes("403") || msg.includes("API_KEY_INVALID") || msg.includes("INVALID_API_KEY") || msg.includes("API_KEY");
+}
+
+async function markKeyRateLimited(keyId: string, errorMsg: string) {
+  try {
+    await db
+      .update(schema.aiApiKeys)
+      .set({
+        status: "rate_limited",
+        errorMessage: errorMsg,
+        rateLimitedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.aiApiKeys.id, keyId));
+  } catch (e) {
+    console.error(`[AI Provider] Failed to update rate_limited status for key ${keyId}:`, e);
+  }
+}
+
+async function markKeyInvalid(keyId: string, errorMsg: string) {
+  try {
+    await db
+      .update(schema.aiApiKeys)
+      .set({
+        status: "invalid",
+        errorMessage: errorMsg,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.aiApiKeys.id, keyId));
+  } catch (e) {
+    console.error(`[AI Provider] Failed to update invalid status for key ${keyId}:`, e);
+  }
+}
+
+async function resolveApiKeyWithExclusions(
+  userId?: string,
+  excludedKeyIds?: Set<string>
+): Promise<{ key: string; id?: string; isUserKey: boolean }> {
+  // 1. Check if user has a custom API Key
+  if (userId) {
+    const [user] = await db
+      .select({ customGeminiApiKey: schema.users.customGeminiApiKey })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+
+    if (user?.customGeminiApiKey) {
+      try {
+        const key = decryptApiKey(user.customGeminiApiKey);
+        if (key) {
+          return { key, isUserKey: true };
         }
-      : undefined,
-  };
-
-  if (onThought) {
-    const response = await ai.models.generateContentStream({
-      model,
-      contents: prompt,
-      config,
-    });
-    let answer = "";
-
-    for await (const chunk of response) {
-      for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-        if (!part.text) continue;
-        if (part.thought) {
-          await onThought(part.text);
-        } else {
-          answer += part.text;
-        }
+      } catch (e) {
+        console.error(`[AI Provider] Failed to decrypt user key for ${userId}:`, e);
       }
     }
-
-    return answer;
   }
 
-  const result = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config,
-  });
+  // 2. Check system keys in Database
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+  const systemKeys = await db
+    .select()
+    .from(schema.aiApiKeys)
+    .where(
+      or(
+        eq(schema.aiApiKeys.status, "active"),
+        and(
+          eq(schema.aiApiKeys.status, "rate_limited"),
+          gt(schema.aiApiKeys.rateLimitedAt, oneMinuteAgo)
+        )
+      )
+    );
 
-  return result.text ?? "";
+  // Filter out excluded key IDs
+  const activeKeys = systemKeys.filter(
+    (k) => !excludedKeyIds || !excludedKeyIds.has(k.id)
+  );
+
+  if (activeKeys.length > 0) {
+    // Pick a key randomly
+    const picked = activeKeys[Math.floor(Math.random() * activeKeys.length)];
+    try {
+      const key = decryptApiKey(picked.encryptedKey);
+      return { key, id: picked.id, isUserKey: false };
+    } catch (e) {
+      console.error(`[AI Provider] Failed to decrypt system key ${picked.name}:`, e);
+    }
+  }
+
+  // 3. Fall back to process.env.GEMINI_API_KEY
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) {
+    return { key: envKey, isUserKey: false };
+  }
+
+  throw new Error("No active system, user, or fallback API keys available.");
+}
+
+async function callGeminiWithRetry(
+  userId: string | undefined,
+  prompt: string,
+  model: string,
+  onThought?: (text: string) => Promise<void>
+): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+  let attempts = 0;
+  const maxAttempts = 3;
+  const excludedKeyIds = new Set<string>();
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    let resolved;
+    try {
+      resolved = await resolveApiKeyWithExclusions(userId, excludedKeyIds);
+    } catch (err: any) {
+      throw new AiError(`Failed to resolve API key: ${err.message}`, "missing_api_key");
+    }
+
+    const { key, id: keyId, isUserKey } = resolved;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: key });
+      const config = {
+        responseMimeType: "application/json",
+        systemInstruction:
+          "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
+        thinkingConfig: onThought
+          ? {
+              includeThoughts: true,
+              thinkingLevel: getGeminiThinkingLevel(),
+            }
+          : undefined,
+      };
+
+      let text = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+
+      if (onThought) {
+        const response = await ai.models.generateContentStream({
+          model,
+          contents: prompt,
+          config,
+        });
+
+        for await (const chunk of response) {
+          for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+            if (!part.text) continue;
+            if (part.thought) {
+              await onThought(part.text);
+            } else {
+              text += part.text;
+            }
+          }
+          if (chunk.usageMetadata) {
+            inputTokens = chunk.usageMetadata.promptTokenCount ?? 0;
+            outputTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
+          }
+        }
+      } else {
+        const result = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config,
+        });
+        text = result.text ?? "";
+        if (result.usageMetadata) {
+          inputTokens = result.usageMetadata.promptTokenCount ?? 0;
+          outputTokens = result.usageMetadata.candidatesTokenCount ?? 0;
+        }
+      }
+
+      // If key was rate-limited or had errors, but succeeded now, restore it
+      if (keyId && !isUserKey) {
+        await db
+          .update(schema.aiApiKeys)
+          .set({ status: "active", errorMessage: null, rateLimitedAt: null, updatedAt: new Date() })
+          .where(eq(schema.aiApiKeys.id, keyId));
+      }
+
+      return { text, inputTokens, outputTokens };
+    } catch (err: any) {
+      console.warn(`[AI Provider] Call failed with key (id: ${keyId || "env/user"}, attempt: ${attempts}):`, err.message || err);
+
+      if (isUserKey) {
+        throw new AiError(`Custom User API Key failed: ${err.message || err}`, "user_key_failed");
+      }
+
+      if (keyId) {
+        excludedKeyIds.add(keyId);
+        if (isRateLimitError(err)) {
+          await markKeyRateLimited(keyId, err.message || "Rate limit exceeded");
+        } else if (isInvalidKeyError(err)) {
+          await markKeyInvalid(keyId, err.message || "Invalid API key");
+        }
+      } else {
+        throw err;
+      }
+
+      if (attempts >= maxAttempts) {
+        throw new AiError(`Gemini API calls failed after ${maxAttempts} rotation retries. Last error: ${err.message || err}`, "all_keys_failed");
+      }
+    }
+  }
+
+  throw new AiError("AI provider error: request failed.", "unknown");
 }
 
 export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<T> {
@@ -239,11 +424,21 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
     schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
   });
   const startedAt = Date.now();
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   try {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const raw = await callGemini(options.prompt, model, options.onThought);
+      const { text: raw, inputTokens, outputTokens } = await callGeminiWithRetry(
+        options.userId,
+        options.prompt,
+        model,
+        options.onThought
+      );
       
+      totalInputTokens = inputTokens;
+      totalOutputTokens = outputTokens;
+
       let parsedJson: unknown;
       const extracted = extractJson(raw);
       try {
@@ -270,6 +465,9 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             payloadHash,
             status: "succeeded",
             latencyMs: Date.now() - startedAt,
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
           });
         }
         return parsed.data;
@@ -278,8 +476,15 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
       console.warn(`[AI Provider] Schema validation failed on attempt ${attempt}. Validation error:`, parsed.error);
 
       console.log(`[AI Provider] Attempting repair...`);
-      const repaired = await callGemini(repairPrompt(raw, options.schemaVersion), model);
+      const { text: repaired, inputTokens: repairIn, outputTokens: repairOut } = await callGeminiWithRetry(
+        options.userId,
+        repairPrompt(raw, options.schemaVersion),
+        model
+      );
       
+      totalInputTokens = repairIn;
+      totalOutputTokens = repairOut;
+
       let repairedJson: unknown;
       const extractedRepaired = extractJson(repaired);
       try {
@@ -306,6 +511,9 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             payloadHash,
             status: "succeeded",
             latencyMs: Date.now() - startedAt,
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
           });
         }
         return repairedParsed.data;
@@ -331,9 +539,13 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
         payloadHash,
         status: "failed",
         latencyMs: Date.now() - startedAt,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
         errorClass: error instanceof AiError ? error.code : error instanceof Error ? error.name : "unknown",
       });
     }
     throw error;
   }
 }
+

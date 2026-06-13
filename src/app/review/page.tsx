@@ -10,20 +10,21 @@ export default async function ReviewPage() {
 
   return (
     <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
-      <AppHeader email={user.email} />
-      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold font-serif mb-1 text-text m-0">
+      <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <div className="max-w-2xl mx-auto w-full flex flex-col gap-6">
+        <div className="text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold font-serif mb-1 text-text m-0">
             Ôn tập mẫu lỗi (Spaced Repetition)
           </h1>
-          <p className="text-muted text-sm leading-relaxed m-0 mt-1">
+          <p className="text-muted text-sm leading-relaxed m-0 mt-1.5">
             Ôn tập sử dụng ngữ cảnh khái quát hóa an toàn, không chứa thông tin cá nhân từ bài học gốc.
           </p>
         </div>
-        <div className="min-[860px]:max-w-[70%]">
+        
+        <div className="w-full">
           <ReviewSession patterns={patterns} />
         </div>
-      </section>
+      </div>
     </main>
   );
 }

@@ -81,13 +81,32 @@ export const authConfig = {
     async session({ session, token }) {
       if (session.user && token.sub) {
         const [user] = await db
-          .select({ id: schema.users.id })
+          .select({ 
+            id: schema.users.id, 
+            role: schema.users.role,
+            email: schema.users.email 
+          })
           .from(schema.users)
           .where(eq(schema.users.id, token.sub))
           .limit(1);
 
         if (user) {
           session.user.id = user.id;
+          
+          const adminEmail = process.env.ADMIN_EMAIL;
+          if (
+            adminEmail && 
+            user.email.toLowerCase().trim() === adminEmail.toLowerCase().trim() && 
+            user.role !== "admin"
+          ) {
+            await db
+              .update(schema.users)
+              .set({ role: "admin" })
+              .where(eq(schema.users.id, user.id));
+            session.user.role = "admin";
+          } else {
+            session.user.role = user.role;
+          }
         }
       }
       return session;

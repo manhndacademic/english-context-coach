@@ -28,11 +28,13 @@ Open the `.env` file and configure the values:
 | `AUTH_TRUST_HOST` | Trusts forwarded headers from reverse proxies. | Set to `true` (Mandatory behind a proxy) |
 | `GOOGLE_CLIENT_ID` | Client ID from Google Cloud Console. | See instructions in Section 3 |
 | `GOOGLE_CLIENT_SECRET` | Client Secret from Google Cloud Console. | See instructions in Section 3 |
-| `GEMINI_API_KEY` | Google Gemini API Key. | Obtain from [Google AI Studio](https://aistudio.google.com/) |
+| `GEMINI_API_KEY` | Google Gemini API Key. | Fallback key if no keys are in the database. |
 | `GEMINI_ANALYSIS_MODEL` | Stronger model for analysis and grading. | Recommended: `gemini-3.1-flash-lite` (Higher TPM/TPD limits and faster) or `gemini-2.5-pro` / `gemini-1.5-pro` |
 | `GEMINI_FAST_MODEL` | Faster model for exercise generation. | Recommended: `gemini-3.1-flash-lite` (Higher TPM/TPD limits and faster) or `gemini-2.5-flash` / `gemini-1.5-flash` |
 | `GEMINI_THINKING_LEVEL` | Thinking budget level for the model. | `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH` |
 | `WORKER_CONCURRENCY` | Number of background tasks processed concurrently. | Defaults to `1` (Recommended for small RAM servers) |
+| `ENCRYPTION_SECRET` | Secret key for encrypting API keys in database. | Generate using: `openssl rand -hex 16` (Must be at least 32 characters) |
+| `ADMIN_EMAIL` | Email of the admin user to be automatically promoted. | e.g. `your.email@gmail.com` |
 
 ---
 
@@ -261,3 +263,34 @@ docker exec -t $(docker compose ps -q postgres) pg_dump -U postgres -d english_c
 # Erases current database and restores from backup (Use with caution!)
 docker exec -i $(docker compose ps -q postgres) psql -U postgres -d english_context_coach < backup_file.sql
 ```
+
+---
+
+## 7. Admin Configuration and API Key Management
+
+To access the LLM metrics dashboard (`/admin`) and set up system API key rotation, follow these steps:
+
+### Promoted Admin Setup
+1. Define the `ADMIN_EMAIL` environment variable in your `.env` file with the email address of your primary Google account:
+   ```env
+   ADMIN_EMAIL=your.email@gmail.com
+   ```
+2. Log in to the application. NextAuth will automatically verify your email, check it against `ADMIN_EMAIL`, and upgrade your user role to `admin` in the database.
+3. Once promoted, the **Quản trị** link will appear in the navigation header, allowing you to access the dashboard.
+4. Alternatively, you can run the promotion script inside the running container manually:
+   ```bash
+   docker compose exec web bun src/scratch/promote-admin.ts your.email@gmail.com
+   ```
+
+### API Key Rotation Configuration
+1. Generate a secure, 32-character encryption secret to protect API keys in the database:
+   ```bash
+   openssl rand -hex 16
+   ```
+2. Set this value in your `.env` file:
+   ```env
+   ENCRYPTION_SECRET=your_32_character_hex_secret
+   ```
+3. Navigate to **Quản trị** > **Vòng xoay API Keys** (`/admin/keys`).
+4. Add your Google AI Studio keys one by one. They will be stored securely using `AES-256-GCM` encryption.
+5. The system will automatically cycle through these keys and handle cooldowns if any key hits Google's rate limits.
