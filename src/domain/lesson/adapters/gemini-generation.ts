@@ -15,9 +15,10 @@ export class GeminiGenerationEngine implements GenerationEngine {
   async generateAnalysis(
     sourceText: string,
     onThought?: (text: string) => Promise<void>,
-    requestedMode?: string
+    requestedMode?: string,
+    userHighlights?: string[]
   ): Promise<AnalysisResult> {
-    let promptText = analysisPrompt(sourceText);
+    let promptText = analysisPrompt(sourceText, userHighlights);
     if (requestedMode && requestedMode !== "auto") {
       promptText += `\n\nCRITICAL: The user has requested to process this text in mode: \`${requestedMode}\`. You MUST classify the inputMode as \`${requestedMode}\` and adapt the content fields accordingly.`;
     }

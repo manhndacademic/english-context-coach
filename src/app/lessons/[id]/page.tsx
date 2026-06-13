@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { AlertCircle, Terminal, HelpCircle } from "lucide-react";
 import type { KeyPhrase } from "@/domain/lesson";
 import { requireUser } from "@/lib/auth/guards";
@@ -178,7 +178,92 @@ function parseReadableSourceBlocks(source: string): SourceBlock[] {
   return blocks.length ? blocks : [{ type: "paragraph", text: source }];
 }
 
+function renderTipTapNodes(nodes: any[] | undefined, phrases: KeyPhrase[]): ReactNode {
+  if (!nodes || !nodes.length) return null;
+
+  return nodes.map((node: any, index: number) => {
+    if (node.type !== "text") return null;
+
+    let element: ReactNode = node.text;
+
+    // Match full key phrases case insensitively
+    const matchingPhrase = phrases.find(
+      (p) => p.phrase.toLowerCase().trim() === node.text.toLowerCase().trim()
+    );
+
+    const isHighlighted = node.marks?.some((m: any) => m.type === "highlight");
+    const isBold = node.marks?.some((m: any) => m.type === "bold");
+
+    if (matchingPhrase) {
+      element = (
+        <a 
+          className="rounded-[4px] bg-accent-light border-b-2 border-accent text-accent-strong p-[1px_4px] font-bold no-underline transition-all duration-150 [box-decoration-break:clone] [-webkit-box-decoration-break:clone] hover:bg-accent hover:text-white" 
+          href={`#keyphrase-${matchingPhrase.id}`} 
+          key={`${matchingPhrase.id}-${index}`}
+        >
+          {node.text}
+        </a>
+      );
+    } else if (isHighlighted) {
+      element = (
+        <mark key={index} className="bg-accent-light text-accent-strong rounded px-1 font-bold">
+          {node.text}
+        </mark>
+      );
+    } else if (isBold) {
+      element = <strong key={index} className="font-bold">{node.text}</strong>;
+    }
+
+    return element;
+  });
+}
+
+function renderTipTapJSON(doc: any, phrases: KeyPhrase[]): ReactNode[] | null {
+  if (!doc || !Array.isArray(doc.content)) return null;
+
+  return doc.content.map((block: any, index: number) => {
+    switch (block.type) {
+      case "paragraph":
+        return <p key={index}>{renderTipTapNodes(block.content, phrases)}</p>;
+      case "heading": {
+        const HeadingTag = `h${block.attrs?.level || 3}` as any;
+        return <HeadingTag key={index} className="text-lg font-bold mt-3 mb-1">{renderTipTapNodes(block.content, phrases)}</HeadingTag>;
+      }
+      case "bulletList":
+        return (
+          <ul key={index} className="list-disc pl-5 my-2">
+            {block.content?.map((li: any, idx: number) => (
+              <li key={`${index}-${idx}`}>{renderTipTapJSON(li, phrases)}</li>
+            ))}
+          </ul>
+        );
+      case "orderedList":
+        return (
+          <ol key={index} className="list-decimal pl-5 my-2">
+            {block.content?.map((li: any, idx: number) => (
+              <li key={`${index}-${idx}`}>{renderTipTapJSON(li, phrases)}</li>
+            ))}
+          </ol>
+        );
+      case "listItem":
+        return <React.Fragment key={index}>{renderTipTapJSON(block, phrases)}</React.Fragment>;
+      default:
+        return null;
+    }
+  }).filter(Boolean);
+}
+
 function renderReadableSourceText(source: string, phrases: KeyPhrase[]) {
+  try {
+    const parsed = JSON.parse(source);
+    if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+      const rendered = renderTipTapJSON(parsed, phrases);
+      if (rendered) return rendered;
+    }
+  } catch {
+    // Fallback to legacy plain text block parsing
+  }
+
   return parseReadableSourceBlocks(source).map((block, index) => {
     if (block.type === "heading") {
       return <h3 key={index}>{renderHighlightedText(block.text, phrases)}</h3>;

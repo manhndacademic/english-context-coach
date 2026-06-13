@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getTextProcessor } from "../index";
+import { getHighlightsFromJSON } from "./default-processor";
 
 describe("DefaultTextProcessor", () => {
   const processor = getTextProcessor();
@@ -42,5 +43,32 @@ describe("DefaultTextProcessor", () => {
         safeReviewPromptVi: "Ôn lại Alice Nguyen.",
       }),
     ).toBe(true);
+  });
+
+  it("extracts plain text and highlights from JSON string", () => {
+    const jsonStr = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Evaluate the safety of " },
+            {
+              type: "text",
+              marks: [{ type: "highlight" }],
+              text: "generative AI models",
+            },
+            { type: "text", text: "." },
+          ],
+        },
+      ],
+    });
+
+    const { normalized } = processor.processSource(jsonStr);
+    expect(normalized).toBe("Evaluate the safety of generative AI models.");
+
+    // Test helper directly
+    const highlights = getHighlightsFromJSON(JSON.parse(jsonStr));
+    expect(highlights).toEqual(["generative AI models"]);
   });
 });

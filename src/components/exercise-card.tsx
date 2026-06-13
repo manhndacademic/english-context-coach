@@ -89,6 +89,8 @@ export function ExerciseCard({
   const typeLabel = getExerciseTypeLabel(exercise.type);
 
   const isChoiceType = exercise.type === "meaning_choice" || exercise.type === "trap_choice" || exercise.type === "trap_detect";
+  const isObjectiveType = exercise.type === "cloze_phrase" || exercise.type === "meaning_choice" || exercise.type === "trap_choice" || exercise.type === "trap_detect";
+  const shouldShowKeyPhrase = keyPhrase && (!isObjectiveType || solved);
 
   return (
     <article className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
@@ -119,7 +121,7 @@ export function ExerciseCard({
         ) : null}
       </div>
 
-      {keyPhrase ? (
+      {shouldShowKeyPhrase ? (
         <a className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors" href={`#keyphrase-${keyPhrase.id}`}>
           <span>Luyện tập cụm từ:</span>
           <strong>{keyPhrase.phrase}</strong>

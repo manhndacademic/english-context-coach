@@ -9,10 +9,51 @@ const sensitivePatterns = [
   /\b(?:project|client|customer|repo|repository|ticket|issue)\s+[A-Z0-9_-]{3,}\b/i,
 ];
 
+export function getPlainTextFromJSON(node: any): string {
+  if (!node) return "";
+  if (node.type === "text") {
+    return node.text || "";
+  }
+  if (node.content && Array.isArray(node.content)) {
+    const isBlockContainer = node.type === "doc" || node.type === "bulletList" || node.type === "orderedList";
+    return node.content.map(getPlainTextFromJSON).join(isBlockContainer ? "\n" : "");
+  }
+  return "";
+}
+
+export function getHighlightsFromJSON(node: any): string[] {
+  if (!node) return [];
+  const highlights: string[] = [];
+  
+  const traverse = (n: any) => {
+    if (n.type === "text" && n.marks && Array.isArray(n.marks)) {
+      const isHighlighted = n.marks.some((mark: any) => mark.type === "highlight");
+      if (isHighlighted && n.text) {
+        highlights.push(n.text.trim());
+      }
+    }
+    if (n.content && Array.isArray(n.content)) {
+      n.content.forEach(traverse);
+    }
+  };
+  
+  traverse(node);
+  return Array.from(new Set(highlights)).filter(Boolean);
+}
+
 export class DefaultTextProcessor implements TextProcessor {
   processSource(content: string): { normalized: string; hash: string } {
-    const normalized = content.replace(/\s+/g, " ").trim();
-    const hash = sha256(normalized);
+    let plainText = content;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+        plainText = getPlainTextFromJSON(parsed);
+      }
+    } catch {
+      // Ignore JSON parse error, treat content as plain text
+    }
+    const normalized = plainText.replace(/\s+/g, " ").trim();
+    const hash = sha256(content.trim());
     return { normalized, hash };
   }
 

@@ -170,8 +170,8 @@ export const repairJsonShapes = {
   grading: gradingJsonShape,
 } as const;
 
-export function analysisPrompt(sourceText: string) {
-  return [
+export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
+  const list = [
     "You are English Context Coach for Vietnamese learners.",
     "Analyze the English source text in context. Do not translate word by word.",
     "First, classify the source text into one of these 'inputMode' categories:",
@@ -208,7 +208,15 @@ export function analysisPrompt(sourceText: string) {
     "JSON shape:",
     JSON.stringify(analysisJsonShape),
     `Source text:\n${sourceText}`,
-  ].join("\n\n");
+  ];
+
+  if (userHighlights && userHighlights.length > 0) {
+    list.push(
+      `CRITICAL REQUIREMENT: The user has explicitly highlighted the following phrases from the text that they want to learn. You MUST include each of these highlighted phrases in the 'keyPhrases' array of the output, explaining their category, difficulty, contextual meaning, and literal/natural translations:\n${JSON.stringify(userHighlights)}`
+    );
+  }
+
+  return list.join("\n\n");
 }
 
 export function exercisesPrompt(analysis: AnalysisResult) {

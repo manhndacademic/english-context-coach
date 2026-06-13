@@ -1,5 +1,6 @@
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import type { TextProcessor } from "@/domain/text";
+import { getPlainTextFromJSON, getHighlightsFromJSON } from "@/domain/text/adapters/default-processor";
 import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import type {
@@ -215,8 +216,20 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           stage: "analysis",
         });
 
+        let plainText = sourceText.content;
+        let userHighlights: string[] = [];
+        try {
+          const parsed = JSON.parse(sourceText.content);
+          if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+            plainText = getPlainTextFromJSON(parsed);
+            userHighlights = getHighlightsFromJSON(parsed);
+          }
+        } catch {
+          // Ignore JSON parse error, treat content as plain text
+        }
+
         const result = await this.genEngine.generateAnalysis(
-          sourceText.content,
+          plainText,
           async (text) => {
             const sanitized = sanitizeGenerationThought(text, this.textProcessor);
             if (sanitized) {
@@ -228,7 +241,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
               });
             }
           },
-          lesson.inputMode
+          lesson.inputMode,
+          userHighlights
         );
 
         await this.repo.saveAnalysis(

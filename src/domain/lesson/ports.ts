@@ -278,7 +278,8 @@ export interface GenerationEngine {
   generateAnalysis(
     sourceText: string,
     onThought?: (text: string) => Promise<void>,
-    requestedMode?: string
+    requestedMode?: string,
+    userHighlights?: string[]
   ): Promise<AnalysisResult>;
 
   generateExercises(

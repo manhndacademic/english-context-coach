@@ -3,25 +3,53 @@
 import { useActionState, useState } from "react";
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import { createSourceTextAction, type SourceTextActionState } from "@/app/actions/source-texts";
+import { RichTextEditor } from "./rich-text-editor";
+
+function getPlainTextFromJSONClient(node: any): string {
+  if (!node) return "";
+  if (node.type === "text") {
+    return node.text || "";
+  }
+  if (node.content && Array.isArray(node.content)) {
+    const isBlockContainer = node.type === "doc" || node.type === "bulletList" || node.type === "orderedList";
+    return node.content.map(getPlainTextFromJSONClient).join(isBlockContainer ? "\n" : "");
+  }
+  return "";
+}
+
+function getPlainTextLength(value: string): number {
+  if (!value) return 0;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+      return getPlainTextFromJSONClient(parsed).trim().length;
+    }
+  } catch {
+    // Ignore JSON parse error, treat content as plain text
+  }
+  return value.trim().length;
+}
 
 export function SourceTextForm() {
   const [state, action, pending] = useActionState<SourceTextActionState, FormData>(createSourceTextAction, {});
   const [value, setValue] = useState("");
 
+  const plainTextLength = getPlainTextLength(value);
+
   return (
     <form action={action} className="grid gap-5">
-      <label className="grid gap-2 text-left text-sm font-semibold text-text">
+      <div className="grid gap-2 text-left text-sm font-semibold text-text">
         Dán tài liệu tiếng Anh cần phân tích
-        <textarea
-          name="content"
+        <input type="hidden" name="content" value={value} />
+        <RichTextEditor
           value={value}
-          maxLength={SOURCE_TEXT_MAX_LENGTH}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder="Dán tin nhắn Slack, email, GitHub issue, PR comment, tài liệu API hoặc đoạn văn bản tiếng Anh bất kỳ..."
-          required
-          className="w-full border border-border rounded-md bg-surface text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light mt-1 min-h-[200px] resize-vertical leading-relaxed"
+          onChange={setValue}
+          placeholder="Dán tin nhắn Slack, email, GitHub issue, PR comment, tài liệu API hoặc đoạn văn bản tiếng Anh bất kỳ. Bôi đen từ/cụm từ khó để AI phân tích chi tiết..."
         />
-      </label>
+        <p className="text-xs text-muted font-normal mt-1">
+          💡 <strong>Mẹo:</strong> Bạn có thể bôi đen bất kỳ cụm từ nào trong văn bản và nhấn <strong>Đánh dấu từ khó</strong> để yêu cầu AI ưu tiên giải thích cụm từ đó.
+        </p>
+      </div>
       <label className="grid gap-2 text-left text-sm font-semibold text-text mt-2">
         Chế độ dịch / học (Coaching Mode)
         <div className="relative mt-1">
@@ -47,13 +75,13 @@ export function SourceTextForm() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button 
           className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer" 
-          disabled={pending || !value.trim()} 
+          disabled={pending || plainTextLength === 0 || plainTextLength > SOURCE_TEXT_MAX_LENGTH} 
           type="submit"
         >
           {pending ? "Đang xếp hàng xử lý..." : "Bắt đầu phân tích & tạo bài học"}
         </button>
-        <span className="text-xs text-muted">
-          {value.length.toLocaleString()} / {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} ký tự
+        <span className={`text-xs ${plainTextLength > SOURCE_TEXT_MAX_LENGTH ? "text-danger font-bold" : "text-muted"}`}>
+          {plainTextLength.toLocaleString()} / {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} ký tự
         </span>
       </div>
       {state.error ? <p className="text-danger font-semibold text-sm m-0">{state.error}</p> : null}
