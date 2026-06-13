@@ -114,25 +114,25 @@ export function ExerciseStepper({
         {/* Stepper Indicators */}
         <div className="flex flex-wrap items-center gap-2">
           {items.map((item, idx) => {
-            let dotClass = "relative flex items-center justify-center w-8 h-8 rounded-sm cursor-pointer transition-all duration-200 font-bold text-[13px] hover:-translate-y-px hover:border-accent hover:bg-surface-strong group border ";
+            let dotClass = "relative flex items-center justify-center gap-1.5 px-3.5 h-[38px] rounded-md cursor-pointer transition-all duration-200 font-bold text-xs hover:-translate-y-px hover:border-accent hover:bg-surface-strong border ";
             let icon = null;
 
             if (idx === currentIndex) {
-              dotClass += "border-accent text-accent ring-3 ring-accent-light ";
+              dotClass += "border-accent text-accent ring-3 ring-accent-light bg-surface ";
             } else if (item.isSolved) {
-              dotClass += "bg-success-light border-success text-success ";
+              dotClass += "bg-success-light border-success/30 text-success ";
             } else if (item.needsRetry) {
-              dotClass += "bg-warning-light border-warning text-warning ";
+              dotClass += "bg-warning-light border-warning/30 text-warning ";
             } else {
               dotClass += "bg-surface border-border text-muted ";
             }
 
             if (item.isSolved) {
-              icon = <CheckCircle2 size={12} className="block group-hover:hidden shrink-0" />;
+              icon = <CheckCircle2 size={13} className="shrink-0" />;
             } else if (item.needsRetry) {
-              icon = <AlertCircle size={12} className="block group-hover:hidden shrink-0" />;
+              icon = <AlertCircle size={13} className="shrink-0" />;
             } else {
-              icon = <Target size={12} className="block group-hover:hidden shrink-0" />;
+              icon = <Target size={13} className="shrink-0 text-muted/60" />;
             }
 
             return (
@@ -143,10 +143,8 @@ export function ExerciseStepper({
                 aria-label={`Đi tới bài tập ${idx + 1}`}
                 title={`Bài tập ${idx + 1}: ${item.isSolved ? "Đã xong" : item.needsRetry ? "Cần sửa lại" : "Chưa làm"}`}
               >
+                <span>Câu {idx + 1}</span>
                 {icon}
-                <span className={`${item.isSolved || item.needsRetry ? "hidden group-hover:block" : "block"}`}>
-                  {idx + 1}
-                </span>
               </button>
             );
           })}

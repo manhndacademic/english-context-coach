@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guards";
-import { getLearnerMemoryEngine } from "@/domain/memory";
+import { getLearnerMemoryEngine, getLearnerMemoryRepository } from "@/domain/memory";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -45,6 +45,27 @@ export async function submitReviewAttemptAction(
   } catch (error) {
     console.error(error);
     return { error: error instanceof Error ? error.message : "Đã xảy ra lỗi hệ thống khi chấm điểm ôn tập." };
+  }
+}
+
+export async function retryReviewPromptGenerationAction(formData: FormData): Promise<void> {
+  try {
+    const user = await requireUser();
+    const patternId = String(formData.get("patternId") ?? "");
+    if (!patternId) return;
+
+    const repo = getLearnerMemoryRepository();
+    const pattern = await repo.findMistakePatternById(patternId);
+    if (!pattern || pattern.userId !== user.id) return;
+
+    await repo.updateReviewPromptJobStatus(patternId, "queued", {
+      reviewPromptAttempts: 0,
+      reviewPromptError: null,
+    });
+
+    revalidatePath("/dashboard");
+  } catch (error) {
+    console.error("Failed to retry review prompt generation:", error);
   }
 }
 

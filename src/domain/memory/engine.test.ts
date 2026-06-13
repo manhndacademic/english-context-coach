@@ -197,6 +197,7 @@ class MockLessonRepository implements LessonRepository {
   async saveExercises(lessonId: string, userId: string, exercises: any, model: string): Promise<void> {}
   async buildAnalysisFromLesson(lessonId: string): Promise<any> { return null as any; }
   async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {}
+  async resetStuckJob(userId: string, lessonId: string): Promise<void> {}
   async recordMilestone(input: any): Promise<void> {}
   async recordThought(input: any): Promise<void> {}
   async getLessonProgress(input: any): Promise<any> { return null; }

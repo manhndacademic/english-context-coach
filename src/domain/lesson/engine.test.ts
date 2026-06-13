@@ -137,6 +137,22 @@ class MockLessonRepository implements LessonRepository {
     this.sourceTexts.delete(sourceTextId);
   }
 
+  async resetStuckJob(userId: string, lessonId: string) {
+    const lesson = this.lessons.get(lessonId);
+    if (lesson) {
+      lesson.analysisStatus = "pending";
+      lesson.exerciseStatus = "pending";
+    }
+    for (const job of this.generationJobs.values()) {
+      if (job.lessonId === lessonId) {
+        job.status = "queued";
+        job.attempts = 0;
+        job.lockedAt = null;
+        job.lockedBy = null;
+      }
+    }
+  }
+
   async recordMilestone(input: any) {
     this.milestones.push(input);
   }

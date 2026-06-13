@@ -12,6 +12,7 @@ import {
   regenerateLessonAction,
   retryExercisesAction,
   retryLessonGenerationAction,
+  forceRetryLessonAction,
 } from "@/app/actions/source-texts";
 import { DeleteLessonButton } from "@/components/delete-lesson-button";
 import { getLessonRepository } from "@/domain/lesson";
@@ -301,15 +302,29 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
             Thể loại: {lesson.textType?.replaceAll("_", " ") ?? "general"} · Trình độ: {lesson.detectedLevel ?? "Đang xác định"}
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-4">
-            <form action={regenerateLessonAction}>
-              <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
-              <button 
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer" 
-                type="submit"
-              >
-                Tạo bản mới (Regenerate)
-              </button>
-            </form>
+            {lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "succeeded" ? (
+              <form action={regenerateLessonAction}>
+                <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer" 
+                  type="submit"
+                >
+                  Tạo bản mới (Regenerate)
+                </button>
+              </form>
+            ) : null}
+
+            {lesson.analysisStatus === "running" || lesson.analysisStatus === "pending" || lesson.exerciseStatus === "running" ? (
+              <form action={forceRetryLessonAction}>
+                <input name="lessonId" type="hidden" value={lesson.id} />
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 font-semibold text-sm transition-all shadow-sm bg-warning text-white hover:opacity-90 hover:-translate-y-px h-[38px] cursor-pointer" 
+                  type="submit"
+                >
+                  Buộc chạy lại
+                </button>
+              </form>
+            ) : null}
             {lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "failed" ? (
               <form action={retryExercisesAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />

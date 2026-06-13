@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await requireAdmin();
 
   return (
-    <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
+    <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
       <AppHeader email={user.email} isAdmin={true} />
 
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 items-start">

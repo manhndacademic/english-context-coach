@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
+import { retryReviewPromptGenerationAction } from "@/app/actions/review";
 import { SourceTextForm } from "@/components/source-text-form";
 import { getLessonRepository } from "@/domain/lesson";
 import { getLearnerMemoryRepository } from "@/domain/memory";
@@ -152,12 +153,34 @@ export default async function DashboardPage() {
                       <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none">
                         {pattern.errorType.replaceAll("_", " ")}
                       </span>
-                      <Link
-                        href="/review"
-                        className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
-                      >
-                        Ôn tập <ArrowRight size={10} />
-                      </Link>
+                      {pattern.reviewPromptStatus === "succeeded" ? (
+                        <Link
+                          href="/review"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
+                        >
+                          Ôn tập <ArrowRight size={10} />
+                        </Link>
+                      ) : pattern.reviewPromptStatus === "failed" ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-danger text-[10px] font-bold bg-danger-light border border-danger/10 px-2 py-0.5 rounded leading-none shrink-0">
+                            Lỗi tạo câu hỏi
+                          </span>
+                          <form action={retryReviewPromptGenerationAction} className="inline flex items-center">
+                            <input type="hidden" name="patternId" value={pattern.id} />
+                            <button
+                              type="submit"
+                              className="text-[10px] font-extrabold text-accent bg-transparent border-none p-0 cursor-pointer hover:underline leading-none"
+                            >
+                              Tạo lại
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted bg-surface-strong border border-border px-2 py-0.5 rounded leading-none shrink-0">
+                          <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse shrink-0" />
+                          Đang chuẩn bị...
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))

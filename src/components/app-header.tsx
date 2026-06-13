@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { Sun, Moon, Monitor, Settings, ShieldAlert, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
+import { ConfirmDialog } from "@/components/ui/dialog";
 
 export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?: boolean }) {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -153,27 +156,33 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
 
                 <div className="border-t border-border my-1" />
 
-                <form 
-                  action={logoutAction}
-                  onSubmit={(e) => {
-                    if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-                      e.preventDefault();
-                    }
-                  }}
-                  className="w-full"
+                <button 
+                  type="button"
+                  onClick={() => setShowLogoutDialog(true)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors border-0 bg-transparent text-left cursor-pointer font-semibold"
                 >
-                  <button 
-                    type="submit"
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors border-0 bg-transparent text-left cursor-pointer font-semibold"
-                  >
-                    <LogOut size={14} /> Đăng xuất
-                  </button>
-                </form>
+                  <LogOut size={14} /> Đăng xuất
+                </button>
               </div>
             )}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={() => {
+          startTransition(async () => {
+            await logoutAction();
+          });
+        }}
+        isPending={isPending}
+        title="Đăng xuất tài khoản"
+        description="Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng không?"
+        confirmText="Đăng xuất"
+        variant="danger"
+      />
     </header>
   );
 }

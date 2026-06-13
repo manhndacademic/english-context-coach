@@ -215,6 +215,8 @@ export interface LessonRepository {
 
   deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
 
+  resetStuckJob(userId: string, lessonId: string): Promise<void>;
+
   recordMilestone(input: {
     lessonId: string;
     generationJobId: string;

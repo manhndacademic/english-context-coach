@@ -262,7 +262,13 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
     return await this.dbClient
       .select()
       .from(schema.mistakePatterns)
-      .where(and(eq(schema.mistakePatterns.userId, userId), lte(schema.mistakePatterns.dueAt, dueAt)))
+      .where(
+        and(
+          eq(schema.mistakePatterns.userId, userId),
+          lte(schema.mistakePatterns.dueAt, dueAt),
+          eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
+        )
+      )
       .orderBy(asc(schema.mistakePatterns.dueAt))
       .limit(limit);
   }
@@ -276,7 +282,13 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
       this.dbClient
         .select({ value: count() })
         .from(schema.mistakePatterns)
-        .where(and(eq(schema.mistakePatterns.userId, userId), lte(schema.mistakePatterns.dueAt, dueAt))),
+        .where(
+          and(
+            eq(schema.mistakePatterns.userId, userId),
+            lte(schema.mistakePatterns.dueAt, dueAt),
+            eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
+          )
+        ),
       this.dbClient
         .select({ value: count() })
         .from(schema.mistakePatterns)

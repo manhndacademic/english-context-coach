@@ -534,13 +534,43 @@ export class DrizzleLessonRepository implements LessonRepository {
       .where(and(eq(schema.sourceTexts.id, sourceTextId), eq(schema.sourceTexts.userId, userId)));
   }
 
+  async resetStuckJob(userId: string, lessonId: string): Promise<void> {
+    await this.dbClient.transaction(async (tx) => {
+      await tx
+        .update(schema.lessons)
+        .set({
+          analysisStatus: "pending",
+          exerciseStatus: "pending",
+          updatedAt: new Date(),
+        })
+        .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)));
+
+      await tx
+        .update(schema.generationJobs)
+        .set({
+          status: "queued",
+          attempts: 0,
+          lockedAt: null,
+          lockedBy: null,
+          errorMessage: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.generationJobs.lessonId, lessonId),
+            eq(schema.generationJobs.userId, userId)
+          )
+        );
+    });
+  }
+
   async recordMilestone(input: {
     lessonId: string;
     generationJobId: string;
     code: GenerationMilestoneCode;
     stage: GenerationStage;
   }): Promise<void> {
-    await this.dbClient.execute(rawSql`
+    await this.dbClient.execute(drizzleSql`
       insert into generation_milestones (lesson_id, generation_job_id, code, stage)
       select
         ${input.lessonId},
