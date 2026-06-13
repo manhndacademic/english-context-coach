@@ -3,18 +3,17 @@ import { db, schema } from "@/db";
 import { desc } from "drizzle-orm";
 import { 
   addSystemApiKeyAction, 
-  deleteSystemApiKeyAction, 
   reverifySystemApiKeyAction 
 } from "@/app/actions/admin-keys";
 import { 
   KeyRound, 
   Plus, 
-  Trash2, 
   RefreshCw, 
   CheckCircle2, 
   AlertTriangle, 
   XCircle 
 } from "lucide-react";
+import { DeleteKeyButton } from "@/components/admin/delete-key-button";
 
 export default async function AdminKeysPage() {
   await requireAdmin();
@@ -157,22 +156,7 @@ export default async function AdminKeysPage() {
                             </button>
                           </form>
                         )}
-                        <form
-                          action={deleteSystemApiKeyAction.bind(null, key.id)}
-                          onSubmit={(e) => {
-                            if (!confirm(`Bạn có chắc chắn muốn xóa key "${key.name}" không?`)) {
-                              e.preventDefault();
-                            }
-                          }}
-                        >
-                          <button
-                            type="submit"
-                            title="Xóa key"
-                            className="p-1.5 rounded-md border border-border bg-surface text-danger hover:bg-danger-light transition-all cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </form>
+                        <DeleteKeyButton keyId={key.id} keyName={key.name} />
                       </div>
                     </td>
                   </tr>
