@@ -25,7 +25,7 @@ A learner-visible progress note about Lesson generation. GenerationThought must 
 _Avoid_: Raw chain-of-thought, hidden reasoning trace, debug log
 
 **KeyPhrase**:
-A distinct word, phrase, or term from the SourceText whose contextual sense is important for understanding it. A KeyPhrase should distinguish its reusable general meaning from its specific meaning in the SourceText and include a related example when that helps the learner apply the phrase.
+A distinct word, phrase, or term from the SourceText whose contextual sense is important for understanding it. A KeyPhrase should distinguish its reusable general meaning from its specific meaning in the SourceText and include up to 3 context-relevant examples (English sentences and Vietnamese translations) to help the learner visualize its usage.
 _Avoid_: Vocabulary item, word
 
 **SentenceBreakdown**:
@@ -41,7 +41,7 @@ The learner-facing Vietnamese explanation of what the SourceText means as a whol
 _Avoid_: Literal translation, raw translation
 
 **Exercise**:
-A practice prompt fixed to a specific Lesson. An Exercise may practice a KeyPhrase or a broader LessonFocus, and has a primary target for judging the learner's answer. A LessonFocus Exercise tests whole-text meaning, tone, structure, or purpose grounded in the SourceText.
+A practice prompt fixed to a specific Lesson. Exercises test KeyPhrases or LessonFocuses using various smart types (multiple choice on meaning, fill-in-the-blank, natural translation, focus questions, literal trap choice, active phrase production, dialogue completion, register shift, or translation trap detection). Each Exercise has a primary target for judging the learner's answer.
 _Avoid_: Quiz question, task
 
 **Attempt**:

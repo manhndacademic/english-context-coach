@@ -60,8 +60,9 @@ Services:
 - `AUTH_URL`: the public URL of the application (e.g. `https://english.domain.com`)
 - `AUTH_TRUST_HOST`: set to `true` when running behind a reverse proxy (like Nginx Proxy Manager)
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: optional Google OAuth login
-- `GEMINI_API_KEY`: Gemini API key for AI generation and grading
-- `GEMINI_ANALYSIS_MODEL`: stronger model for analysis and open grading
-- `GEMINI_FAST_MODEL`: faster model for exercise/review generation
+- `GEMINI_API_KEYS`: comma-separated list of Gemini API keys for rotated pool (takes precedence over `GEMINI_API_KEY`)
+- `GEMINI_API_KEY`: single fallback Gemini API key
+- `GEMINI_ANALYSIS_MODELS`: comma-separated fallback models for analysis and open grading
+- `GEMINI_FAST_MODELS`: comma-separated fallback models for exercise/review generation
 - `GEMINI_THINKING_LEVEL`: Gemini 3 thinking level for generation thoughts: `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH`
 - `WORKER_CONCURRENCY`: global worker concurrency, defaults to `1`

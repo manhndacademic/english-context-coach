@@ -12,6 +12,49 @@ function formatLabel(value: string) {
   return value.replaceAll("_", " ");
 }
 
+function getExerciseTypeLabel(type: string) {
+  switch (type) {
+    case "meaning_choice":
+      return "Trắc nghiệm nghĩa";
+    case "cloze_phrase":
+      return "Điền cụm từ";
+    case "natural_translation":
+      return "Dịch Anh-Việt";
+    case "focus_question":
+      return "Câu hỏi trọng tâm";
+    case "trap_choice":
+      return "Tránh bẫy dịch";
+    case "phrase_production":
+      return "Tự đặt câu";
+    case "dialogue_completion":
+      return "Hoàn thành hội thoại";
+    case "register_shift":
+      return "Nâng cấp văn phong";
+    case "trap_detect":
+      return "Phát hiện bẫy dịch";
+    default:
+      return "Luyện tập";
+  }
+}
+
+function getPlaceholder(type: string, needsRetry: boolean) {
+  if (needsRetry) {
+    return "Thử lại câu trả lời của bạn...";
+  }
+  switch (type) {
+    case "phrase_production":
+      return "Viết câu tiếng Anh hoàn chỉnh chứa cụm từ...";
+    case "dialogue_completion":
+      return "Viết câu phản hồi tiếng Anh của B có chứa cụm từ...";
+    case "register_shift":
+      return "Viết lại câu tiếng Anh tự nhiên/idiomatic hơn...";
+    case "natural_translation":
+    case "focus_question":
+    default:
+      return "Viết câu dịch hoặc câu trả lời tiếng Việt tự nhiên của bạn...";
+  }
+}
+
 export function ExerciseCard({
   attempts,
   exercise,
@@ -43,7 +86,9 @@ export function ExerciseCard({
     literalTranslationTrap?: string;
   } | null | undefined;
 
-  const typeLabel = exercise.type === "meaning_choice" ? "Trắc nghiệm nghĩa" : "Dịch tự nhiên";
+  const typeLabel = getExerciseTypeLabel(exercise.type);
+
+  const isChoiceType = exercise.type === "meaning_choice" || exercise.type === "trap_choice" || exercise.type === "trap_detect";
 
   return (
     <article className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
@@ -110,7 +155,7 @@ export function ExerciseCard({
         <input name="exerciseId" type="hidden" value={exercise.id} />
         <input name="lessonId" type="hidden" value={exercise.lessonId} />
         
-        {exercise.type === "meaning_choice" && exercise.choices ? (
+        {isChoiceType && exercise.choices ? (
           <div className="grid gap-2 mt-2">
             {exercise.choices.map((choice) => (
               <label 
@@ -142,7 +187,7 @@ export function ExerciseCard({
               aria-describedby={latest ? feedbackId : undefined}
               name="answer"
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder={needsRetry ? "Thử lại bằng cách giữ nghĩa tự nhiên của cụm trong câu..." : "Viết câu dịch tiếng Việt tự nhiên của bạn..."}
+              placeholder={getPlaceholder(exercise.type, needsRetry)}
               required
               value={answer}
               className="w-full border border-border rounded-md bg-surface text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light mt-1 min-h-[100px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50"

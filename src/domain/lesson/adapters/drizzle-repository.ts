@@ -1,13 +1,12 @@
 import { and, asc, count, desc, eq, gt, inArray, or, sql as drizzleSql, type SQL } from "drizzle-orm";
-import { db, schema, sql as rawSql } from "@/db";
+import { db, schema, sql as rawSql, notifyJobQueued } from "@/db";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
 import {
   sanitizeGenerationThought,
   selectDisplayGenerationJob,
-  type GenerationMilestoneCode,
-  type GenerationStage,
 } from "@/domain/generation-progress";
+import { findMatchingLessonFocus } from "../rules";
 import type {
   LessonRepository,
   LessonAggregate,
@@ -112,7 +111,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     contentHash: string,
     requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    return await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: any) => {
       const [sourceText] = await tx
         .insert(schema.sourceTexts)
         .values({
@@ -133,6 +132,8 @@ export class DrizzleLessonRepository implements LessonRepository {
           inputMode: requestedMode || "understand_and_practice",
           analysisStatus: "pending",
           exerciseStatus: "pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -149,6 +150,8 @@ export class DrizzleLessonRepository implements LessonRepository {
 
       return { lesson, job };
     });
+    await notifyJobQueued();
+    return result;
   }
 
   async createLessonAndJob(
@@ -157,7 +160,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     version: number,
     stage: "analysis" | "exercises"
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    return await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: any) => {
       const [lesson] = await tx
         .insert(schema.lessons)
         .values({
@@ -167,6 +170,8 @@ export class DrizzleLessonRepository implements LessonRepository {
           title: `Regeneration ${version}`,
           analysisStatus: "pending",
           exerciseStatus: "pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
         })
         .returning();
 
@@ -183,6 +188,8 @@ export class DrizzleLessonRepository implements LessonRepository {
 
       return { lesson, job };
     });
+    await notifyJobQueued();
+    return result;
   }
 
   async createJob(
@@ -191,7 +198,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     lessonId: string,
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob> {
-    return await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: any) => {
       const [job] = await tx
         .insert(schema.generationJobs)
         .values({
@@ -206,17 +213,19 @@ export class DrizzleLessonRepository implements LessonRepository {
       if (stage === "analysis") {
         await tx
           .update(schema.lessons)
-          .set({ analysisStatus: "pending", exerciseStatus: "pending" })
+          .set({ analysisStatus: "pending", exerciseStatus: "pending", updatedAt: new Date() })
           .where(eq(schema.lessons.id, lessonId));
       } else {
         await tx
           .update(schema.lessons)
-          .set({ exerciseStatus: "pending" })
+          .set({ exerciseStatus: "pending", updatedAt: new Date() })
           .where(eq(schema.lessons.id, lessonId));
       }
 
       return job;
     });
+    await notifyJobQueued();
+    return result;
   }
 
   async claimJob(workerId: string): Promise<GenerationJob | null> {
@@ -267,6 +276,10 @@ export class DrizzleLessonRepository implements LessonRepository {
         updatedAt: new Date(),
       })
       .where(eq(schema.generationJobs.id, jobId));
+
+    if (status === "queued") {
+      await notifyJobQueued();
+    }
   }
 
   async assertQueueCapacity(userId: string): Promise<string | null> {
@@ -345,6 +358,7 @@ export class DrizzleLessonRepository implements LessonRepository {
             meaningInContextVi: phrase.meaningInContextVi,
             exampleEn: phrase.exampleEn,
             exampleVi: phrase.exampleVi,
+            examples: phrase.examples ?? [],
             literalTranslationVi: phrase.literalTranslationVi,
             naturalTranslationVi: phrase.naturalTranslationVi,
             whyConfusingVi: phrase.whyConfusingVi,
@@ -402,9 +416,6 @@ export class DrizzleLessonRepository implements LessonRepository {
     const phraseByNormalized = new Map<string, DbKeyPhrase>(
       phrases.map((phrase: DbKeyPhrase) => [this.textProcessor.normalizePhrase(phrase.phrase), phrase]),
     );
-    const focusByNormalized = new Map<string, DbLessonFocus>(
-      lessonFocuses.map((focus: DbLessonFocus) => [this.textProcessor.normalizePhrase(focus.title), focus]),
-    );
 
     await this.dbClient.transaction(async (tx: any) => {
       await tx.delete(schema.exercises).where(eq(schema.exercises.lessonId, lessonId));
@@ -412,7 +423,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         await tx.insert(schema.exercises).values(
           exercises.exercises.map((exercise, index) => {
             const keyPhrase = "phrase" in exercise ? phraseByNormalized.get(this.textProcessor.normalizePhrase(exercise.phrase)) : undefined;
-            const lessonFocus = "focus" in exercise ? focusByNormalized.get(this.textProcessor.normalizePhrase(exercise.focus)) : undefined;
+            const lessonFocus = "focus" in exercise ? findMatchingLessonFocus(exercise.focus, lessonFocuses, this.textProcessor) : undefined;
             return {
               lessonId,
               userId,
@@ -487,7 +498,8 @@ export class DrizzleLessonRepository implements LessonRepository {
         meaningVi: phrase.meaningVi,
         meaningInContextVi: phrase.meaningInContextVi,
         exampleEn: phrase.exampleEn ?? phrase.phrase,
-        exampleVi: phrase.exampleVi ?? phrase.meaningInContextVi,
+        exampleVi: phrase.exampleVi ?? phrase.meaningInContextVi ?? "",
+        examples: phrase.examples ?? [],
         literalTranslationVi: phrase.literalTranslationVi ?? undefined,
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
         whyConfusingVi: phrase.whyConfusingVi ?? undefined,

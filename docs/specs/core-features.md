@@ -47,7 +47,8 @@ Each key phrase should include:
 *   `literalTranslationVi` (literal translation trap, if any)
 *   `naturalTranslationVi` (natural Vietnamese meaning)
 *   `whyConfusingVi`
-*   `exampleEn` / `exampleVi`
+*   `exampleEn` / `exampleVi` (retained for backward compatibility)
+*   `examples` (array of up to 3 objects: `{ exampleEn: string; exampleVi: string }`)
 *   `category` / `difficulty`
 
 ---
@@ -59,8 +60,13 @@ Supported exercise types:
 *   `cloze_phrase` (fill in the blank)
 *   `natural_translation` (translate English sentence into natural Vietnamese)
 *   `focus_question` (open-ended question about whole-text meaning, tone, structure, or purpose)
+*   `trap_choice` (choose the natural translation and avoid literal translation traps)
+*   `phrase_production` (write an English sentence containing the key phrase from a Vietnamese context prompt)
+*   `dialogue_completion` (complete A/B dialogue turn using the key phrase)
+*   `register_shift` (rewrite an awkward or dry English sentence to use the key phrase)
+*   `trap_detect` (identify and explain a translation trap)
 
-Objective exercises should be graded without AI when possible. Open-ended exercises should be graded by AI with structured output.
+Objective exercises (`meaning_choice`, `cloze_phrase`, `trap_choice`, `trap_detect`) should be graded without AI when possible. Open-ended exercises (`natural_translation`, `focus_question`, `phrase_production`, `dialogue_completion`, `register_shift`) should be graded by AI with structured output.
 
 ---
 

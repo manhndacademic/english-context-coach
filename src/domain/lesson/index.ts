@@ -52,4 +52,5 @@ export {
   prepareAnalysisForSave,
   exerciseCompletenessIssues,
   assertCompleteExercises,
+  findMatchingLessonFocus,
 } from "./rules";

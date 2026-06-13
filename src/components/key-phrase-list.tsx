@@ -74,7 +74,22 @@ export function KeyPhraseList({ phrases }: { phrases: KeyPhrase[] }) {
                     </div>
                   </div>
 
-                  {phrase.exampleEn || phrase.exampleVi ? (
+                  {phrase.examples && phrase.examples.length > 0 ? (
+                    <div className="grid gap-2 py-3 border-b border-dashed border-border last:border-none last:pb-0 first:pt-0">
+                      <div className="flex items-center gap-1.5 text-muted text-xs font-extrabold uppercase tracking-wider">
+                        <HelpCircle size={14} />
+                        <span>Ví dụ thực tế</span>
+                      </div>
+                      <ol className="list-decimal pl-4 m-0 grid gap-3">
+                        {phrase.examples.map((ex, idx) => (
+                          <li key={idx} className="text-sm md:text-base leading-relaxed pl-1">
+                            {ex.exampleEn && <span className="font-serif italic font-semibold text-accent-strong block">{ex.exampleEn}</span>}
+                            {ex.exampleVi && <span className="text-muted text-sm block mt-0.5">{ex.exampleVi}</span>}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : phrase.exampleEn || phrase.exampleVi ? (
                     <div className="grid gap-2 py-3 border-b border-dashed border-border last:border-none last:pb-0 first:pt-0">
                       <div className="flex items-center gap-1.5 text-muted text-xs font-extrabold uppercase tracking-wider">
                         <HelpCircle size={14} />

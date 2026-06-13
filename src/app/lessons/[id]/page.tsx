@@ -327,7 +327,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
               </form>
             ) : null}
 
-            {lesson.analysisStatus === "running" || lesson.analysisStatus === "pending" || lesson.exerciseStatus === "running" ? (
+            {(lesson.analysisStatus === "running" || lesson.analysisStatus === "pending" || lesson.exerciseStatus === "running") &&
+            (Date.now() - lesson.updatedAt.getTime() > 45_000) ? (
               <form action={forceRetryLessonAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
                 <button 

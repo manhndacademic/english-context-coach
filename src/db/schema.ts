@@ -48,6 +48,11 @@ export const exerciseTypeEnum = pgEnum("exercise_type", [
   "cloze_phrase",
   "natural_translation",
   "focus_question",
+  "trap_choice",
+  "phrase_production",
+  "dialogue_completion",
+  "register_shift",
+  "trap_detect",
 ]);
 
 export const errorTypeEnum = pgEnum("error_type", [
@@ -225,6 +230,7 @@ export const keyPhrases = pgTable(
     meaningInContextVi: text("meaning_in_context_vi").notNull(),
     exampleEn: text("example_en"),
     exampleVi: text("example_vi"),
+    examples: jsonb("examples").$type<{ exampleEn: string; exampleVi: string }[]>().default([]).notNull(),
     literalTranslationVi: text("literal_translation_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
     whyConfusingVi: text("why_confusing_vi"),

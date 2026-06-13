@@ -45,6 +45,7 @@ export interface KeyPhrase {
   meaningInContextVi: string | null;
   exampleEn: string | null;
   exampleVi: string | null;
+  examples: { exampleEn: string; exampleVi: string }[];
   literalTranslationVi: string | null;
   naturalTranslationVi: string | null;
   whyConfusingVi: string | null;

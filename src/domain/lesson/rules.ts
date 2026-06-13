@@ -74,13 +74,63 @@ export function prepareAnalysisForSave(
   };
 }
 
+export function findMatchingLessonFocus<T extends {
+  title?: string | null;
+  conceptPhrase?: string | null;
+  conceptKey?: string | null;
+  category?: string | null;
+}>(
+  exerciseFocus: string,
+  focuses: T[],
+  textProcessor: TextProcessor
+): T | undefined {
+  const normExercise = textProcessor.normalizePhrase(exerciseFocus);
+  if (!normExercise) return undefined;
+
+  // 1. Try exact matches first
+  for (const focus of focuses) {
+    const targets = [
+      focus.title ? textProcessor.normalizePhrase(focus.title) : "",
+      focus.conceptPhrase ? textProcessor.normalizePhrase(focus.conceptPhrase) : "",
+      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey) : "",
+      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " ")) : "",
+      focus.category ? textProcessor.normalizePhrase(focus.category) : "",
+    ].filter(Boolean);
+
+    if (targets.includes(normExercise)) {
+      return focus;
+    }
+  }
+
+  // 2. Try substring/contains matches next (for target length > 3 to avoid false positives on short terms)
+  for (const focus of focuses) {
+    const targets = [
+      focus.title ? textProcessor.normalizePhrase(focus.title) : "",
+      focus.conceptPhrase ? textProcessor.normalizePhrase(focus.conceptPhrase) : "",
+      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey) : "",
+      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " ")) : "",
+    ].filter(Boolean);
+
+    for (const target of targets) {
+      if (
+        (normExercise.includes(target) && target.length > 3) ||
+        (target.includes(normExercise) && normExercise.length > 3)
+      ) {
+        return focus;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export function exerciseCompletenessIssues(
   result: ExercisesResult,
   analysis: AnalysisResult,
   textProcessor: TextProcessor
 ) {
   const issues: string[] = [];
-  if (result.exercises.length < 3) issues.push("A complete Lesson needs at least 3 Exercises.");
+  if (result.exercises.length < 5) issues.push("A complete Lesson needs at least 5 Exercises.");
   if (!result.exercises.some((exercise) => exercise.type === "focus_question")) {
     issues.push("A complete Lesson needs at least one LessonFocus Exercise.");
   }
@@ -91,9 +141,10 @@ export function exerciseCompletenessIssues(
     issues.push("A complete Lesson with KeyPhrases needs at least one KeyPhrase Exercise.");
   }
 
-  const focusTitles = new Set(analysis.lessonFocuses.map((focus) => textProcessor.normalizePhrase(focus.title)));
   const invalidFocus = result.exercises.find(
-    (exercise) => exercise.type === "focus_question" && !focusTitles.has(textProcessor.normalizePhrase(exercise.focus)),
+    (exercise) =>
+      exercise.type === "focus_question" &&
+      !findMatchingLessonFocus(exercise.focus, analysis.lessonFocuses, textProcessor),
   );
   const invalidFocusTitle = invalidFocus?.type === "focus_question" ? invalidFocus.focus : null;
   if (invalidFocusTitle) issues.push(`Focus question targets an unknown LessonFocus: ${invalidFocusTitle}`);

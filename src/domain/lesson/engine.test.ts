@@ -228,6 +228,22 @@ class MockGenerationEngine implements GenerationEngine {
         choices: ["xem", "chạy", "nhìn"],
         correctAnswer: "xem",
       },
+      {
+        type: "cloze_phrase",
+        phrase: "take a look",
+        promptVi: "Điền cụm từ phù hợp.",
+        promptEn: "Can you ____?",
+        correctAnswer: "take a look",
+        acceptableAnswers: ["take a look"],
+      },
+      {
+        type: "trap_choice",
+        phrase: "take a look",
+        promptVi: "Tránh bẫy dịch cho cụm:",
+        promptEn: "Take a look.",
+        choices: ["Hãy xem thử", "Lấy một cái nhìn", "Nhìn lâu"],
+        correctAnswer: "Hãy xem thử",
+      },
     ],
   };
 

@@ -121,6 +121,7 @@ export function GenerationProgress({
       }
 
       if (isTerminalLessonStatus(payload.lesson)) {
+        router.refresh();
         stream.close();
       }
     });
@@ -131,6 +132,7 @@ export function GenerationProgress({
       setThoughts((current) => mergeThought(current, payload.thought));
 
       if (isTerminalLessonStatus(payload.lesson)) {
+        router.refresh();
         stream.close();
       }
     });

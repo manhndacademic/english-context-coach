@@ -28,9 +28,10 @@ Mở file `.env` và thiết lập các giá trị cấu hình:
 | `AUTH_TRUST_HOST` | Cho phép tin cậy reverse proxy để xử lý URL redirect. | Thiết lập là `true` (Bắt buộc khi chạy sau proxy) |
 | `GOOGLE_CLIENT_ID` | Client ID từ Google Cloud Console. | Xem hướng dẫn ở phần 3 |
 | `GOOGLE_CLIENT_SECRET` | Client Secret từ Google Cloud Console. | Xem hướng dẫn ở phần 3 |
-| `GEMINI_API_KEY` | API Key của Google Gemini. | Key dự phòng nếu không cấu hình key xoay vòng trong DB. |
-| `GEMINI_ANALYSIS_MODEL` | Model mạnh mẽ để phân tích & chấm điểm. | Khuyên dùng: `gemini-3.1-flash-lite` (Giới hạn TPM/TPD cao hơn và phản hồi nhanh hơn) hoặc `gemini-2.5-pro` / `gemini-1.5-pro` |
-| `GEMINI_FAST_MODEL` | Model nhanh để sinh bài tập. | Khuyên dùng: `gemini-3.1-flash-lite` (Giới hạn TPM/TPD cao hơn và phản hồi nhanh hơn) hoặc `gemini-2.5-flash` / `gemini-1.5-flash` |
+| `GEMINI_API_KEYS` | Các API Keys của Google Gemini. | Danh sách các key phân cách bằng dấu phẩy dùng để xoay vòng (có độ ưu tiên cao hơn `GEMINI_API_KEY`). |
+| `GEMINI_API_KEY` | API Key của Google Gemini. | Key dự phòng đơn lẻ nếu không cấu hình key xoay vòng trong DB và không thiết lập `GEMINI_API_KEYS`. |
+| `GEMINI_ANALYSIS_MODELS` | Danh sách model dự phòng cho phân tích & chấm điểm. | Danh sách phân cách bằng dấu phẩy. Khuyên dùng: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
+| `GEMINI_FAST_MODELS` | Danh sách model dự phòng để sinh bài tập. | Danh sách phân cách bằng dấu phẩy. Khuyên dùng: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
 | `GEMINI_THINKING_LEVEL` | Cấp độ suy nghĩ của mô hình. | `MINIMAL`, `LOW`, `MEDIUM`, hoặc `HIGH` |
 | `WORKER_CONCURRENCY` | Số lượng tác vụ nền xử lý đồng thời. | Mặc định là `1` (Khuyên dùng cho server RAM nhỏ) |
 | `ENCRYPTION_SECRET` | Khóa bảo mật mã hóa API Keys lưu trong database. | Tạo bằng lệnh: `openssl rand -hex 16` (Cần tối thiểu 32 ký tự) |

@@ -1,5 +1,5 @@
 import { and, eq, sql, lte, count, desc, asc } from "drizzle-orm";
-import { db, schema, sql as rawSql } from "@/db";
+import { db, schema, sql as rawSql, notifyJobQueued } from "@/db";
 import type { LearnerMemoryRepository } from "../ports";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson/ports";
 import type { Attempt, UserError, MistakePattern, ReviewAttempt } from "../types";
@@ -145,7 +145,11 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         },
       })
       .returning();
-    return rows[0];
+    const pattern = rows[0];
+    if (pattern && pattern.reviewPromptStatus === "queued") {
+      await notifyJobQueued();
+    }
+    return pattern;
   }
 
   async updateMistakePatternSchedule(
@@ -246,6 +250,10 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
       .update(schema.mistakePatterns)
       .set(updates)
       .where(eq(schema.mistakePatterns.id, patternId));
+
+    if (status === "queued") {
+      await notifyJobQueued();
+    }
   }
 
   async createReviewAttempt(attempt: {

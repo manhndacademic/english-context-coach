@@ -21,3 +21,11 @@ if (process.env.NODE_ENV !== "production") {
 
 export const db = drizzle(sql, { schema });
 export { schema };
+
+export async function notifyJobQueued() {
+  try {
+    await sql`NOTIFY jobs_trigger`;
+  } catch (error) {
+    console.error("[PostgresNotify] Failed to send jobs_trigger NOTIFY:", error);
+  }
+}

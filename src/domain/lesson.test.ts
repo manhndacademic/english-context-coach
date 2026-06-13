@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dedupeKeyPhrases, exerciseCompletenessIssues } from "./lesson";
+import { dedupeKeyPhrases, exerciseCompletenessIssues, findMatchingLessonFocus } from "./lesson";
 import { getTextProcessor } from "@/domain/text";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
@@ -93,6 +93,22 @@ describe("lesson product rules", () => {
             promptEn: "Thanks, looks good.",
             rubricVi: "Bản dịch cần tự nhiên và thể hiện sự đồng ý.",
           },
+          {
+            type: "cloze_phrase",
+            phrase: "looks good",
+            promptVi: "Điền cụm phù hợp.",
+            promptEn: "It ____ to me.",
+            correctAnswer: "looks good",
+            acceptableAnswers: ["looks good"],
+          },
+          {
+            type: "trap_choice",
+            phrase: "looks good",
+            promptVi: "Tránh bẫy dịch cho cụm:",
+            promptEn: "Looks good.",
+            choices: ["Trông ổn", "Nhìn tốt", "Xem đẹp"],
+            correctAnswer: "Trông ổn",
+          },
         ],
       },
       {
@@ -154,11 +170,70 @@ describe("lesson product rules", () => {
           promptEn: "We need to push this back.",
           rubricVi: "Câu trả lời cần nêu nghĩa hoãn/dời lại.",
         },
+        {
+          type: "cloze_phrase",
+          phrase: "push this back",
+          promptVi: "Điền cụm phù hợp.",
+          promptEn: "We need to ____.",
+          correctAnswer: "push this back",
+          acceptableAnswers: ["push this back"],
+        },
+        {
+          type: "trap_choice",
+          phrase: "push this back",
+          promptVi: "Tránh bẫy dịch cho cụm:",
+          promptEn: "Push this back.",
+          choices: ["Hoãn lại", "Đẩy cái này lại", "Bỏ qua"],
+          correctAnswer: "Hoãn lại",
+        },
       ],
     };
 
     expect(exerciseCompletenessIssues(result, baseAnalysis, getTextProcessor())).toContain(
       "A complete Lesson needs at least one LessonFocus Exercise.",
     );
+  });
+
+  describe("findMatchingLessonFocus", () => {
+    const mockFocuses = [
+      {
+        title: "Cách sử dụng từ ngữ chuyên môn lịch sử",
+        conceptKey: "academic_tone",
+        conceptPhrase: "academic tone",
+        category: "tone" as const,
+        conceptMeaningVi: "giọng văn học thuật",
+        explanationVi: "...",
+        difficulty: "C1" as const,
+      },
+    ];
+
+    it("matches exactly on conceptPhrase", () => {
+      const match = findMatchingLessonFocus("academic tone", mockFocuses, getTextProcessor());
+      expect(match).toBeDefined();
+      expect(match?.conceptKey).toBe("academic_tone");
+    });
+
+    it("matches exactly on conceptKey (with space replacement)", () => {
+      const match = findMatchingLessonFocus("academic tone", mockFocuses, getTextProcessor());
+      expect(match).toBeDefined();
+      expect(match?.conceptKey).toBe("academic_tone");
+    });
+
+    it("matches exactly on category", () => {
+      const match = findMatchingLessonFocus("tone", mockFocuses, getTextProcessor());
+      expect(match).toBeDefined();
+      expect(match?.conceptKey).toBe("academic_tone");
+    });
+
+    it("matches substring for longer inputs", () => {
+      const match = findMatchingLessonFocus("academic", mockFocuses, getTextProcessor());
+      expect(match).toBeDefined();
+      expect(match?.conceptKey).toBe("academic_tone");
+    });
+
+    it("returns undefined for non-matching inputs", () => {
+      const match = findMatchingLessonFocus("random topic", mockFocuses, getTextProcessor());
+      expect(match).toBeUndefined();
+    });
   });
 });

@@ -53,6 +53,10 @@ export const keyPhraseSchema = z.object({
   meaningInContextVi: z.string().min(1),
   exampleEn: z.string().min(1),
   exampleVi: z.string().min(1),
+  examples: z.array(z.object({
+    exampleEn: z.string().min(1),
+    exampleVi: z.string().min(1),
+  })).optional(),
   literalTranslationVi: z.string().optional(),
   naturalTranslationVi: z.string().optional(),
   whyConfusingVi: z.string().optional(),
@@ -121,10 +125,54 @@ export const exerciseSchema = z.discriminatedUnion("type", [
     promptEn: z.string().optional(),
     rubricVi: z.string().min(1),
   }),
+  z.object({
+    type: z.literal("trap_choice"),
+    phrase: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().min(1),
+    choices: z.array(z.string().min(1)).min(3).max(4),
+    correctAnswer: z.string().min(1),
+    acceptableAnswers: z.array(z.string().min(1)).optional(),
+  }),
+  z.object({
+    type: z.literal("phrase_production"),
+    phrase: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().optional(),
+    correctAnswer: z.string().min(1),
+    acceptableAnswers: z.array(z.string().min(1)).optional(),
+    rubricVi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("dialogue_completion"),
+    phrase: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().min(1),
+    correctAnswer: z.string().min(1),
+    acceptableAnswers: z.array(z.string().min(1)).optional(),
+    rubricVi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("register_shift"),
+    phrase: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().min(1),
+    correctAnswer: z.string().min(1),
+    acceptableAnswers: z.array(z.string().min(1)).optional(),
+    rubricVi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("trap_detect"),
+    phrase: z.string().min(1),
+    promptVi: z.string().min(1),
+    promptEn: z.string().min(1),
+    choices: z.array(z.string().min(1)).min(3).max(4),
+    correctAnswer: z.string().min(1),
+  }),
 ]);
 
 export const exercisesSchema = z.object({
-  exercises: z.array(exerciseSchema).min(0).max(7),
+  exercises: z.array(exerciseSchema).min(0).max(10),
 });
 
 export const gradingSchema = z.object({

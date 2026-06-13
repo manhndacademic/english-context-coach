@@ -28,9 +28,10 @@ Open the `.env` file and configure the values:
 | `AUTH_TRUST_HOST` | Trusts forwarded headers from reverse proxies. | Set to `true` (Mandatory behind a proxy) |
 | `GOOGLE_CLIENT_ID` | Client ID from Google Cloud Console. | See instructions in Section 3 |
 | `GOOGLE_CLIENT_SECRET` | Client Secret from Google Cloud Console. | See instructions in Section 3 |
-| `GEMINI_API_KEY` | Google Gemini API Key. | Fallback key if no keys are in the database. |
-| `GEMINI_ANALYSIS_MODEL` | Stronger model for analysis and grading. | Recommended: `gemini-3.1-flash-lite` (Higher TPM/TPD limits and faster) or `gemini-2.5-pro` / `gemini-1.5-pro` |
-| `GEMINI_FAST_MODEL` | Faster model for exercise generation. | Recommended: `gemini-3.1-flash-lite` (Higher TPM/TPD limits and faster) or `gemini-2.5-flash` / `gemini-1.5-flash` |
+| `GEMINI_API_KEYS` | Google Gemini API Keys. | A comma-separated list of keys used in rotation (takes precedence over `GEMINI_API_KEY`). |
+| `GEMINI_API_KEY` | Google Gemini API Key. | Single fallback key if no keys are in the database and `GEMINI_API_KEYS` is not set. |
+| `GEMINI_ANALYSIS_MODELS` | Fallback models for analysis and grading. | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
+| `GEMINI_FAST_MODELS` | Fallback models for exercise generation. | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
 | `GEMINI_THINKING_LEVEL` | Thinking budget level for the model. | `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH` |
 | `WORKER_CONCURRENCY` | Number of background tasks processed concurrently. | Defaults to `1` (Recommended for small RAM servers) |
 | `ENCRYPTION_SECRET` | Secret key for encrypting API keys in database. | Generate using: `openssl rand -hex 16` (Must be at least 32 characters) |
