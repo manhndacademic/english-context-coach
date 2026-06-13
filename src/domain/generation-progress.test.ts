@@ -52,12 +52,16 @@ describe("generation progress", () => {
   });
 
   it("sanitizes learner-visible generation thoughts before storage", () => {
-    expect(sanitizeGenerationThought("  Đang xem xét\nngữ cảnh chính.  ")).toBe("Đang xem xét ngữ cảnh chính.");
-    expect(sanitizeGenerationThought("")).toBeNull();
-    expect(sanitizeGenerationThought("Checking alice@example.com")).toBeNull();
+    const mockProcessor = {
+      isSafe: (text: string) => !text.includes("alice@example.com") && !text.includes("secret"),
+    };
+
+    expect(sanitizeGenerationThought("  Đang xem xét\nngữ cảnh chính.  ", mockProcessor)).toBe("Đang xem xét ngữ cảnh chính.");
+    expect(sanitizeGenerationThought("", mockProcessor)).toBeNull();
+    expect(sanitizeGenerationThought("Checking alice@example.com", mockProcessor)).toBeNull();
 
     const longThought = "a".repeat(generationThoughtMaxLength + 20);
-    expect(sanitizeGenerationThought(longThought)).toHaveLength(generationThoughtMaxLength);
-    expect(sanitizeGenerationThought(longThought)?.endsWith("...")).toBe(true);
+    expect(sanitizeGenerationThought(longThought, mockProcessor)).toHaveLength(generationThoughtMaxLength);
+    expect(sanitizeGenerationThought(longThought, mockProcessor)?.endsWith("...")).toBe(true);
   });
 });

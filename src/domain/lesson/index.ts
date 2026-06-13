@@ -1,3 +1,4 @@
+import { db } from "@/db";
 import { DrizzleLessonRepository } from "./adapters/drizzle-repository";
 import { GeminiGenerationEngine } from "./adapters/gemini-generation";
 import { DefaultLessonGenerationEngine } from "./engine";
@@ -10,7 +11,7 @@ let cachedEngine: LessonGenerationEngine | null = null;
 
 export function getLessonRepository(): LessonRepository {
   if (!cachedRepo) {
-    cachedRepo = new DrizzleLessonRepository(getTextProcessor());
+    cachedRepo = new DrizzleLessonRepository(db, getTextProcessor());
   }
   return cachedRepo;
 }

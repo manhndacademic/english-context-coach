@@ -258,6 +258,7 @@ export interface LessonRepository {
     createdAt: Date;
   }>>;
   getSourceTextsCount(userId: string): Promise<number>;
+  runInTransaction<T>(operation: (tx: LessonRepository) => Promise<T>): Promise<T>;
 }
 
 export interface GenerationEngine {

@@ -218,7 +218,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         const result = await this.genEngine.generateAnalysis(
           sourceText.content,
           async (text) => {
-            const sanitized = sanitizeGenerationThought(text);
+            const sanitized = sanitizeGenerationThought(text, this.textProcessor);
             if (sanitized) {
               await this.repo.recordThought({
                 lessonId: job.lessonId,
@@ -267,7 +267,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
       for (let attempt = 1; attempt <= 2; attempt += 1) {
         const candidate = await this.genEngine.generateExercises(analysis, async (text) => {
-          const sanitized = sanitizeGenerationThought(text);
+          const sanitized = sanitizeGenerationThought(text, this.textProcessor);
           if (sanitized) {
             await this.repo.recordThought({
               lessonId: job.lessonId,

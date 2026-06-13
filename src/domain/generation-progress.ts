@@ -1,5 +1,5 @@
 import type { GenerationJob, GenerationMilestone, GenerationThought, Lesson } from "./lesson/ports";
-import { getTextProcessor } from "@/domain/text";
+import type { TextProcessor } from "@/domain/text";
 
 export const generationMilestoneCodes = [
   "queued",
@@ -54,10 +54,10 @@ export function selectDisplayGenerationJob<T extends ProgressJobSummary>(jobs: T
   return [...jobs].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 }
 
-export function sanitizeGenerationThought(input: string) {
+export function sanitizeGenerationThought(input: string, textProcessor: Pick<TextProcessor, "isSafe">) {
   const text = input.replace(/\s+/g, " ").trim();
   if (!text) return null;
-  if (!getTextProcessor().isSafe(text)) return null;
+  if (!textProcessor.isSafe(text)) return null;
   if (internalGenerationThoughtPatterns.some((pattern) => pattern.test(text))) return null;
   return text.length > generationThoughtMaxLength ? `${text.slice(0, generationThoughtMaxLength - 3).trimEnd()}...` : text;
 }

@@ -27,23 +27,76 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     grader = new DefaultGradingEngine(llm);
   });
 
-  it("bypasses LLM call and returns local rule result for objective exercise (meaning_choice)", async () => {
+  it("grades correct objective answers (meaning_choice) including acceptable answers without calling LLM", async () => {
     const exercise = {
       type: "meaning_choice",
       correctAnswer: "Ổn rồi",
-      acceptableAnswers: [],
+      acceptableAnswers: ["Được rồi"],
     } as any;
-
+    
     const result = await grader.grade({
       userId: "user-1",
       exercise,
       answer: "Ổn rồi",
     });
-
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(100);
-    expect(llm.calls.length).toBe(0); // No AI call made
+    expect(llm.calls.length).toBe(0);
+
+    const resultAcceptable = await grader.grade({
+      userId: "user-1",
+      exercise,
+      answer: "Được rồi",
+    });
+    expect(resultAcceptable.isCorrect).toBe(true);
+    expect(resultAcceptable.score).toBe(100);
+    expect(llm.calls.length).toBe(0);
   });
+
+  it("grades incorrect objective answers, returns structured error data, and does not call LLM", async () => {
+    const exercise = {
+      type: "meaning_choice",
+      correctAnswer: "Ổn rồi",
+      promptVi: "Hỏi",
+      promptEn: "Prompt",
+    } as any;
+    
+    const result = await grader.grade({
+      userId: "user-1",
+      exercise,
+      answer: "Nhìn đẹp",
+    });
+    
+    expect(result.isCorrect).toBe(false);
+    expect(result.score).toBe(0);
+    expect(result.error?.shouldSave).toBe(true);
+    expect(result.error?.confidence).toBe(100);
+    expect(result.error?.errorType).toBe("phrase_misunderstanding");
+    expect(result.error?.targetItem).toBe("Ổn rồi");
+    expect(llm.calls.length).toBe(0);
+  });
+
+  it("calls LLM and returns AI result for focus_question subjective exercise", async () => {
+    const exercise = {
+      type: "focus_question",
+      promptVi: "Câu hỏi tiêu điểm",
+      promptEn: "Why?",
+      rubricVi: "Hiểu đúng bản chất ngữ pháp",
+    } as any;
+
+    const result = await grader.grade({
+      userId: "user-1",
+      lessonId: "lesson-1",
+      exercise,
+      answer: "Vì nó đúng",
+    });
+
+    expect(result.isCorrect).toBe(true);
+    expect(result.score).toBe(90);
+    expect(llm.calls.length).toBe(1);
+    expect(llm.calls[0].purpose).toBe("grading");
+  });
+
 
   it("calls LLM and returns AI result for subjective exercise (natural_translation)", async () => {
     const exercise = {

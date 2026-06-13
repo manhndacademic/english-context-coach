@@ -37,10 +37,23 @@ import type {
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
 export class DrizzleLessonRepository implements LessonRepository {
-  constructor(private textProcessor: TextProcessor = getTextProcessor()) {}
+  constructor(
+    private dbClient: any = db,
+    private textProcessor: TextProcessor = getTextProcessor()
+  ) {}
+
+  async runInTransaction<T>(operation: (tx: LessonRepository) => Promise<T>): Promise<T> {
+    if (typeof this.dbClient.transaction === "function") {
+      return await this.dbClient.transaction(async (drizzleTx: any) => {
+        const txRepo = new DrizzleLessonRepository(drizzleTx, this.textProcessor);
+        return await operation(txRepo);
+      });
+    }
+    return await operation(this);
+  }
 
   async findLesson(lessonId: string, userId: string): Promise<Lesson | null> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select()
       .from(schema.lessons)
       .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)))
@@ -49,7 +62,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select()
       .from(schema.sourceTexts)
       .where(
@@ -64,7 +77,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async findLatestLesson(sourceTextId: string): Promise<Lesson | null> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select()
       .from(schema.lessons)
       .where(eq(schema.lessons.sourceTextId, sourceTextId))
@@ -74,7 +87,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select()
       .from(schema.keyPhrases)
       .where(eq(schema.keyPhrases.id, keyPhraseId))
@@ -83,7 +96,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select()
       .from(schema.lessonFocuses)
       .where(eq(schema.lessonFocuses.id, lessonFocusId))
@@ -98,7 +111,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     contentHash: string,
     requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    return await db.transaction(async (tx) => {
+    return await this.dbClient.transaction(async (tx) => {
       const [sourceText] = await tx
         .insert(schema.sourceTexts)
         .values({
@@ -143,7 +156,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     version: number,
     stage: "analysis" | "exercises"
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    return await db.transaction(async (tx) => {
+    return await this.dbClient.transaction(async (tx) => {
       const [lesson] = await tx
         .insert(schema.lessons)
         .values({
@@ -177,7 +190,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     lessonId: string,
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob> {
-    return await db.transaction(async (tx) => {
+    return await this.dbClient.transaction(async (tx) => {
       const [job] = await tx
         .insert(schema.generationJobs)
         .values({
@@ -245,7 +258,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     status: "queued" | "running" | "succeeded" | "failed",
     extra?: Partial<GenerationJob>
   ): Promise<void> {
-    await db
+    await this.dbClient
       .update(schema.generationJobs)
       .set({
         status,
@@ -256,7 +269,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async assertQueueCapacity(userId: string): Promise<string | null> {
-    const [active] = await db
+    const [active] = await this.dbClient
       .select({ value: count() })
       .from(schema.generationJobs)
       .where(
@@ -282,7 +295,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     extra?: Partial<Lesson>
   ): Promise<void> {
     const field = stage === "analysis" ? "analysisStatus" : "exerciseStatus";
-    await db
+    await this.dbClient
       .update(schema.lessons)
       .set({
         [field]: status,
@@ -298,7 +311,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     analysis: AnalysisResult,
     model: string
   ): Promise<void> {
-    await db.transaction(async (tx) => {
+    await this.dbClient.transaction(async (tx) => {
       await tx
         .update(schema.lessons)
         .set({
@@ -383,12 +396,12 @@ export class DrizzleLessonRepository implements LessonRepository {
     exercises: ExercisesResult,
     model: string
   ): Promise<void> {
-    const phrases = await db.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.lessonId, lessonId));
-    const lessonFocuses = await db.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.lessonId, lessonId));
+    const phrases = await this.dbClient.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.lessonId, lessonId));
+    const lessonFocuses = await this.dbClient.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.lessonId, lessonId));
     const phraseByNormalized = new Map(phrases.map((phrase) => [this.textProcessor.normalizePhrase(phrase.phrase), phrase]));
     const focusByNormalized = new Map(lessonFocuses.map((focus) => [this.textProcessor.normalizePhrase(focus.title), focus]));
 
-    await db.transaction(async (tx) => {
+    await this.dbClient.transaction(async (tx) => {
       await tx.delete(schema.exercises).where(eq(schema.exercises.lessonId, lessonId));
       if (exercises.exercises.length) {
         await tx.insert(schema.exercises).values(
@@ -426,21 +439,21 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async buildAnalysisFromLesson(lessonId: string): Promise<AnalysisResult> {
-    const [lesson] = await db.select().from(schema.lessons).where(eq(schema.lessons.id, lessonId)).limit(1);
+    const [lesson] = await this.dbClient.select().from(schema.lessons).where(eq(schema.lessons.id, lessonId)).limit(1);
     if (!lesson?.summaryVi || !lesson.naturalTranslationVi || !lesson.contextExplanationVi || !lesson.detectedLevel) {
       throw new Error("Lesson analysis is incomplete.");
     }
-    const phrases = await db
+    const phrases = await this.dbClient
       .select()
       .from(schema.keyPhrases)
       .where(eq(schema.keyPhrases.lessonId, lessonId))
       .orderBy(asc(schema.keyPhrases.createdAt));
-    const lessonFocuses = await db
+    const lessonFocuses = await this.dbClient
       .select()
       .from(schema.lessonFocuses)
       .where(eq(schema.lessonFocuses.lessonId, lessonId))
       .orderBy(asc(schema.lessonFocuses.createdAt));
-    const sentenceBreakdowns = await db
+    const sentenceBreakdowns = await this.dbClient
       .select()
       .from(schema.sentenceBreakdowns)
       .where(eq(schema.sentenceBreakdowns.lessonId, lessonId))
@@ -489,14 +502,14 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {
-    const lessons = await db
+    const lessons = await this.dbClient
       .select({ id: schema.lessons.id })
       .from(schema.lessons)
       .where(and(eq(schema.lessons.sourceTextId, sourceTextId), eq(schema.lessons.userId, userId)));
 
     const lessonIds = lessons.map((lesson) => lesson.id);
     if (lessonIds.length) {
-      const patterns = await db
+      const patterns = await this.dbClient
         .select()
         .from(schema.mistakePatterns)
         .where(eq(schema.mistakePatterns.userId, userId));
@@ -512,11 +525,11 @@ export class DrizzleLessonRepository implements LessonRepository {
         .map((pattern) => pattern.id);
 
       if (sensitivePatternIds.length) {
-        await db.delete(schema.mistakePatterns).where(inArray(schema.mistakePatterns.id, sensitivePatternIds));
+        await this.dbClient.delete(schema.mistakePatterns).where(inArray(schema.mistakePatterns.id, sensitivePatternIds));
       }
     }
 
-    await db
+    await this.dbClient
       .delete(schema.sourceTexts)
       .where(and(eq(schema.sourceTexts.id, sourceTextId), eq(schema.sourceTexts.userId, userId)));
   }
@@ -527,7 +540,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     code: GenerationMilestoneCode;
     stage: GenerationStage;
   }): Promise<void> {
-    await rawSql`
+    await this.dbClient.execute(rawSql`
       insert into generation_milestones (lesson_id, generation_job_id, code, stage)
       select
         ${input.lessonId},
@@ -541,7 +554,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           and code = ${input.code}::generation_milestone_code
           and stage is not distinct from ${input.stage}
       )
-    `;
+    `);
   }
 
   async recordThought(input: {
@@ -550,10 +563,10 @@ export class DrizzleLessonRepository implements LessonRepository {
     stage: GenerationStage;
     text: string;
   }): Promise<void> {
-    const text = sanitizeGenerationThought(input.text);
+    const text = sanitizeGenerationThought(input.text, this.textProcessor);
     if (!text) return;
 
-    const [latest] = await db
+    const [latest] = await this.dbClient
       .select({ text: schema.generationThoughts.text })
       .from(schema.generationThoughts)
       .where(eq(schema.generationThoughts.generationJobId, input.generationJobId))
@@ -561,7 +574,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       .limit(1);
     if (latest?.text === text) return;
 
-    await db
+    await this.dbClient
       .insert(schema.generationThoughts)
       .values({
         lessonId: input.lessonId,
@@ -586,7 +599,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     milestones: GenerationMilestone[];
     thoughts: GenerationThought[];
   } | null> {
-    const [lesson] = await db
+    const [lesson] = await this.dbClient
       .select({
         id: schema.lessons.id,
         analysisStatus: schema.lessons.analysisStatus,
@@ -597,7 +610,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       .limit(1);
     if (!lesson) return null;
 
-    const jobs = await db
+    const jobs = await this.dbClient
       .select()
       .from(schema.generationJobs)
       .where(and(eq(schema.generationJobs.lessonId, input.lessonId), eq(schema.generationJobs.userId, input.userId)))
@@ -621,7 +634,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     }
 
     const milestones = job
-      ? await db
+      ? await this.dbClient
           .select()
           .from(schema.generationMilestones)
           .where(and(...milestoneFilters))
@@ -629,7 +642,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       : [];
 
     const thoughts = job
-      ? await db
+      ? await this.dbClient
           .select()
           .from(schema.generationThoughts)
           .where(and(...thoughtFilters))
@@ -652,7 +665,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     lessonId: string,
     userId: string
   ): Promise<LessonAggregate | null> {
-    const [lesson] = await db
+    const [lesson] = await this.dbClient
       .select()
       .from(schema.lessons)
       .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)))
@@ -669,37 +682,37 @@ export class DrizzleLessonRepository implements LessonRepository {
       userErrors,
       progress,
     ] = await Promise.all([
-      db
+      this.dbClient
         .select()
         .from(schema.sourceTexts)
         .where(and(eq(schema.sourceTexts.id, lesson.sourceTextId), eq(schema.sourceTexts.userId, userId)))
         .limit(1),
-      db
+      this.dbClient
         .select()
         .from(schema.keyPhrases)
         .where(eq(schema.keyPhrases.lessonId, lesson.id))
         .orderBy(asc(schema.keyPhrases.createdAt)),
-      db
+      this.dbClient
         .select()
         .from(schema.sentenceBreakdowns)
         .where(eq(schema.sentenceBreakdowns.lessonId, lesson.id))
         .orderBy(schema.sentenceBreakdowns.orderIndex),
-      db
+      this.dbClient
         .select()
         .from(schema.lessonFocuses)
         .where(eq(schema.lessonFocuses.lessonId, lesson.id))
         .orderBy(asc(schema.lessonFocuses.createdAt)),
-      db
+      this.dbClient
         .select()
         .from(schema.exercises)
         .where(eq(schema.exercises.lessonId, lesson.id))
         .orderBy(schema.exercises.orderIndex),
-      db
+      this.dbClient
         .select()
         .from(schema.attempts)
         .where(eq(schema.attempts.lessonId, lesson.id))
         .orderBy(desc(schema.attempts.createdAt)),
-      db
+      this.dbClient
         .select()
         .from(schema.userErrors)
         .where(eq(schema.userErrors.lessonId, lesson.id)),
@@ -730,7 +743,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
     createdAt: Date;
   }>> {
-    const rows = await db
+    const rows = await this.dbClient
       .select({
         id: schema.lessons.id,
         title: schema.lessons.title,
@@ -757,7 +770,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async getSourceTextsCount(userId: string): Promise<number> {
-    const [row] = await db
+    const [row] = await this.dbClient
       .select({ value: count() })
       .from(schema.sourceTexts)
       .where(eq(schema.sourceTexts.userId, userId));

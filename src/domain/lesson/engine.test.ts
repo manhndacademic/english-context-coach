@@ -171,6 +171,10 @@ class MockLessonRepository implements LessonRepository {
   async getSourceTextsCount(userId: string): Promise<number> {
     return 0;
   }
+
+  async runInTransaction<T>(operation: (tx: LessonRepository) => Promise<T>): Promise<T> {
+    return await operation(this);
+  }
 }
 
 class MockGenerationEngine implements GenerationEngine {
