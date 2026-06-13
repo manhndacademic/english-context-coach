@@ -212,7 +212,8 @@ export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
 
   if (userHighlights && userHighlights.length > 0) {
     list.push(
-      `CRITICAL REQUIREMENT: The user has explicitly highlighted the following phrases from the text that they want to learn. You MUST include each of these highlighted phrases in the 'keyPhrases' array of the output, explaining their category, difficulty, contextual meaning, and literal/natural translations:\n${JSON.stringify(userHighlights)}`
+      `CRITICAL REQUIREMENT: The user has explicitly highlighted the following phrases from the text that they want to learn. You MUST include each of these highlighted phrases in the 'keyPhrases' array of the output, explaining their category, difficulty, contextual meaning, and literal/natural translations: ${JSON.stringify(userHighlights)}.\n` +
+      `You MUST include them even if they are single, common, or simple words. This overrides any rules about ignoring simple or single words.`
     );
   }
 
