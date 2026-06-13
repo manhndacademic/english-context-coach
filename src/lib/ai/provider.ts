@@ -5,6 +5,7 @@ import { hashCanonicalPayload, decryptApiKey } from "@/lib/crypto";
 import { repairPrompt } from "./prompts";
 import { db, schema } from "@/db";
 import { eq, and, or, gt } from "drizzle-orm";
+import { providerRotationPool } from "./model_pool";
 
 
 export type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
@@ -46,13 +47,6 @@ export class AiError extends Error {
 }
 
 const geminiThinkingLevels = new Set(["MINIMAL", "LOW", "MEDIUM", "HIGH"]);
-
-function getModel(modelKind: "analysis" | "fast") {
-  if (modelKind === "analysis") {
-    return process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-flash-lite";
-  }
-  return process.env.GEMINI_FAST_MODEL ?? "gemini-3.1-flash-lite";
-}
 
 export function getGeminiThinkingLevel() {
   const value = (process.env.GEMINI_THINKING_LEVEL ?? "MINIMAL").trim().toUpperCase();
@@ -306,19 +300,20 @@ async function resolveApiKeyWithExclusions(
   throw new Error("No active system, user, or fallback API keys available.");
 }
 
-async function callGeminiWithRetry(
+async function callGeminiWithKeyRetry(
   userId: string | undefined,
   prompt: string,
   model: string,
+  thinkingLevel: ThinkingLevel,
   onThought?: (text: string) => Promise<void>
 ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   let attempts = 0;
-  const maxAttempts = 3;
+  const maxKeyAttempts = 3;
   const excludedKeyIds = new Set<string>();
 
-  while (attempts < maxAttempts) {
+  while (attempts < maxKeyAttempts) {
     attempts++;
-    
+
     let resolved;
     try {
       resolved = await resolveApiKeyWithExclusions(userId, excludedKeyIds);
@@ -337,7 +332,7 @@ async function callGeminiWithRetry(
         thinkingConfig: onThought
           ? {
               includeThoughts: true,
-              thinkingLevel: getGeminiThinkingLevel(),
+              thinkingLevel,
             }
           : undefined,
       };
@@ -380,7 +375,7 @@ async function callGeminiWithRetry(
         }
       }
 
-      // If key was rate-limited or had errors, but succeeded now, restore it
+      // If key was rate-limited or had errors but succeeded now, restore it
       if (keyId && !isUserKey) {
         await db
           .update(schema.aiApiKeys)
@@ -390,7 +385,10 @@ async function callGeminiWithRetry(
 
       return { text, inputTokens, outputTokens };
     } catch (err: any) {
-      console.warn(`[AI Provider] Call failed with key (id: ${keyId || "env/user"}, attempt: ${attempts}):`, err.message || err);
+      console.warn(
+        `[AI Provider] Call failed (model: ${model}, key: ${keyId || "env/user"}, attempt: ${attempts}):`,
+        err.message || err
+      );
 
       if (isUserKey) {
         throw new AiError(`Custom User API Key failed: ${err.message || err}`, "user_key_failed");
@@ -404,11 +402,16 @@ async function callGeminiWithRetry(
           await markKeyInvalid(keyId, err.message || "Invalid API key");
         }
       } else {
+        // env fallback key failed — re-throw directly, no more keys to try
         throw err;
       }
 
-      if (attempts >= maxAttempts) {
-        throw new AiError(`Gemini API calls failed after ${maxAttempts} rotation retries. Last error: ${err.message || err}`, "all_keys_failed");
+      if (attempts >= maxKeyAttempts) {
+        // Signal to the outer model-rotation loop that all keys are exhausted for this model
+        throw new AiError(
+          `All API keys exhausted for model "${model}". Last error: ${err.message || err}`,
+          "all_keys_failed"
+        );
       }
     }
   }
@@ -416,8 +419,60 @@ async function callGeminiWithRetry(
   throw new AiError("AI provider error: request failed.", "unknown");
 }
 
+/**
+ * Outer retry loop: iterates models from the ProviderRotationPool (see CONTEXT.md: ApiRotationPool).
+ * For each model, delegates key rotation to callGeminiWithKeyRetry.
+ * On 429/503 for a model, the pool cools it down and the next model is tried immediately.
+ */
+async function callGeminiWithRetry(
+  userId: string | undefined,
+  prompt: string,
+  modelKind: "analysis" | "fast",
+  onThought?: (text: string) => Promise<void>
+): Promise<{ text: string; inputTokens: number; outputTokens: number; model: string }> {
+  const globalThinkingLevel = getGeminiThinkingLevel();
+  const models = providerRotationPool.getModels(modelKind);
+  const exhaustedModels = new Set<string>();
+
+  for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
+    const model = providerRotationPool.getNextAvailable(modelKind, exhaustedModels);
+    exhaustedModels.add(model);
+
+    if (!providerRotationPool.isAvailable(model)) {
+      console.warn(`[ProviderRotationPool] Model "${model}" is cooling down — trying next.`);
+    }
+
+    const thinkingLevel = providerRotationPool.getThinkingLevel(model, globalThinkingLevel);
+
+    try {
+      const result = await callGeminiWithKeyRetry(userId, prompt, model, thinkingLevel, onThought);
+      // Success — clear any lingering model cooldown
+      providerRotationPool.clearCooldown(model);
+      return { ...result, model };
+    } catch (err: any) {
+      const isRateLimit = isRateLimitError(err) || err.code === "all_keys_failed";
+
+      if (isRateLimit) {
+        providerRotationPool.markRateLimited(model);
+        console.warn(
+          `[ProviderRotationPool] Model "${model}" rate-limited or keys exhausted. Rotating to next model (${modelIdx + 1}/${models.length - 1} remaining).`
+        );
+        // Try next model
+        continue;
+      }
+
+      // Non-transient error (invalid key for user key, parse error, etc.) — re-throw
+      throw err;
+    }
+  }
+
+  throw new AiError(
+    `All models in the ${modelKind} pool are rate-limited or unavailable. Tried: ${Array.from(exhaustedModels).join(", ")}.`,
+    "all_models_failed"
+  );
+}
+
 export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<T> {
-  const model = getModel(options.modelKind);
   const payloadHash = hashCanonicalPayload({
     prompt: options.prompt,
     promptVersion: options.promptVersion,
@@ -426,15 +481,17 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
   const startedAt = Date.now();
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
+  let resolvedModel = providerRotationPool.getNextAvailable(options.modelKind);
 
   try {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const { text: raw, inputTokens, outputTokens } = await callGeminiWithRetry(
+      const { text: raw, inputTokens, outputTokens, model } = await callGeminiWithRetry(
         options.userId,
         options.prompt,
-        model,
+        options.modelKind,
         options.onThought
       );
+      resolvedModel = model;
       
       totalInputTokens = inputTokens;
       totalOutputTokens = outputTokens;
@@ -459,7 +516,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             userId: options.userId,
             lessonId: options.lessonId,
             purpose: options.purpose,
-            model,
+            model: resolvedModel,
             promptVersion: options.promptVersion,
             schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
             payloadHash,
@@ -467,7 +524,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             latencyMs: Date.now() - startedAt,
             inputTokens: totalInputTokens,
             outputTokens: totalOutputTokens,
-            costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
+            costMicros: estimateCost(resolvedModel, totalInputTokens, totalOutputTokens),
           });
         }
         return parsed.data;
@@ -476,11 +533,12 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
       console.warn(`[AI Provider] Schema validation failed on attempt ${attempt}. Validation error:`, parsed.error);
 
       console.log(`[AI Provider] Attempting repair...`);
-      const { text: repaired, inputTokens: repairIn, outputTokens: repairOut } = await callGeminiWithRetry(
+      const { text: repaired, inputTokens: repairIn, outputTokens: repairOut, model: repairModel } = await callGeminiWithRetry(
         options.userId,
         repairPrompt(raw, options.schemaVersion),
-        model
+        options.modelKind
       );
+      resolvedModel = repairModel;
       
       totalInputTokens = repairIn;
       totalOutputTokens = repairOut;
@@ -505,7 +563,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             userId: options.userId,
             lessonId: options.lessonId,
             purpose: "repair",
-            model,
+            model: resolvedModel,
             promptVersion: options.promptVersion,
             schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
             payloadHash,
@@ -513,7 +571,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
             latencyMs: Date.now() - startedAt,
             inputTokens: totalInputTokens,
             outputTokens: totalOutputTokens,
-            costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
+            costMicros: estimateCost(resolvedModel, totalInputTokens, totalOutputTokens),
           });
         }
         return repairedParsed.data;
@@ -533,7 +591,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
         userId: options.userId,
         lessonId: options.lessonId,
         purpose: options.purpose,
-        model,
+        model: resolvedModel,
         promptVersion: options.promptVersion,
         schemaVersion: SCHEMA_VERSIONS[options.schemaVersion],
         payloadHash,
@@ -541,7 +599,7 @@ export async function generateJson<T>(options: GenerateJsonOptions<T>): Promise<
         latencyMs: Date.now() - startedAt,
         inputTokens: totalInputTokens,
         outputTokens: totalOutputTokens,
-        costMicros: estimateCost(model, totalInputTokens, totalOutputTokens),
+        costMicros: estimateCost(resolvedModel, totalInputTokens, totalOutputTokens),
         errorClass: error instanceof AiError ? error.code : error instanceof Error ? error.name : "unknown",
       });
     }

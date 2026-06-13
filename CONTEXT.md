@@ -97,6 +97,6 @@ A personal AI provider API key supplied by a User in settings and used exclusive
 _Avoid_: Custom API key, personal token
 
 **ApiRotationPool**:
-The mechanism that rotates and selects active SystemApiKeys based on availability, health, and rate limits.
-_Avoid_: Key balancer, key switcher
+The mechanism that rotates across active SystemApiKeys and available AI models based on availability, health, and rate limits. When one key or model is rate-limited, the pool selects the next available combination so that learner requests are fulfilled without re-queuing.
+_Avoid_: Key balancer, key switcher, ModelPool
 
