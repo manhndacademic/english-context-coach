@@ -10,11 +10,8 @@ export function ReviewNudge({ count }: ReviewNudgeProps) {
 
   return (
     <div
-      className="rounded-lg p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap border"
+      className="rounded-lg p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap border border-accent/35 bg-gradient-to-br from-accent-light to-accent-light/40 shadow-sm"
       style={{
-        background: "linear-gradient(135deg, var(--accent-light) 0%, #d1fae5 100%)",
-        borderColor: "var(--accent)",
-        boxShadow: "0 0 0 1px rgba(5,150,105,0.1), 0 2px 8px rgba(5,150,105,0.08)",
         animation: "nudge-pulse 3s ease-in-out infinite",
       }}
     >

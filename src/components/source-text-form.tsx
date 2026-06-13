@@ -24,17 +24,25 @@ export function SourceTextForm() {
       </label>
       <label className="grid gap-2 text-left text-sm font-semibold text-text mt-2">
         Chế độ dịch / học (Coaching Mode)
-        <select 
-          name="inputMode" 
-          className="w-full border border-border rounded-md bg-surface text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light mt-1 cursor-pointer"
-        >
-          <option value="auto">Tự động nhận diện (Khuyến nghị)</option>
-          <option value="understand_and_practice">Hiểu &amp; Luyện tập (Văn bản chuẩn)</option>
-          <option value="fix_and_understand">Sửa lỗi &amp; Giải thích ngữ pháp (Vietlish)</option>
-          <option value="naturalize_english">Viết lại tự nhiên hơn (Văn bản chưa tự nhiên)</option>
-          <option value="mixed_language_support">Anh-Việt hỗn hợp (Mixed)</option>
-          <option value="developer_error_explanation">Giải nghĩa lỗi code lập trình (Stacktrace/Error)</option>
-        </select>
+        <div className="relative mt-1">
+          <select 
+            name="inputMode" 
+            className="w-full appearance-none border border-border rounded-md bg-surface text-text pl-4 pr-10 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light cursor-pointer"
+            style={{
+              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+              backgroundPosition: "right 0.75rem center",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "1.25rem",
+            }}
+          >
+            <option value="auto">Tự động nhận diện (Khuyến nghị)</option>
+            <option value="understand_and_practice">Hiểu &amp; Luyện tập (Văn bản chuẩn)</option>
+            <option value="fix_and_understand">Sửa lỗi &amp; Giải thích ngữ pháp (Vietlish)</option>
+            <option value="naturalize_english">Viết lại tự nhiên hơn (Văn bản chưa tự nhiên)</option>
+            <option value="mixed_language_support">Anh-Việt hỗn hợp (Mixed)</option>
+            <option value="developer_error_explanation">Giải nghĩa lỗi code lập trình (Stacktrace/Error)</option>
+          </select>
+        </div>
       </label>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button 

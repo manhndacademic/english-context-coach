@@ -21,14 +21,23 @@
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
+
+  --font-serif: var(--font-serif);
+
+  --spacing-layout-gap: var(--spacing-layout-gap);
+  --spacing-card-padding: var(--spacing-card-padding);
+  --spacing-section-gap: var(--spacing-section-gap);
+  --spacing-item-gap: var(--spacing-item-gap);
+  --spacing-dense-gap: var(--spacing-dense-gap);
+
+  --color-card-bg: var(--card-background);
+  --color-card-border: var(--card-border);
+  --color-card-border-hover: var(--card-border-hover);
+  --shadow-card-shadow: var(--card-shadow);
+  --shadow-card-shadow-hover: var(--card-shadow-hover);
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
-
-/* Typography settings loaded from Next.js Layout */
-:root {
-  --font-serif: var(--font-sans);
-}
 
 /* Light Theme Variables */
 :root,
@@ -59,6 +68,20 @@
   --radius-lg: 16px;
   --border-glow: rgba(5, 150, 105, 0.15);
   --shadow: var(--shadow-lg);
+
+  /* Spacing (8px grid) */
+  --spacing-layout-gap: 1.5rem; /* 24px */
+  --spacing-card-padding: 1.5rem; /* 24px */
+  --spacing-section-gap: 2rem; /* 32px */
+  --spacing-item-gap: 1rem; /* 16px */
+  --spacing-dense-gap: 0.5rem; /* 8px */
+
+  /* Cards */
+  --card-background: var(--surface);
+  --card-border: var(--border);
+  --card-border-hover: var(--accent);
+  --card-shadow: var(--shadow-md);
+  --card-shadow-hover: var(--shadow-lg);
 }
 
 /* Dark Theme Variables */
@@ -86,6 +109,20 @@
   --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.7);
   --border-glow: rgba(16, 185, 129, 0.25);
   --shadow: var(--shadow-lg);
+
+  /* Spacing (8px grid) */
+  --spacing-layout-gap: 1.5rem; /* 24px */
+  --spacing-card-padding: 1.5rem; /* 24px */
+  --spacing-section-gap: 2rem; /* 32px */
+  --spacing-item-gap: 1rem; /* 16px */
+  --spacing-dense-gap: 0.5rem; /* 8px */
+
+  /* Cards */
+  --card-background: var(--surface);
+  --card-border: var(--border);
+  --card-border-hover: var(--accent);
+  --card-shadow: var(--shadow-md);
+  --card-shadow-hover: var(--shadow-lg);
 }
 
 @layer base {

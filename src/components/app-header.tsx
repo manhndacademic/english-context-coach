@@ -62,7 +62,14 @@ export function AppHeader({ email }: { email?: string | null }) {
             {email}
           </span>
         )}
-        <form action={logoutAction}>
+        <form 
+          action={logoutAction}
+          onSubmit={(e) => {
+            if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
+              e.preventDefault();
+            }
+          }}
+        >
           <button 
             className="border-0 bg-transparent text-muted text-sm font-semibold p-2 px-3 rounded-sm transition-all hover:text-text hover:bg-surface-strong cursor-pointer" 
             type="submit"
@@ -79,6 +86,7 @@ export function AppHeader({ email }: { email?: string | null }) {
             }`}
             onClick={() => changeTheme("light")}
             title="Giao diện sáng"
+            aria-label="Giao diện sáng"
           >
             <Sun size={15} />
           </button>
@@ -89,6 +97,7 @@ export function AppHeader({ email }: { email?: string | null }) {
             }`}
             onClick={() => changeTheme("dark")}
             title="Giao diện tối"
+            aria-label="Giao diện tối"
           >
             <Moon size={15} />
           </button>
@@ -99,6 +108,7 @@ export function AppHeader({ email }: { email?: string | null }) {
             }`}
             onClick={() => changeTheme("system")}
             title="Theo hệ thống"
+            aria-label="Theo hệ thống"
           >
             <Monitor size={15} />
           </button>

@@ -332,7 +332,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                 </button>
               </form>
             ) : null}
-            <form action={deleteSourceTextAction}>
+            <form 
+              action={deleteSourceTextAction}
+              onSubmit={(e) => {
+                if (!confirm("Bạn có chắc chắn muốn xoá bài học này không? Mọi lịch sử làm bài và lỗi liên quan sẽ bị xoá vĩnh viễn và không thể hoàn tác.")) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <input name="sourceTextId" type="hidden" value={lesson.sourceTextId} />
               <button 
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 font-semibold text-sm transition-all shadow-sm bg-danger text-white hover:opacity-90 hover:-translate-y-px h-[38px] cursor-pointer" 
@@ -378,8 +385,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
-      <div className={`grid grid-cols-1 ${hasSideColumn ? "min-[860px]:grid-cols-[1fr_0.72fr]" : ""} gap-4 items-start`}>
-        <div className="grid gap-4">
+      <div className={`grid grid-cols-1 ${hasSideColumn ? "min-[860px]:grid-cols-[1fr_0.72fr]" : ""} gap-layout-gap items-start`}>
+        <div className="grid gap-item-gap">
           {isDeveloperError ? (
             <>
               {sourceContent ? (

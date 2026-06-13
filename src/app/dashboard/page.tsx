@@ -73,7 +73,7 @@ export default async function DashboardPage() {
     <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
       <AppHeader email={user.email} />
       
-      <div className="grid grid-cols-1 min-[860px]:grid-cols-[1.4fr_0.8fr] gap-7 items-start">
+      <div className="grid grid-cols-1 min-[860px]:grid-cols-[1.4fr_0.8fr] gap-layout-gap items-start">
         <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
           <div className="flex items-start gap-4 flex-col sm:flex-row">
             <div className="bg-accent-light text-accent p-3 rounded-md shrink-0">
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <aside className="grid gap-6">
+        <aside className="grid gap-layout-gap">
           {/* Review Nudge — shown when there are due review items */}
           <ReviewNudge count={dueCount} />
 
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
                       <span>Bài tập: {exercise.label}</span>
                     </span>
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold border border-border bg-surface-strong text-muted leading-none">
-                      v{lesson.version}
+                      Bản {lesson.version}
                     </span>
                   </div>
                 </Link>

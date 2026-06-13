@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Roboto, Lora } from "next/font/google";
 import "./globals.css";
 
 
@@ -10,6 +10,12 @@ const roboto = Roboto({
   display: "swap",
 });
 
+const lora = Lora({
+  subsets: ["vietnamese", "latin"],
+  variable: "--font-serif",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "English Context Coach",
   description: "Context-aware English learning for Vietnamese learners.",
@@ -17,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={`${roboto.variable}`} suppressHydrationWarning>
+    <html lang="vi" className={`${roboto.variable} ${lora.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
