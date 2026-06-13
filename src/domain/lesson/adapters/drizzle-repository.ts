@@ -5,6 +5,8 @@ import { getTextProcessor, type TextProcessor } from "@/domain/text";
 import {
   sanitizeGenerationThought,
   selectDisplayGenerationJob,
+  type GenerationMilestoneCode,
+  type GenerationStage,
 } from "@/domain/generation-progress";
 import { findMatchingLessonFocus } from "../rules";
 import type {
@@ -411,8 +413,8 @@ export class DrizzleLessonRepository implements LessonRepository {
     exercises: ExercisesResult,
     model: string
   ): Promise<void> {
-    const phrases = await this.dbClient.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.lessonId, lessonId));
-    const lessonFocuses = await this.dbClient.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.lessonId, lessonId));
+    const phrases: DbKeyPhrase[] = await this.dbClient.select().from(schema.keyPhrases).where(eq(schema.keyPhrases.lessonId, lessonId));
+    const lessonFocuses: DbLessonFocus[] = await this.dbClient.select().from(schema.lessonFocuses).where(eq(schema.lessonFocuses.lessonId, lessonId));
     const phraseByNormalized = new Map<string, DbKeyPhrase>(
       phrases.map((phrase: DbKeyPhrase) => [this.textProcessor.normalizePhrase(phrase.phrase), phrase]),
     );

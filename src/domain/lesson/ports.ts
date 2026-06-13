@@ -88,7 +88,16 @@ export interface Exercise {
   userId: string;
   keyPhraseId: string | null;
   lessonFocusId: string | null;
-  type: "meaning_choice" | "cloze_phrase" | "natural_translation" | "focus_question";
+  type:
+    | "meaning_choice"
+    | "cloze_phrase"
+    | "natural_translation"
+    | "focus_question"
+    | "trap_choice"
+    | "phrase_production"
+    | "dialogue_completion"
+    | "register_shift"
+    | "trap_detect";
   promptVi: string;
   promptEn: string | null;
   choices: string[] | null;
