@@ -6,6 +6,16 @@ import { submitReviewAttemptAction, type ReviewResultState } from "@/app/actions
 import type { MistakePattern } from "@/domain/memory";
 import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
+import { getReviewDisclosureState } from "@/components/review-disclosure";
+
+function formatReviewDate(value?: string) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
 
 export function ReviewCard({
   pattern,
@@ -24,6 +34,10 @@ export function ReviewCard({
   const promptEn = pattern.reviewPromptEn ?? pattern.normalizedPhrase;
   const promptVi = pattern.reviewPromptVi ?? `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${pattern.normalizedPhrase}"`;
   const canSubmit = answer.trim().length > 0;
+  const hasSubmitted = Boolean(state.success);
+  const disclosure = getReviewDisclosureState(hasSubmitted);
+  const nextReviewDate = formatReviewDate(state.nextReviewAt);
+  const naturalAnswer = state.naturalAnswer ?? pattern.reviewCorrectAnswer ?? pattern.meaningVi;
 
   return (
     <article className={`border border-border rounded-xl p-6 sm:p-8 bg-surface relative grid gap-5 shadow-lg transition-all duration-200 ${
@@ -56,7 +70,16 @@ export function ReviewCard({
         </div>
       </div>
 
-      {/* Historical Mistake Context Panel */}
+      {disclosure.showPreAnswerPrompt ? (
+        <div className="rounded-lg p-4 bg-surface-strong border border-border text-sm leading-relaxed flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-muted font-semibold text-xs uppercase tracking-wider">
+            <AlertCircle size={14} /> Mẫu lỗi đang được kiểm tra
+          </div>
+          <div className="text-text mt-0.5">
+            Hãy dịch câu mới trước. Nghĩa chuẩn và lỗi cũ sẽ hiện sau khi bạn gửi câu trả lời.
+          </div>
+        </div>
+      ) : disclosure.showOldMistakeContext ? (
       <div className="rounded-lg p-4 bg-warning-light/40 border border-warning/15 text-sm leading-relaxed flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5 text-warning font-semibold text-xs uppercase tracking-wider">
           <AlertCircle size={14} /> Gợi ý lỗi sai cũ
@@ -66,6 +89,7 @@ export function ReviewCard({
           <span className="text-muted ml-1.5">(nghĩa chuẩn: <strong className="font-semibold text-text">{pattern.meaningVi}</strong>)</span>
         </div>
       </div>
+      ) : null}
 
       {/* Prompt / Challenge block */}
       <div className="grid gap-3">
@@ -136,7 +160,7 @@ export function ReviewCard({
       </form>
 
       {/* Grading Feedback Panel */}
-      {state.success && state.feedbackVi && (
+      {state.success && disclosure.showCorrectMeaning && state.feedbackVi && (
         <div className={`grid gap-2 border-t border-border pt-4 mt-2 animate-in fade-in slide-in-from-top-3 duration-200 rounded-xl p-5 border ${
           state.isCorrect 
             ? "bg-success-light/40 border-success/15" 
@@ -153,6 +177,17 @@ export function ReviewCard({
             </strong>
           </div>
           <p className="text-sm leading-relaxed m-0 text-text font-medium">{renderRichText(state.feedbackVi)}</p>
+          <div className="grid gap-1.5 bg-surface border border-border rounded-lg p-3 mt-1">
+            <strong className="text-xs font-bold uppercase tracking-wider text-muted">Đáp án tự nhiên</strong>
+            <p className="text-sm leading-relaxed m-0 text-text font-semibold">{renderRichText(naturalAnswer)}</p>
+          </div>
+          {nextReviewDate ? (
+            <p className="text-xs text-muted m-0">
+              {state.masteryState === "mastered"
+                ? "Mẫu lỗi này đã được đánh dấu thành thạo."
+                : `Lần ôn tiếp theo: ${nextReviewDate}.`}
+            </p>
+          ) : null}
           {!state.isCorrect && (
             <div className="text-xs text-muted border-t border-border/20 pt-2 mt-1 italic">
               Bản dịch vừa thử: &quot;{answer}&quot;

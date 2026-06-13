@@ -61,8 +61,12 @@ A generalized language understanding unit (e.g., a phrasal verb root or grammati
 _Avoid_: Lemma, root phrase, category key
 
 **MasteryState**:
-The learner-facing review state of a MistakePattern, such as due, active, or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
-_Avoid_: Status, schedule state
+The learner-facing learning state of a MistakePattern, either active or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
+_Avoid_: Status, due
+
+**Due MistakePattern**:
+An active MistakePattern whose review time has arrived and is ready to be practiced. Due is review eligibility, not a MasteryState.
+_Avoid_: ReviewItem, due state
 
 **ReviewAttempt**:
 A learner's app-graded answer to a privacy-safe review prompt for a MistakePattern. A ReviewAttempt updates review progress for old misunderstandings, not Lesson-grounded UserError evidence.
@@ -99,4 +103,3 @@ _Avoid_: Custom API key, personal token
 **ApiRotationPool**:
 The mechanism that rotates across active SystemApiKeys and available AI models based on availability, health, and rate limits. When one key or model is rate-limited, the pool selects the next available combination so that learner requests are fulfilled without re-queuing.
 _Avoid_: Key balancer, key switcher, ModelPool
-

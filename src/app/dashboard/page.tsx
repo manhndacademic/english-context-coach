@@ -200,7 +200,7 @@ export default async function DashboardPage() {
           <TrendingUp size={20} className="text-muted" /> Tiến bộ theo thời gian
         </h2>
         <p className="text-muted text-sm m-0 -mt-2">
-          Số mẫu lỗi đã thành thạo tích lũy theo tuần
+          North Star: số mẫu lỗi lặp lại đã thành thạo tích lũy theo tuần
         </p>
         <MasteredTrendChart data={masteredTrend} />
       </section>

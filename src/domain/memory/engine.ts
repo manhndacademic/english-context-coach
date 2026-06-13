@@ -3,6 +3,7 @@ import { getLogger, parseDbDate } from "@/lib/logger";
 
 const log = getLogger("d.m.engine.LearnerMemoryEngine");
 import { nextDueDate, nextReviewAfterSuccess, resetDueAfterFailure } from "@/domain/review";
+import { masteryStateAfterReview } from "./mastery";
 import type { LessonRepository } from "@/domain/lesson/ports";
 import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
 import type {
@@ -230,6 +231,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       const dueAt = grade.isCorrect
         ? nextDueDate(intervalDays)
         : resetDueAfterFailure();
+      const masteryState = masteryStateAfterReview(grade.isCorrect, intervalDays);
 
       // 2. Perform persistence within transaction context
       await this.repo.runInTransaction(async (tx) => {
@@ -246,6 +248,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           intervalDays,
           dueAt,
           lastReviewedAt: new Date(),
+          masteryState,
         });
       });
 
@@ -262,7 +265,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         score: grade.score,
         feedbackVi: grade.feedbackVi,
         masteryStateUpdated: true,
+        masteryState,
         nextReviewAt: dueAt,
+        naturalAnswer: grade.naturalAnswer ?? correctAnswer,
       };
     } catch (error) {
       console.error("[LearnerMemoryEngine] Error in submitReviewAttempt:", error);

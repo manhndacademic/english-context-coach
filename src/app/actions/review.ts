@@ -9,6 +9,9 @@ export type ReviewResultState = {
   score?: number;
   isCorrect?: boolean;
   feedbackVi?: string;
+  masteryState?: "active" | "mastered";
+  nextReviewAt?: string;
+  naturalAnswer?: string;
   error?: string;
 };
 
@@ -41,6 +44,9 @@ export async function submitReviewAttemptAction(
       score: result.score,
       isCorrect: result.isCorrect,
       feedbackVi: result.feedbackVi,
+      masteryState: result.masteryState,
+      nextReviewAt: result.nextReviewAt?.toISOString(),
+      naturalAnswer: result.naturalAnswer,
     };
   } catch (error) {
     console.error(error);
@@ -68,5 +74,4 @@ export async function retryReviewPromptGenerationAction(formData: FormData): Pro
     console.error("Failed to retry review prompt generation:", error);
   }
 }
-
 

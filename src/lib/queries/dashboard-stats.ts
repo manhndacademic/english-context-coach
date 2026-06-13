@@ -8,8 +8,7 @@ export interface WeeklyTrend {
 }
 
 /**
- * Count of MistakePatterns that have been mastered (intervalDays >= 14,
- * which is the final spaced-repetition interval).
+ * Count of MistakePatterns that have been mastered.
  */
 export async function getMasteredCount(userId: string): Promise<number> {
   const result = await db
@@ -18,8 +17,7 @@ export async function getMasteredCount(userId: string): Promise<number> {
     .where(
       and(
         eq(mistakePatterns.userId, userId),
-        // mastered = intervalDays reached the cap (14 days)
-        sql`${mistakePatterns.intervalDays} >= 14`,
+        eq(mistakePatterns.masteryState, "mastered"),
       ),
     );
   return result[0]?.value ?? 0;
@@ -44,9 +42,9 @@ export async function getReviewSuccessRate(userId: string): Promise<number> {
 }
 
 /**
- * Weekly cumulative count of mastered MistakePatterns (intervalDays >= 14),
- * grouped by ISO week start (Monday). Returns ascending array of
- * { week, cumulative } for use in the dashboard trend chart.
+ * Weekly cumulative count of mastered MistakePatterns, grouped by ISO week
+ * start (Monday). Returns ascending array of { week, cumulative } for use in
+ * the dashboard trend chart.
  */
 export async function getMasteredTrend(userId: string): Promise<WeeklyTrend[]> {
   // Pull all mastered patterns with their updatedAt date
@@ -59,7 +57,7 @@ export async function getMasteredTrend(userId: string): Promise<WeeklyTrend[]> {
     .where(
       and(
         eq(mistakePatterns.userId, userId),
-        sql`${mistakePatterns.intervalDays} >= 14`,
+        eq(mistakePatterns.masteryState, "mastered"),
       ),
     )
     .orderBy(mistakePatterns.updatedAt);

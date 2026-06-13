@@ -1,4 +1,4 @@
-import type { Attempt, UserError } from "@/domain/memory/types";
+import type { Attempt, UserError, MistakePattern } from "@/domain/memory/types";
 import type { GenerationMilestoneCode, GenerationStage } from "@/domain/generation-progress";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
@@ -140,6 +140,7 @@ export interface LessonAggregate {
   exercises: Exercise[];
   attempts: Attempt[];
   userErrors: UserError[];
+  mistakePatterns: MistakePattern[];
   progress: {
     lesson: {
       id: string;

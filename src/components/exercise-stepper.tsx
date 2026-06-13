@@ -7,7 +7,12 @@ import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
 import type { Attempt } from "@/domain/memory";
 import { Button } from "@/components/ui/button";
 import { CompletionSummary } from "@/components/completion-summary";
-import type { CompletionStats } from "@/components/completion-summary";
+import {
+  buildCompletionStats,
+  type CompletionStats,
+  type CompletionMistakePatternSummary,
+  type CompletionUserErrorSummary,
+} from "@/components/completion-summary-stats";
 
 interface ExerciseItem {
   exercise: Exercise;
@@ -20,9 +25,11 @@ interface ExerciseItem {
 
 export function ExerciseStepper({
   items,
+  serializedMistakePatterns,
   serializedUserErrors,
 }: {
   items: ExerciseItem[];
+  serializedMistakePatterns: Record<string, CompletionMistakePatternSummary>;
   serializedUserErrors: Record<string, any>;
 }) {
   // Find the first unsolved exercise index to focus on initially
@@ -39,8 +46,12 @@ export function ExerciseStepper({
   const currentIndex = activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
 
   const userErrorsMap = useMemo(() => {
-    return new Map(Object.entries(serializedUserErrors));
+    return new Map(Object.entries(serializedUserErrors)) as Map<string, CompletionUserErrorSummary>;
   }, [serializedUserErrors]);
+
+  const mistakePatternsMap = useMemo(() => {
+    return new Map(Object.entries(serializedMistakePatterns));
+  }, [serializedMistakePatterns]);
 
   const activeItem = items[currentIndex];
   const total = items.length;
@@ -49,22 +60,12 @@ export function ExerciseStepper({
 
   // Derive CompletionStats from server-rendered data (attempts + userErrors)
   const completionStats = useMemo<CompletionStats>(() => {
-    let correctFirstTry = 0;
-    let repeatedErrors = 0;
-    for (const item of items) {
-      if (!item.attempts.length) continue;
-      // Oldest attempt = first try (attempts are stored newest-first)
-      const firstAttempt = item.attempts[item.attempts.length - 1];
-      if (firstAttempt?.isCorrect) correctFirstTry++;
-      // Check if the latest incorrect attempt has a repeated error
-      const latestAttempt = item.attempts[0];
-      if (latestAttempt && !latestAttempt.isCorrect) {
-        const err = userErrorsMap.get(latestAttempt.id);
-        if (err?.isRepeated) repeatedErrors++;
-      }
-    }
-    return { total, correctFirstTry, repeatedErrors };
-  }, [items, userErrorsMap, total]);
+    return buildCompletionStats({
+      items,
+      userErrorsByAttemptId: userErrorsMap,
+      mistakePatternsByKey: mistakePatternsMap,
+    });
+  }, [items, mistakePatternsMap, userErrorsMap]);
 
   const handleRetry = useCallback(() => {
     setActiveIndex(0);

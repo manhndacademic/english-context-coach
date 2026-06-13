@@ -62,6 +62,7 @@ export const errorTypeEnum = pgEnum("error_type", [
   "missing_context",
 ]);
 
+export const masteryStateEnum = pgEnum("mastery_state", ["active", "mastered"]);
 export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
 export const stageStatusEnum = pgEnum("stage_status", ["pending", "running", "succeeded", "failed"]);
 export const generationMilestoneCodeEnum = pgEnum("generation_milestone_code", [
@@ -388,6 +389,7 @@ export const mistakePatterns = pgTable(
     reviewPromptLockedBy: text("review_prompt_locked_by"),
     occurrenceCount: integer("occurrence_count").notNull().default(1),
     intervalDays: integer("interval_days").notNull().default(0),
+    masteryState: masteryStateEnum("mastery_state").notNull().default("active"),
     dueAt: timestamp("due_at", { mode: "date" }).notNull().defaultNow(),
     lastReviewedAt: timestamp("last_reviewed_at", { mode: "date" }),
     isSensitive: boolean("is_sensitive").notNull().default(false),
@@ -400,7 +402,7 @@ export const mistakePatterns = pgTable(
       table.conceptKey,
       table.errorType,
     ),
-    dueIdx: index("mistake_patterns_due_idx").on(table.userId, table.dueAt),
+    dueIdx: index("mistake_patterns_due_idx").on(table.userId, table.masteryState, table.dueAt),
   }),
 );
 
@@ -558,4 +560,3 @@ export const aiApiKeys = pgTable(
 );
 
 export type AiApiKey = typeof aiApiKeys.$inferSelect;
-

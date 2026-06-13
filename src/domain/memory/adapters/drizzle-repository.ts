@@ -123,6 +123,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         safeReviewPromptVi: input.safeReviewPromptVi,
         occurrenceCount: 1,
         intervalDays: 0,
+        masteryState: "active",
         dueAt: new Date(),
         isSensitive: input.isSensitive,
         reviewPromptStatus: "queued",
@@ -137,6 +138,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         set: {
           occurrenceCount: sql`${schema.mistakePatterns.occurrenceCount} + 1`,
           intervalDays: 0,
+          masteryState: "active",
           dueAt: new Date(),
           updatedAt: new Date(),
           reviewPromptStatus: sql`case when ${schema.mistakePatterns.reviewPromptEn} is null then 'queued'::job_status else ${schema.mistakePatterns.reviewPromptStatus} end`,
@@ -152,6 +154,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
       intervalDays: number;
       dueAt: Date;
       lastReviewedAt?: Date;
+      masteryState: "active" | "mastered";
     }
   ): Promise<void> {
     await this.dbClient
@@ -160,6 +163,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         intervalDays: updates.intervalDays,
         dueAt: updates.dueAt,
         lastReviewedAt: updates.lastReviewedAt,
+        masteryState: updates.masteryState,
         updatedAt: new Date(),
       })
       .where(eq(schema.mistakePatterns.id, patternId));
@@ -194,6 +198,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         safe_review_prompt_vi as "safeReviewPromptVi",
         occurrence_count as "occurrenceCount",
         interval_days as "intervalDays",
+        mastery_state as "masteryState",
         due_at as "dueAt",
         last_reviewed_at as "lastReviewedAt",
         is_sensitive as "isSensitive",
@@ -265,6 +270,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
       .where(
         and(
           eq(schema.mistakePatterns.userId, userId),
+          eq(schema.mistakePatterns.masteryState, "active"),
           lte(schema.mistakePatterns.dueAt, dueAt),
           eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
         )
@@ -285,6 +291,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         .where(
           and(
             eq(schema.mistakePatterns.userId, userId),
+            eq(schema.mistakePatterns.masteryState, "active"),
             lte(schema.mistakePatterns.dueAt, dueAt),
             eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
           )
@@ -296,7 +303,7 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
       this.dbClient
         .select()
         .from(schema.mistakePatterns)
-        .where(eq(schema.mistakePatterns.userId, userId))
+        .where(and(eq(schema.mistakePatterns.userId, userId), eq(schema.mistakePatterns.masteryState, "active")))
         .orderBy(desc(schema.mistakePatterns.occurrenceCount), sql`${schema.mistakePatterns.dueAt} asc`)
         .limit(5),
     ]);
@@ -335,6 +342,10 @@ export class DrizzleLearnerMemoryRepository implements LearnerMemoryRepository {
         reviewRubricVi: prompts.reviewRubricVi,
         reviewCorrectAnswer: prompts.reviewCorrectAnswer,
         reviewAcceptableAnswers: prompts.reviewAcceptableAnswers,
+        reviewPromptStatus: "succeeded",
+        reviewPromptError: null,
+        reviewPromptLockedAt: null,
+        reviewPromptLockedBy: null,
         updatedAt: new Date(),
       })
       .where(eq(schema.mistakePatterns.id, patternId));

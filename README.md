@@ -18,6 +18,16 @@ Run the background worker in another terminal:
 bun run worker
 ```
 
+Run release checks:
+
+```bash
+bun run lint
+bun run test
+bun run build
+```
+
+`bun run test` is the supported test command because the suite runs on Vitest.
+
 To stop the local PostgreSQL container:
 
 ```bash

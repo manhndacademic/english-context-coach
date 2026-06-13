@@ -17,6 +17,7 @@ import {
 import { DeleteLessonButton } from "@/components/delete-lesson-button";
 import { getLessonRepository } from "@/domain/lesson";
 import { renderRichText } from "@/lib/rich-text";
+import { completionMistakePatternKey } from "@/components/completion-summary-stats";
 
 function formatLabel(value: string) {
   return value.replaceAll("_", " ");
@@ -218,6 +219,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     exercises,
     attempts,
     userErrors,
+    mistakePatterns,
     progress,
   } = lessonData;
 
@@ -248,6 +250,17 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       serializedUserErrors[err.attemptId] = err;
     }
   }
+  const serializedMistakePatterns = Object.fromEntries(
+    mistakePatterns.map((pattern) => [
+      completionMistakePatternKey(pattern.conceptKey, pattern.errorType),
+      {
+        conceptKey: pattern.conceptKey,
+        errorType: pattern.errorType,
+        dueAt: pattern.dueAt.toISOString(),
+        masteryState: pattern.masteryState,
+      },
+    ]),
+  );
 
   const isNotEnglishOrUnsupported = lesson.inputMode === "not_english" || lesson.inputMode === "unsupported";
   const isDeveloperError = lesson.inputMode === "developer_error_explanation";
@@ -601,6 +614,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
                   {exercises.length ? (
                     <ExerciseStepper
                       items={stepperItems}
+                      serializedMistakePatterns={serializedMistakePatterns}
                       serializedUserErrors={serializedUserErrors}
                     />
                   ) : (

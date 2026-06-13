@@ -53,3 +53,4 @@ export type {
 } from "./types";
 export type { LearnerMemoryRepository, GradingEngine, JobDispatcher } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
+export { isDueMistakePattern, masteryStateAfterReview } from "./mastery";

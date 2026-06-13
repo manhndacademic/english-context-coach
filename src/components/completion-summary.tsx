@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { CheckCircle2, XCircle, RefreshCw, ArrowRight, RotateCcw } from "lucide-react";
-
-export interface CompletionStats {
-  total: number;
-  correctFirstTry: number;
-  repeatedErrors: number;
-}
+import type { CompletionStats } from "./completion-summary-stats";
 
 interface CompletionSummaryProps {
   stats: CompletionStats;
@@ -15,9 +10,17 @@ interface CompletionSummaryProps {
 }
 
 export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
-  const { total, correctFirstTry, repeatedErrors } = stats;
+  const { total, correctFirstTry, newMistakesSaved, repeatedErrors, nextReviewAt } = stats;
   const score = total > 0 ? Math.round((correctFirstTry / total) * 100) : 0;
   const isPerfect = correctFirstTry === total;
+  const savedMistakes = newMistakesSaved + repeatedErrors;
+  const nextReviewLabel = nextReviewAt
+    ? new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(nextReviewAt))
+    : null;
 
   return (
     <div
@@ -65,12 +68,12 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
           </div>
         </div>
 
-        {repeatedErrors > 0 ? (
+        {savedMistakes > 0 ? (
           <div className="flex items-center gap-2.5 bg-[#fff5f4] rounded-md p-3 border border-[#f2b8b5]">
             <RefreshCw size={16} className="text-danger shrink-0" />
             <div>
-              <span className="text-xs text-muted block leading-none mb-0.5">Lỗi lặp lại</span>
-              <strong className="text-danger font-bold">{repeatedErrors} mẫu lỗi</strong>
+              <span className="text-xs text-muted block leading-none mb-0.5">Lỗi đã lưu</span>
+              <strong className="text-danger font-bold">{savedMistakes} mẫu lỗi</strong>
             </div>
           </div>
         ) : (
@@ -86,8 +89,22 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
         )}
       </div>
 
+      {savedMistakes > 0 ? (
+        <div className="grid gap-2 bg-surface-strong rounded-md px-3 py-2.5 border border-border text-xs text-muted">
+          <span>
+            Lỗi mới: <strong className="text-text">{newMistakesSaved}</strong> · Lỗi lặp lại:{" "}
+            <strong className="text-text">{repeatedErrors}</strong>
+          </span>
+          {nextReviewLabel ? (
+            <span>
+              Lần ôn gần nhất: <strong className="text-text">{nextReviewLabel}</strong>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Review schedule note */}
-      {total - correctFirstTry > 0 && (
+      {savedMistakes > 0 && (
         <p className="text-xs text-muted m-0 bg-surface-strong rounded-md px-3 py-2.5 border border-border">
           📅 Hệ thống đã lưu lỗi của bạn và sẽ nhắc bạn ôn tập lại vào những ngày tới.
         </p>

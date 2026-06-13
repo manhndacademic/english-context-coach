@@ -43,6 +43,7 @@ export interface MistakePattern {
   isSensitive: boolean;
   occurrenceCount: number;
   intervalDays: number;
+  masteryState: MasteryState;
   dueAt: Date;
   lastReviewedAt: Date | null;
   createdAt: Date;
@@ -70,7 +71,7 @@ export interface ReviewAttempt {
   createdAt: Date;
 }
 
-export type MasteryState = "due" | "active" | "mastered";
+export type MasteryState = "active" | "mastered";
 
 
 export interface SubmitAttemptInput {
@@ -102,7 +103,9 @@ export interface ReviewFormResult {
   score: number;
   feedbackVi: string;
   masteryStateUpdated: boolean;
+  masteryState?: MasteryState;
   nextReviewAt?: Date;
+  naturalAnswer?: string;
   error?: string;
 }
 

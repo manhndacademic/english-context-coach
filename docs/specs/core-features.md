@@ -17,7 +17,7 @@ key phrase
 exercise
 attempt
 user error
-review item
+MistakePattern
 ```
 Avoid article-only naming in user-facing copy unless the content is actually an article.
 
@@ -92,7 +92,7 @@ Expected fields:
 *   `severity` / `confidence`
 *   `repeatCount`
 *   `firstSeenAt` / `lastSeenAt` / `nextReviewAt`
-*   `status` (`active`, `reviewing`, `mastered`, `ignored`)
+*   `masteryState` (`active`, `mastered`)
 
 Only save errors when confidence is high enough. Do not pollute memory with uncertain or low-value feedback.
 
@@ -108,7 +108,7 @@ Repeated mistakes increase priority for review.
 
 ## 8. Review System (Retention Engine)
 
-Review is the retention engine. A review item should help the user practice an old mistake in a new context.
+Review is the retention engine. A MistakePattern should help the user practice an old mistake in a new context.
 *   **Good review example**:
     *   *Old mistake*: Misunderstood `"run into trouble"`.
     *   *Context note*: Trong ngữ cảnh kỹ thuật, `"run into trouble"` nghĩa là `"gặp vấn đề / gặp khó khăn"`, không phải `"chạy vào rắc rối"`.
@@ -157,7 +157,7 @@ User pastes text.
 → App grades answers.
 → App explains mistakes in Vietnamese.
 → App saves structured mistakes.
-→ App creates review items.
+→ App creates MistakePatterns.
 → User reviews mistakes later.
 → Dashboard shows repeated mistake patterns or progress.
 ```

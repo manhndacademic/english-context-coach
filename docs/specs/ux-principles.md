@@ -60,7 +60,7 @@ The app should generate exercises from the user's pasted text. Do not generate r
 *   The pasted text.
 *   The user's mistake.
 *   A repeated error pattern.
-*   A review item.
+*   A MistakePattern.
 
 ---
 

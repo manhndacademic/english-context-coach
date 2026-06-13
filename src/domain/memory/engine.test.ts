@@ -57,6 +57,9 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
     const existing = await this.findPatternByConcept(input.userId, input.conceptKey, input.errorType);
     if (existing) {
       existing.occurrenceCount += 1;
+      existing.intervalDays = 0;
+      existing.masteryState = "active";
+      existing.dueAt = new Date();
       existing.updatedAt = new Date();
       return existing;
     }
@@ -64,10 +67,21 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
       id: `pattern-${this.mistakePatterns.size + 1}`,
       occurrenceCount: 1,
       intervalDays: 0,
+      masteryState: "active",
       dueAt: new Date(),
+      lastReviewedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       reviewPromptEn: null,
+      reviewPromptVi: null,
+      reviewRubricVi: null,
+      reviewCorrectAnswer: null,
+      reviewAcceptableAnswers: null,
+      reviewPromptStatus: "queued",
+      reviewPromptAttempts: 0,
+      reviewPromptError: null,
+      reviewPromptLockedAt: null,
+      reviewPromptLockedBy: null,
       ...input,
     };
     this.mistakePatterns.set(created.id, created);
@@ -80,6 +94,7 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
       pattern.intervalDays = updates.intervalDays;
       pattern.dueAt = updates.dueAt;
       pattern.lastReviewedAt = updates.lastReviewedAt ?? pattern.lastReviewedAt;
+      pattern.masteryState = updates.masteryState;
       pattern.updatedAt = new Date();
     }
   }
@@ -91,7 +106,15 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
   }
 
   async findDueMistakePatterns(userId: string, dueAt: Date, limit: number): Promise<any[]> {
-    return [];
+    return Array.from(this.mistakePatterns.values())
+      .filter(
+        (pattern) =>
+          pattern.userId === userId &&
+          pattern.masteryState === "active" &&
+          pattern.reviewPromptStatus === "succeeded" &&
+          pattern.dueAt <= dueAt,
+      )
+      .slice(0, limit);
   }
 
   async getDashboardMetrics(userId: string, dueAt: Date): Promise<any> {
@@ -110,6 +133,10 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
     const pattern = this.mistakePatterns.get(patternId);
     if (pattern) {
       Object.assign(pattern, prompts);
+      pattern.reviewPromptStatus = "succeeded";
+      pattern.reviewPromptError = null;
+      pattern.reviewPromptLockedAt = null;
+      pattern.reviewPromptLockedBy = null;
     }
   }
 
@@ -317,6 +344,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       const pattern = Array.from(repo.mistakePatterns.values())[0];
       expect(pattern.conceptKey).toBe("push_back");
       expect(pattern.occurrenceCount).toBe(1);
+      expect(pattern.masteryState).toBe("active");
 
       expect(dispatcher.triggered).toContain(pattern.id);
     });
@@ -377,9 +405,68 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
       const pattern = Array.from(repo.mistakePatterns.values())[0];
       expect(pattern.occurrenceCount).toBe(2);
+      expect(pattern.masteryState).toBe("active");
       // If it already exists and has no en prompt, it triggers, but here we mock isRepeated and reviewPromptEn.
       // Since reviewPromptEn is null on our pre-populated mock pattern, it will still trigger prompt generation
       expect(dispatcher.triggered).toContain(pattern.id);
+    });
+
+    it("reactivates a mastered MistakePattern when the learner repeats the same UserError", async () => {
+      repo.exercises.set("ex-1", {
+        id: "ex-1",
+        userId: "user-1",
+        correctAnswer: "push this back",
+        keyPhraseId: "phrase-1",
+      });
+
+      lessonRepo.keyPhrases.set("phrase-1", {
+        id: "phrase-1",
+        normalizedPhrase: "push back",
+        conceptKey: "push_back",
+        conceptPhrase: "push back",
+        conceptMeaningVi: "dời lại / trì hoãn",
+        isSensitive: false,
+      });
+
+      const masteredPattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "dời lại / trì hoãn",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+      });
+      masteredPattern.masteryState = "mastered";
+      masteredPattern.intervalDays = 14;
+
+      grader.result = {
+        score: 0,
+        isCorrect: false,
+        feedbackVi: "Lại sai rồi.",
+        error: {
+          shouldSave: true,
+          confidence: 95,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Lặp lại lỗi push back",
+          targetItem: "push this back",
+        },
+      };
+
+      const result = await engine.submitAttempt({
+        userId: "user-1",
+        exerciseId: "ex-1",
+        lessonId: "les-1",
+        answer: "đẩy nó về",
+      });
+
+      expect(result.success).toBe(true);
+      expect(repo.userErrors[0].isRepeated).toBe(true);
+      expect(masteredPattern.occurrenceCount).toBe(2);
+      expect(masteredPattern.intervalDays).toBe(0);
+      expect(masteredPattern.masteryState).toBe("active");
     });
   });
 
@@ -430,8 +517,43 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);
       expect(updatedPattern.intervalDays).toBe(3); // Leitner progression 1 -> 3
+      expect(updatedPattern.masteryState).toBe("active");
       expect(updatedPattern.dueAt.getTime()).toBeGreaterThan(Date.now());
       expect(dispatcher.triggered).toContain(pattern.id);
+    });
+
+    it("marks a MistakePattern as mastered when a correct review reaches the final interval", async () => {
+      const pattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "dời lại / trì hoãn",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+      });
+      pattern.intervalDays = 7;
+
+      grader.result = {
+        score: 100,
+        isCorrect: true,
+        feedbackVi: "Nghĩa đúng!",
+      };
+
+      const result = await engine.submitReviewAttempt({
+        userId: "user-1",
+        patternId: pattern.id,
+        answer: "dời lại",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.masteryState).toBe("mastered");
+
+      const updatedPattern = repo.mistakePatterns.get(pattern.id);
+      expect(updatedPattern.intervalDays).toBe(14);
+      expect(updatedPattern.masteryState).toBe("mastered");
     });
 
     it("handles failed review answer: resets interval to 0 and schedules for tomorrow", async () => {
@@ -467,6 +589,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);
       expect(updatedPattern.intervalDays).toBe(0); // reset to 0
+      expect(updatedPattern.masteryState).toBe("active");
       // Check due date is set to tomorrow
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -498,6 +621,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(updatedPattern.reviewRubricVi).toBe("Mock Rubric Vi");
       expect(updatedPattern.reviewCorrectAnswer).toBe("Mock Correct Answer");
       expect(updatedPattern.reviewAcceptableAnswers).toContain("Acceptable Answer");
+      expect(updatedPattern.reviewPromptStatus).toBe("succeeded");
     });
 
     it("does nothing if mistake pattern is not found", async () => {

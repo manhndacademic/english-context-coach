@@ -1,5 +1,5 @@
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson/ports";
-import type { Attempt, UserError, MistakePattern, ReviewAttempt } from "./types";
+import type { Attempt, UserError, MistakePattern, ReviewAttempt, MasteryState } from "./types";
 import type { GradingResult } from "@/lib/ai/schemas";
 
 export interface LearnerMemoryRepository {
@@ -53,6 +53,7 @@ export interface LearnerMemoryRepository {
       intervalDays: number;
       dueAt: Date;
       lastReviewedAt?: Date;
+      masteryState: MasteryState;
     }
   ): Promise<void>;
 

@@ -99,7 +99,7 @@ Submit answer
 → Explain mistake in Vietnamese
 → Save structured error
 → Detect repeated mistake
-→ Create review item
+→ Create MistakePattern
 → Help user master it
 ```
 
@@ -149,7 +149,7 @@ This project uses **Bun** as its primary package manager, dependency resolver, a
 *   **Run dev server**: `bun run dev`
 *   **Run background worker**: `bun run worker`
 *   **Run linting**: `bun run lint`
-*   **Run tests**: `bun test` (or `bun run test`)
+*   **Run tests**: `bun run test` (Vitest). Do not use raw `bun test` as the release gate because this repo uses Vitest APIs.
 *   **Build production**: `bun run build`
 *   **Database migrations/push**: `bun run db:push` / `bun run db:migrate`
 
