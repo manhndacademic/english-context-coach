@@ -13,11 +13,19 @@ import type {
 export class DrizzleExerciseRepository implements ExerciseRepository {
   constructor(private dbClient: any = db) {}
 
-  async findExercise(exerciseId: string, userId: string): Promise<Exercise | null> {
+  async findExercise(
+    exerciseId: string,
+    userId: string
+  ): Promise<Exercise | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.exercises)
-      .where(and(eq(schema.exercises.id, exerciseId), eq(schema.exercises.userId, userId)))
+      .where(
+        and(
+          eq(schema.exercises.id, exerciseId),
+          eq(schema.exercises.userId, userId)
+        )
+      )
       .limit(1);
     return row ?? null;
   }
@@ -83,16 +91,26 @@ export class DrizzleAttemptRepository implements AttemptRepository {
 export class DrizzleMistakePatternRepository implements MistakePatternRepository {
   constructor(private dbClient: any = db) {}
 
-  async findMistakePattern(patternId: string, userId: string): Promise<MistakePattern | null> {
+  async findMistakePattern(
+    patternId: string,
+    userId: string
+  ): Promise<MistakePattern | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.mistakePatterns)
-      .where(and(eq(schema.mistakePatterns.id, patternId), eq(schema.mistakePatterns.userId, userId)))
+      .where(
+        and(
+          eq(schema.mistakePatterns.id, patternId),
+          eq(schema.mistakePatterns.userId, userId)
+        )
+      )
       .limit(1);
     return row ? MistakePattern.reconstitute(row) : null;
   }
 
-  async findMistakePatternById(patternId: string): Promise<MistakePattern | null> {
+  async findMistakePatternById(
+    patternId: string
+  ): Promise<MistakePattern | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.mistakePatterns)
@@ -101,7 +119,11 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     return row ? MistakePattern.reconstitute(row) : null;
   }
 
-  async findPatternByConcept(userId: string, conceptKey: string, errorType: string): Promise<MistakePattern | null> {
+  async findPatternByConcept(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ): Promise<MistakePattern | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.mistakePatterns)
@@ -137,7 +159,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         },
       })
       .returning();
-    
+
     const result = MistakePattern.reconstitute(rows[0]);
     if (rows[0] && rows[0].reviewPromptStatus === "queued") {
       await notifyJobQueued();
@@ -230,7 +252,11 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     return pattern ? MistakePattern.reconstitute(pattern) : null;
   }
 
-  async findDueMistakePatterns(userId: string, dueAt: Date, limit: number): Promise<MistakePattern[]> {
+  async findDueMistakePatterns(
+    userId: string,
+    dueAt: Date,
+    limit: number
+  ): Promise<MistakePattern[]> {
     const rows = await this.dbClient
       .select()
       .from(schema.mistakePatterns)
@@ -247,12 +273,83 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     return rows.map((r: any) => MistakePattern.reconstitute(r));
   }
 
-  async getDashboardMetrics(userId: string, dueAt: Date): Promise<{
+  async getDashboardMetrics(
+    userId: string,
+    dueAt: Date
+  ): Promise<{
     dueCount: number;
     patternCount: number;
     repeatedMistakes: MistakePattern[];
+    learningStreakDays: number;
+    masteredCount: number;
+    reviewSuccessRate: number;
+    masteredTrend: Array<{ week: string; cumulative: number }>;
   }> {
-    const [dueCountResult, patternCountResult, repeatedMistakesRows] = await Promise.all([
+    // 1. Fetch Streak dates
+    const attemptDates = await this.dbClient
+      .selectDistinct({
+        activityDate:
+          drizzleSql<string>`DATE(${schema.attempts.createdAt} AT TIME ZONE 'UTC')`.as(
+            "activity_date"
+          ),
+      })
+      .from(schema.attempts)
+      .where(eq(schema.attempts.userId, userId));
+
+    const reviewDates = await this.dbClient
+      .selectDistinct({
+        activityDate:
+          drizzleSql<string>`DATE(${schema.reviewAttempts.createdAt} AT TIME ZONE 'UTC')`.as(
+            "activity_date"
+          ),
+      })
+      .from(schema.reviewAttempts)
+      .where(eq(schema.reviewAttempts.userId, userId));
+
+    // Merge and deduplicate dates for streak
+    const allDateStrings = new Set<string>([
+      ...attemptDates.map((r: any) => r.activityDate),
+      ...reviewDates.map((r: any) => r.activityDate),
+    ]);
+
+    let learningStreakDays = 0;
+    if (allDateStrings.size > 0) {
+      // Sort descending
+      const sortedDates = Array.from(allDateStrings).sort((a, b) =>
+        b.localeCompare(a)
+      );
+      // Compute "today" and "yesterday" in UTC date strings
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterdayDate = new Date();
+      yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+
+      // Streak must start from today or yesterday; otherwise streak is 0
+      if (sortedDates[0] === todayStr || sortedDates[0] === yesterdayStr) {
+        let expectedDate = sortedDates[0];
+        for (const dateStr of sortedDates) {
+          if (dateStr === expectedDate) {
+            learningStreakDays++;
+            const d = new Date(expectedDate + "T00:00:00Z");
+            d.setUTCDate(d.getUTCDate() - 1);
+            expectedDate = d.toISOString().slice(0, 10);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Fetch Mastered Count, Due Count, Pattern Count, and Review success rate
+    const [
+      dueCountResult,
+      patternCountResult,
+      masteredCountResult,
+      repeatedMistakesRows,
+      reviewSuccessRateRows,
+      masteredTrendRows,
+    ] = await Promise.all([
+      // dueCount
       this.dbClient
         .select({ value: count() })
         .from(schema.mistakePatterns)
@@ -264,22 +361,93 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
             eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
           )
         ),
+      // patternCount
       this.dbClient
         .select({ value: count() })
         .from(schema.mistakePatterns)
         .where(eq(schema.mistakePatterns.userId, userId)),
+      // masteredCount
+      this.dbClient
+        .select({ value: count() })
+        .from(schema.mistakePatterns)
+        .where(
+          and(
+            eq(schema.mistakePatterns.userId, userId),
+            eq(schema.mistakePatterns.masteryState, "mastered")
+          )
+        ),
+      // repeatedMistakes
       this.dbClient
         .select()
         .from(schema.mistakePatterns)
-        .where(and(eq(schema.mistakePatterns.userId, userId), eq(schema.mistakePatterns.masteryState, "active")))
-        .orderBy(desc(schema.mistakePatterns.occurrenceCount), drizzleSql`${schema.mistakePatterns.dueAt} asc`)
+        .where(
+          and(
+            eq(schema.mistakePatterns.userId, userId),
+            eq(schema.mistakePatterns.masteryState, "active")
+          )
+        )
+        .orderBy(
+          desc(schema.mistakePatterns.occurrenceCount),
+          drizzleSql`${schema.mistakePatterns.dueAt} asc`
+        )
         .limit(5),
+      // reviewSuccessRate
+      this.dbClient
+        .select({
+          total: count(),
+          correct: drizzleSql<number>`SUM(CASE WHEN ${schema.reviewAttempts.isCorrect} THEN 1 ELSE 0 END)`,
+        })
+        .from(schema.reviewAttempts)
+        .where(eq(schema.reviewAttempts.userId, userId)),
+      // masteredTrend
+      this.dbClient
+        .select({
+          week: drizzleSql<string>`TO_CHAR(DATE_TRUNC('week', ${schema.mistakePatterns.updatedAt}), 'YYYY-MM-DD')`,
+        })
+        .from(schema.mistakePatterns)
+        .where(
+          and(
+            eq(schema.mistakePatterns.userId, userId),
+            eq(schema.mistakePatterns.masteryState, "mastered")
+          )
+        )
+        .orderBy(schema.mistakePatterns.updatedAt),
     ]);
+
+    const reviewSuccessRateTotal = reviewSuccessRateRows[0]?.total ?? 0;
+    const reviewSuccessRateCorrect = reviewSuccessRateRows[0]?.correct ?? 0;
+    const reviewSuccessRate = reviewSuccessRateTotal
+      ? Math.round(
+          (Number(reviewSuccessRateCorrect) / Number(reviewSuccessRateTotal)) *
+            100
+        )
+      : 0;
+
+    // Group mastered trend by week and compute cumulative count
+    const trend: Array<{ week: string; cumulative: number }> = [];
+    if (masteredTrendRows.length > 0) {
+      const weekCounts = new Map<string, number>();
+      for (const row of masteredTrendRows) {
+        weekCounts.set(row.week, (weekCounts.get(row.week) ?? 0) + 1);
+      }
+      const sortedWeeks = Array.from(weekCounts.keys()).sort();
+      let cumulative = 0;
+      for (const week of sortedWeeks) {
+        cumulative += weekCounts.get(week)!;
+        trend.push({ week, cumulative });
+      }
+    }
 
     return {
       dueCount: dueCountResult[0]?.value ?? 0,
       patternCount: patternCountResult[0]?.value ?? 0,
-      repeatedMistakes: repeatedMistakesRows.map((r: any) => MistakePattern.reconstitute(r)),
+      repeatedMistakes: repeatedMistakesRows.map((r: any) =>
+        MistakePattern.reconstitute(r)
+      ),
+      learningStreakDays,
+      masteredCount: masteredCountResult[0]?.value ?? 0,
+      reviewSuccessRate,
+      masteredTrend: trend,
     };
   }
 }

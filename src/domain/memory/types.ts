@@ -45,7 +45,6 @@ export interface ReviewAttempt {
 
 export type MasteryState = "active" | "mastered";
 
-
 export interface SubmitAttemptInput {
   userId: string;
   exerciseId: string;
@@ -83,7 +82,27 @@ export interface ReviewFormResult {
 
 export interface LearnerMemoryEngine {
   submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult>;
-  submitReviewAttempt(input: SubmitReviewAttemptInput): Promise<ReviewFormResult>;
+  submitReviewAttempt(
+    input: SubmitReviewAttemptInput
+  ): Promise<ReviewFormResult>;
   generateReviewPrompt(patternId: string): Promise<void>;
-  processNextReviewPromptJob(workerId: string): Promise<{ status: "processed"; patternId: string; success: boolean } | { status: "idle" } | { status: "failed"; error: string }>;
+  processNextReviewPromptJob(
+    workerId: string
+  ): Promise<
+    | { status: "processed"; patternId: string; success: boolean }
+    | { status: "idle" }
+    | { status: "failed"; error: string }
+  >;
+  getDashboardMetrics(
+    userId: string,
+    dueAt: Date
+  ): Promise<{
+    dueCount: number;
+    patternCount: number;
+    repeatedMistakes: any[];
+    learningStreakDays: number;
+    masteredCount: number;
+    reviewSuccessRate: number;
+    masteredTrend: Array<{ week: string; cumulative: number }>;
+  }>;
 }

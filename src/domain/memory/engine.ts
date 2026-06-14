@@ -22,7 +22,9 @@ import type {
   ReviewFormResult,
 } from "./types";
 
-function categoryForLessonFocus(category: "tone" | "structure" | "purpose" | "context") {
+function categoryForLessonFocus(
+  category: "tone" | "structure" | "purpose" | "context"
+) {
   if (category === "structure") return "grammar_pattern" as const;
   if (category === "tone") return "business_phrase" as const;
   return "general_phrase" as const;
@@ -43,13 +45,17 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult> {
     try {
-      const exercise = await this.exerciseRepo.findExercise(input.exerciseId, input.userId);
+      const exercise = await this.exerciseRepo.findExercise(
+        input.exerciseId,
+        input.userId
+      );
       if (!exercise) {
         return {
           success: false,
           isCorrect: false,
           score: 0,
-          feedbackVi: "Bài tập không tồn tại hoặc không thuộc về người dùng này.",
+          feedbackVi:
+            "Bài tập không tồn tại hoặc không thuộc về người dùng này.",
           userErrorCreated: false,
           mistakePatternStatus: "none",
           error: "Exercise not found.",
@@ -75,7 +81,14 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       let targetItem = "";
       let normalizedPhrase = "";
       let senseKey = "";
-      let category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase" = "general_phrase";
+      let category:
+        | "idiom"
+        | "phrasal_verb"
+        | "technical_term"
+        | "collocation"
+        | "grammar_pattern"
+        | "business_phrase"
+        | "general_phrase" = "general_phrase";
       let meaningVi = "";
       let explanationVi = "";
       let conceptKey = "";
@@ -89,91 +102,127 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           keyPhrase = await this.lessonRepo.findKeyPhrase(exercise.keyPhraseId);
         }
         if (exercise.lessonFocusId) {
-          lessonFocus = await this.lessonRepo.findLessonFocus(exercise.lessonFocusId);
+          lessonFocus = await this.lessonRepo.findLessonFocus(
+            exercise.lessonFocusId
+          );
         }
 
-        const fallbackTarget = exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi;
+        const fallbackTarget =
+          exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi;
         targetItem = errorData.targetItem || fallbackTarget;
 
-        normalizedPhrase = keyPhrase?.normalizedPhrase ?? this.textProcessor.normalizePhrase(lessonFocus?.title ?? targetItem);
-        senseKey = keyPhrase?.senseKey ?? this.textProcessor.normalizePhrase(`${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? targetItem}`);
-        category = keyPhrase?.category ?? (lessonFocus ? categoryForLessonFocus(lessonFocus.category) : "general_phrase");
-        meaningVi = keyPhrase?.meaningVi ?? lessonFocus?.explanationVi ?? errorData.explanationVi ?? "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
+        normalizedPhrase =
+          keyPhrase?.normalizedPhrase ??
+          this.textProcessor.normalizePhrase(lessonFocus?.title ?? targetItem);
+        senseKey =
+          keyPhrase?.senseKey ??
+          this.textProcessor.normalizePhrase(
+            `${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? targetItem}`
+          );
+        category =
+          keyPhrase?.category ??
+          (lessonFocus
+            ? categoryForLessonFocus(lessonFocus.category)
+            : "general_phrase");
+        meaningVi =
+          keyPhrase?.meaningVi ??
+          lessonFocus?.explanationVi ??
+          errorData.explanationVi ??
+          "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
         explanationVi = errorData.explanationVi ?? grade.feedbackVi;
 
-        conceptKey = keyPhrase?.conceptKey ?? lessonFocus?.conceptKey ?? this.textProcessor.normalizePhrase(targetItem);
-        conceptPhrase = keyPhrase?.conceptPhrase ?? lessonFocus?.conceptPhrase ?? normalizedPhrase;
-        conceptMeaningVi = keyPhrase?.conceptMeaningVi ?? lessonFocus?.conceptMeaningVi ?? meaningVi;
+        conceptKey =
+          keyPhrase?.conceptKey ??
+          lessonFocus?.conceptKey ??
+          this.textProcessor.normalizePhrase(targetItem);
+        conceptPhrase =
+          keyPhrase?.conceptPhrase ??
+          lessonFocus?.conceptPhrase ??
+          normalizedPhrase;
+        conceptMeaningVi =
+          keyPhrase?.conceptMeaningVi ??
+          lessonFocus?.conceptMeaningVi ??
+          meaningVi;
       }
 
-      const { insertedPattern, isRepeated } = await this.txCoordinator.runInTransaction(async (repos) => {
-        let isRepeated = false;
-        let insertedPattern: MistakePattern | null = null;
+      const { insertedPattern, isRepeated } =
+        await this.txCoordinator.runInTransaction(async (repos) => {
+          let isRepeated = false;
+          let insertedPattern: MistakePattern | null = null;
 
-        const attempt = await repos.attempts.createAttempt({
-          exerciseId: input.exerciseId,
-          lessonId: input.lessonId,
-          userId: input.userId,
-          answer: input.answer,
-          score: grade.score,
-          isCorrect: grade.isCorrect,
-          feedbackVi: grade.feedbackVi,
-          gradingMetadata: grade,
-        });
-
-        if (saveError) {
-          const errorData = grade.error!;
-          const existingPattern = await repos.mistakePatterns.findPatternByConcept(
-            input.userId,
-            conceptKey,
-            errorData.errorType as any
-          );
-
-          isRepeated = !!existingPattern;
-
-          await repos.attempts.createUserError({
-            userId: input.userId,
-            attemptId: attempt.id,
+          const attempt = await repos.attempts.createAttempt({
+            exerciseId: input.exerciseId,
             lessonId: input.lessonId,
-            keyPhraseId: keyPhrase?.id ?? null,
-            lessonFocusId: lessonFocus?.id ?? null,
-            errorType: errorData.errorType!,
-            conceptKey,
-            normalizedPhrase: conceptPhrase,
-            senseKey,
-            explanationVi,
-            isSourceSensitive: keyPhrase?.isSensitive ?? false,
-            isRepeated,
+            userId: input.userId,
+            answer: input.answer,
+            score: grade.score,
+            isCorrect: grade.isCorrect,
+            feedbackVi: grade.feedbackVi,
+            gradingMetadata: grade,
           });
 
-          if (existingPattern) {
-            existingPattern.incrementOccurrence();
-            insertedPattern = await repos.mistakePatterns.upsertMistakePattern(existingPattern);
-          } else {
-            const newPattern = MistakePattern.createNew({
-              id: crypto.randomUUID(),
+          if (saveError) {
+            const errorData = grade.error!;
+            const existingPattern =
+              await repos.mistakePatterns.findPatternByConcept(
+                input.userId,
+                conceptKey,
+                errorData.errorType as any
+              );
+
+            isRepeated = !!existingPattern;
+
+            await repos.attempts.createUserError({
               userId: input.userId,
+              attemptId: attempt.id,
+              lessonId: input.lessonId,
+              keyPhraseId: keyPhrase?.id ?? null,
+              lessonFocusId: lessonFocus?.id ?? null,
+              errorType: errorData.errorType!,
               conceptKey,
               normalizedPhrase: conceptPhrase,
-              senseKey: keyPhrase?.senseKey ?? null,
-              category,
-              errorType: errorData.errorType as any,
-              meaningVi: conceptMeaningVi,
-              safeReviewPromptVi: `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`,
-              isSensitive: keyPhrase?.isSensitive ?? false,
+              senseKey,
+              explanationVi,
+              isSourceSensitive: keyPhrase?.isSensitive ?? false,
+              isRepeated,
             });
-            insertedPattern = await repos.mistakePatterns.upsertMistakePattern(newPattern);
-          }
-        }
 
-        return { insertedPattern, isRepeated };
-      });
+            if (existingPattern) {
+              existingPattern.incrementOccurrence();
+              insertedPattern =
+                await repos.mistakePatterns.upsertMistakePattern(
+                  existingPattern
+                );
+            } else {
+              const newPattern = MistakePattern.createNew({
+                id: crypto.randomUUID(),
+                userId: input.userId,
+                conceptKey,
+                normalizedPhrase: conceptPhrase,
+                senseKey: keyPhrase?.senseKey ?? null,
+                category,
+                errorType: errorData.errorType as any,
+                meaningVi: conceptMeaningVi,
+                safeReviewPromptVi: `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`,
+                isSensitive: keyPhrase?.isSensitive ?? false,
+              });
+              insertedPattern =
+                await repos.mistakePatterns.upsertMistakePattern(newPattern);
+            }
+          }
+
+          return { insertedPattern, isRepeated };
+        });
 
       // 3. Dispatch background prompt generation outside transaction
       if (insertedPattern && (!isRepeated || !insertedPattern.reviewPromptEn)) {
-        this.dispatcher.triggerReviewPromptGeneration(insertedPattern.id).catch((err) =>
-          console.error(`[Engine] Failed to trigger review prompt generation: ${err}`)
-        );
+        this.dispatcher
+          .triggerReviewPromptGeneration(insertedPattern.id)
+          .catch((err) =>
+            console.error(
+              `[Engine] Failed to trigger review prompt generation: ${err}`
+            )
+          );
       }
 
       return {
@@ -182,7 +231,11 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         score: grade.score,
         feedbackVi: grade.feedbackVi,
         userErrorCreated: !!saveError,
-        mistakePatternStatus: saveError ? (isRepeated ? "repeated" : "new") : "none",
+        mistakePatternStatus: saveError
+          ? isRepeated
+            ? "repeated"
+            : "new"
+          : "none",
       };
     } catch (error) {
       console.error("[LearnerMemoryEngine] Error in submitAttempt:", error);
@@ -198,25 +251,35 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     }
   }
 
-  async submitReviewAttempt(input: SubmitReviewAttemptInput): Promise<ReviewFormResult> {
+  async submitReviewAttempt(
+    input: SubmitReviewAttemptInput
+  ): Promise<ReviewFormResult> {
     try {
-      const pattern = await this.mistakePatternRepo.findMistakePattern(input.patternId, input.userId);
+      const pattern = await this.mistakePatternRepo.findMistakePattern(
+        input.patternId,
+        input.userId
+      );
       if (!pattern) {
         return {
           success: false,
           isCorrect: false,
           score: 0,
-          feedbackVi: "Lỗi ôn tập không tồn tại hoặc không thuộc về người dùng này.",
+          feedbackVi:
+            "Lỗi ôn tập không tồn tại hoặc không thuộc về người dùng này.",
           masteryStateUpdated: false,
           error: "Mistake pattern not found.",
         };
       }
 
       const promptEn = pattern.reviewPromptEn ?? pattern.normalizedPhrase;
-      const promptVi = pattern.reviewPromptVi ?? `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${pattern.normalizedPhrase}"`;
+      const promptVi =
+        pattern.reviewPromptVi ??
+        `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${pattern.normalizedPhrase}"`;
       const correctAnswer = pattern.reviewCorrectAnswer ?? pattern.meaningVi;
       const acceptableAnswers = pattern.reviewAcceptableAnswers ?? [];
-      const rubricVi = pattern.reviewRubricVi ?? `Đảm bảo người học hiểu đúng nghĩa tự nhiên của cụm từ "${pattern.normalizedPhrase}" là "${pattern.meaningVi}". Tránh dịch nghĩa đen.`;
+      const rubricVi =
+        pattern.reviewRubricVi ??
+        `Đảm bảo người học hiểu đúng nghĩa tự nhiên của cụm từ "${pattern.normalizedPhrase}" là "${pattern.meaningVi}". Tránh dịch nghĩa đen.`;
 
       const mockExercise = {
         id: pattern.id,
@@ -261,9 +324,13 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
       // 3. Trigger review prompt regeneration on success (outside transaction)
       if (grade.isCorrect) {
-        this.dispatcher.triggerReviewPromptGeneration(pattern.id).catch((err) =>
-          console.error(`[Engine] Failed to trigger review prompt generation on success: ${err}`)
-        );
+        this.dispatcher
+          .triggerReviewPromptGeneration(pattern.id)
+          .catch((err) =>
+            console.error(
+              `[Engine] Failed to trigger review prompt generation on success: ${err}`
+            )
+          );
       }
 
       return {
@@ -277,7 +344,10 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         naturalAnswer: grade.naturalAnswer ?? correctAnswer,
       };
     } catch (error) {
-      console.error("[LearnerMemoryEngine] Error in submitReviewAttempt:", error);
+      console.error(
+        "[LearnerMemoryEngine] Error in submitReviewAttempt:",
+        error
+      );
       return {
         success: false,
         isCorrect: false,
@@ -291,7 +361,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async generateReviewPrompt(patternId: string): Promise<void> {
     try {
-      const pattern = await this.mistakePatternRepo.findMistakePatternById(patternId);
+      const pattern =
+        await this.mistakePatternRepo.findMistakePatternById(patternId);
       if (!pattern) return;
 
       log.info(`Generating review prompt directly for pattern ${patternId}...`);
@@ -306,7 +377,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
       pattern.updateReviewPrompt(generated);
       await this.mistakePatternRepo.saveMistakePattern(pattern);
-      log.info(`Review prompt generated directly for pattern ${patternId} in ${Date.now() - startTime}ms.`);
+      log.info(
+        `Review prompt generated directly for pattern ${patternId} in ${Date.now() - startTime}ms.`
+      );
     } catch (error) {
       log.error(`generateReviewPrompt failed for pattern ${patternId}`, error);
     }
@@ -320,16 +393,20 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     | { status: "failed"; error: string }
   > {
     try {
-      const pattern = await this.mistakePatternRepo.claimReviewPromptJob(workerId);
+      const pattern =
+        await this.mistakePatternRepo.claimReviewPromptJob(workerId);
       if (!pattern) {
         return { status: "idle" };
       }
 
       const parsedLockedVal = parseDbDate(pattern.reviewPromptLockedAt);
-      const queueLatency = parsedLockedVal 
-        ? Date.now() - parsedLockedVal.getTime() 
+      const queueLatency = parsedLockedVal
+        ? Date.now() - parsedLockedVal.getTime()
         : 0;
-      log.info(`Claimed review prompt job ${pattern.id} for pattern. Queue latency: ${queueLatency}ms.`, workerId);
+      log.info(
+        `Claimed review prompt job ${pattern.id} for pattern. Queue latency: ${queueLatency}ms.`,
+        workerId
+      );
       const startTime = Date.now();
 
       try {
@@ -344,7 +421,10 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         pattern.updateReviewPrompt(generated);
         await this.mistakePatternRepo.saveMistakePattern(pattern);
 
-        log.info(`Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`, workerId);
+        log.info(
+          `Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`,
+          workerId
+        );
 
         return {
           status: "processed",
@@ -352,10 +432,14 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           success: true,
         };
       } catch (genError) {
-        const message = genError instanceof Error ? genError.message : String(genError);
+        const message =
+          genError instanceof Error ? genError.message : String(genError);
         const attempts = pattern.reviewPromptAttempts ?? 0;
 
-        log.warn(`Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`, workerId);
+        log.warn(
+          `Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`,
+          workerId
+        );
 
         if (attempts < 3) {
           pattern.setJobStatus("queued", {
@@ -386,5 +470,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         error: message,
       };
     }
+  }
+
+  async getDashboardMetrics(userId: string, dueAt: Date) {
+    return await this.mistakePatternRepo.getDashboardMetrics(userId, dueAt);
   }
 }

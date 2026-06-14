@@ -22,7 +22,10 @@ class MockDatabaseState {
 
   async upsertMistakePattern(input: any) {
     const existing = Array.from(this.mistakePatterns.values()).find(
-      (p) => p.userId === input.userId && p.conceptKey === input.conceptKey && p.errorType === input.errorType
+      (p) =>
+        p.userId === input.userId &&
+        p.conceptKey === input.conceptKey &&
+        p.errorType === input.errorType
     );
     if (existing) {
       existing.incrementOccurrence();
@@ -40,7 +43,12 @@ class MockDatabaseState {
       safeReviewPromptVi: input.safeReviewPromptVi,
       isSensitive: input.isSensitive ?? false,
     });
-    if (input.reviewPromptStatus || input.intervalDays || input.masteryState || input.reviewPromptEn) {
+    if (
+      input.reviewPromptStatus ||
+      input.intervalDays ||
+      input.masteryState ||
+      input.reviewPromptEn
+    ) {
       const reconstituted = MistakePattern.reconstitute({
         ...created.toDbRow(),
         ...input,
@@ -67,19 +75,31 @@ class MockAttemptRepository implements AttemptRepository {
   constructor(private state: MockDatabaseState) {}
 
   async createAttempt(attempt: any) {
-    const created = { id: `attempt-${this.state.attempts.length + 1}`, createdAt: new Date(), ...attempt };
+    const created = {
+      id: `attempt-${this.state.attempts.length + 1}`,
+      createdAt: new Date(),
+      ...attempt,
+    };
     this.state.attempts.push(created);
     return created;
   }
 
   async createReviewAttempt(attempt: any) {
-    const created = { id: `review-attempt-${this.state.reviewAttempts.length + 1}`, createdAt: new Date(), ...attempt };
+    const created = {
+      id: `review-attempt-${this.state.reviewAttempts.length + 1}`,
+      createdAt: new Date(),
+      ...attempt,
+    };
     this.state.reviewAttempts.push(created);
     return created;
   }
 
   async createUserError(error: any) {
-    const created = { id: `user-error-${this.state.userErrors.length + 1}`, createdAt: new Date(), ...error };
+    const created = {
+      id: `user-error-${this.state.userErrors.length + 1}`,
+      createdAt: new Date(),
+      ...error,
+    };
     this.state.userErrors.push(created);
     return created;
   }
@@ -98,7 +118,11 @@ class MockMistakePatternRepository implements MistakePatternRepository {
     return this.state.mistakePatterns.get(patternId) ?? null;
   }
 
-  async findPatternByConcept(userId: string, conceptKey: string, errorType: string) {
+  async findPatternByConcept(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ) {
     for (const pattern of this.state.mistakePatterns.values()) {
       if (
         pattern.userId === userId &&
@@ -137,7 +161,7 @@ class MockMistakePatternRepository implements MistakePatternRepository {
           pattern.userId === userId &&
           pattern.masteryState === "active" &&
           pattern.reviewPromptStatus === "succeeded" &&
-          pattern.dueAt <= dueAt,
+          pattern.dueAt <= dueAt
       )
       .slice(0, limit);
   }
@@ -147,6 +171,10 @@ class MockMistakePatternRepository implements MistakePatternRepository {
       dueCount: 0,
       patternCount: 0,
       repeatedMistakes: [],
+      learningStreakDays: 0,
+      masteredCount: 0,
+      reviewSuccessRate: 0,
+      masteredTrend: [],
     };
   }
 }
@@ -213,27 +241,88 @@ class MockLessonRepository implements LessonRepository {
   keyPhrases = new Map<string, any>();
   lessonFocuses = new Map<string, any>();
 
-  async findLesson(lessonId: string, userId: string): Promise<any> { return null; }
-  async findSourceText(sourceTextId: string, userId: string): Promise<any> { return null; }
-  async findLatestLesson(sourceTextId: string): Promise<any> { return null; }
-  async createSourceTextAndLessonAndJob(userId: string, content: string, title: string, contentHash: string, requestedMode?: string): Promise<any> { return null as any; }
-  async createLessonAndJob(userId: string, sourceTextId: string, version: number, stage: "analysis" | "exercises"): Promise<any> { return null as any; }
-  async createJob(userId: string, sourceTextId: string, lessonId: string, stage: "analysis" | "exercises"): Promise<any> { return null as any; }
-  async claimJob(workerId: string): Promise<any> { return null; }
-  async updateJobStatus(jobId: string, status: any, extra?: any): Promise<void> {}
-  async assertQueueCapacity(userId: string): Promise<any> { return null; }
-  async updateLessonStatus(lessonId: string, stage: any, status: any, extra?: any): Promise<void> {}
-  async saveAnalysis(lessonId: string, userId: string, analysis: any, model: string): Promise<void> {}
-  async saveExercises(lessonId: string, userId: string, exercises: any, model: string): Promise<void> {}
-  async buildAnalysisFromLesson(lessonId: string): Promise<any> { return null as any; }
+  async findLesson(lessonId: string, userId: string): Promise<any> {
+    return null;
+  }
+  async findSourceText(sourceTextId: string, userId: string): Promise<any> {
+    return null;
+  }
+  async findLatestLesson(sourceTextId: string): Promise<any> {
+    return null;
+  }
+  async createSourceTextAndLessonAndJob(
+    userId: string,
+    content: string,
+    title: string,
+    contentHash: string,
+    requestedMode?: string
+  ): Promise<any> {
+    return null as any;
+  }
+  async createLessonAndJob(
+    userId: string,
+    sourceTextId: string,
+    version: number,
+    stage: "analysis" | "exercises"
+  ): Promise<any> {
+    return null as any;
+  }
+  async createJob(
+    userId: string,
+    sourceTextId: string,
+    lessonId: string,
+    stage: "analysis" | "exercises"
+  ): Promise<any> {
+    return null as any;
+  }
+  async claimJob(workerId: string): Promise<any> {
+    return null;
+  }
+  async updateJobStatus(
+    jobId: string,
+    status: any,
+    extra?: any
+  ): Promise<void> {}
+  async assertQueueCapacity(userId: string): Promise<any> {
+    return null;
+  }
+  async updateLessonStatus(
+    lessonId: string,
+    stage: any,
+    status: any,
+    extra?: any
+  ): Promise<void> {}
+  async saveAnalysis(
+    lessonId: string,
+    userId: string,
+    analysis: any,
+    model: string
+  ): Promise<void> {}
+  async saveExercises(
+    lessonId: string,
+    userId: string,
+    exercises: any,
+    model: string
+  ): Promise<void> {}
+  async buildAnalysisFromLesson(lessonId: string): Promise<any> {
+    return null as any;
+  }
   async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {}
   async resetStuckJob(userId: string, lessonId: string): Promise<void> {}
   async recordMilestone(input: any): Promise<void> {}
   async recordThought(input: any): Promise<void> {}
-  async getLessonProgress(input: any): Promise<any> { return null; }
-  async getLessonAggregate(lessonId: string, userId: string): Promise<any> { return null; }
-  async getRecentLessons(userId: string, limit: number): Promise<any[]> { return []; }
-  async getSourceTextsCount(userId: string): Promise<number> { return 0; }
+  async getLessonProgress(input: any): Promise<any> {
+    return null;
+  }
+  async getLessonAggregate(lessonId: string, userId: string): Promise<any> {
+    return null;
+  }
+  async getRecentLessons(userId: string, limit: number): Promise<any[]> {
+    return [];
+  }
+  async getSourceTextsCount(userId: string): Promise<number> {
+    return 0;
+  }
 
   async findKeyPhrase(keyPhraseId: string) {
     return this.keyPhrases.get(keyPhraseId) ?? null;
@@ -261,7 +350,11 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
     exerciseRepo = new MockExerciseRepository(repo);
     attemptRepo = new MockAttemptRepository(repo);
     mistakePatternRepo = new MockMistakePatternRepository(repo);
-    txCoordinator = new MockTransactionCoordinator(exerciseRepo, attemptRepo, mistakePatternRepo);
+    txCoordinator = new MockTransactionCoordinator(
+      exerciseRepo,
+      attemptRepo,
+      mistakePatternRepo
+    );
     lessonRepo = new MockLessonRepository();
     grader = new MockGradingEngine();
     dispatcher = new MockJobDispatcher();
@@ -641,7 +734,9 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(updatedPattern.reviewPromptVi).toBe("Mock Prompt Vi");
       expect(updatedPattern.reviewRubricVi).toBe("Mock Rubric Vi");
       expect(updatedPattern.reviewCorrectAnswer).toBe("Mock Correct Answer");
-      expect(updatedPattern.reviewAcceptableAnswers).toContain("Acceptable Answer");
+      expect(updatedPattern.reviewAcceptableAnswers).toContain(
+        "Acceptable Answer"
+      );
       expect(updatedPattern.reviewPromptStatus).toBe("succeeded");
     });
 

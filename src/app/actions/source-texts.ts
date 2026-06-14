@@ -5,8 +5,6 @@ import { redirect } from "next/navigation";
 import {
   getLessonGenerationEngine,
   getLessonRepository,
-  getGenerationJobRepository,
-  getSourceTextRepository,
 } from "@/domain/lesson";
 import { getLearnerMemoryEngine } from "@/domain/memory";
 import { requireUser } from "@/lib/auth/guards";
@@ -85,7 +83,7 @@ export async function retryLessonGenerationAction(formData: FormData) {
 export async function forceRetryLessonAction(formData: FormData) {
   const user = await requireUser();
   const lessonId = String(formData.get("lessonId") ?? "");
-  const repo = getGenerationJobRepository();
+  const repo = getLessonRepository();
 
   await repo.resetStuckJob(user.id, lessonId);
   triggerWorkerBackgroundTick();
@@ -96,7 +94,7 @@ export async function forceRetryLessonAction(formData: FormData) {
 export async function deleteSourceTextAction(formData: FormData) {
   const user = await requireUser();
   const sourceTextId = String(formData.get("sourceTextId") ?? "");
-  const repo = getSourceTextRepository();
+  const repo = getLessonRepository();
   await repo.deleteSourceText(user.id, sourceTextId);
   revalidatePath("/dashboard");
   redirect("/dashboard");

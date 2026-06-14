@@ -3,14 +3,11 @@ import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { retryReviewPromptGenerationAction } from "@/app/actions/review";
 import { SourceTextForm } from "@/components/source-text-form";
-import { getLessonRepository, getSourceTextRepository } from "@/domain/lesson";
-import { getMistakePatternRepository } from "@/domain/memory";
-import { getLearningStreak } from "@/lib/queries/streak";
+import { getLessonRepository } from "@/domain/lesson";
 import {
-  getMasteredCount,
-  getReviewSuccessRate,
-  getMasteredTrend,
-} from "@/lib/queries/dashboard-stats";
+  getMistakePatternRepository,
+  getLearnerMemoryEngine,
+} from "@/domain/memory";
 import { StreakBadge } from "@/components/dashboard/streak-badge";
 import { ReviewNudge } from "@/components/dashboard/review-nudge";
 import dynamic from "next/dynamic";
@@ -48,31 +45,24 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
 
-  const memoryRepo = getMistakePatternRepository();
   const lessonRepo = getLessonRepository();
-  const sourceTextRepo = getSourceTextRepository();
+  const memoryEngine = getLearnerMemoryEngine();
 
-  const [
-    recentLessons,
-    sourceCount,
-    metrics,
-    streakDays,
+  const [recentLessons, sourceCount, dashboardMetrics] = await Promise.all([
+    lessonRepo.getRecentLessons(user.id, 6),
+    lessonRepo.getSourceTextsCount(user.id),
+    memoryEngine.getDashboardMetrics(user.id, now),
+  ]);
+
+  const {
+    dueCount,
+    patternCount,
+    repeatedMistakes,
+    learningStreakDays: streakDays,
     masteredCount,
     reviewSuccessRate,
     masteredTrend,
-  ] = await Promise.all([
-    lessonRepo.getRecentLessons(user.id, 6),
-    sourceTextRepo.getSourceTextsCount(user.id),
-    memoryRepo.getDashboardMetrics(user.id, now),
-    getLearningStreak(user.id),
-    getMasteredCount(user.id),
-    getReviewSuccessRate(user.id),
-    getMasteredTrend(user.id),
-  ]);
-
-  const dueCount = metrics.dueCount;
-  const patternCount = metrics.patternCount;
-  const repeatedMistakes = metrics.repeatedMistakes;
+  } = dashboardMetrics;
 
   const translateStatus = (status: string) => {
     switch (status) {

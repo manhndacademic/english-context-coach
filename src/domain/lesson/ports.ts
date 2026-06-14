@@ -1,8 +1,18 @@
 import type { Attempt, UserError } from "@/domain/memory/types";
 import type { MistakePattern } from "@/domain/memory/mistake-pattern";
-import type { GenerationMilestoneCode, GenerationStage } from "@/domain/generation-progress";
+import type {
+  GenerationMilestoneCode,
+  GenerationStage,
+} from "@/domain/generation-progress";
 
-export type TextType = "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown";
+export type TextType =
+  | "work_message"
+  | "technical_doc"
+  | "email"
+  | "article"
+  | "academic"
+  | "general"
+  | "unknown";
 export type DetectedLevel = "A2" | "B1" | "B2" | "C1";
 
 export interface SourceText {
@@ -52,7 +62,14 @@ export interface KeyPhrase {
   literalTranslationVi: string | null;
   naturalTranslationVi: string | null;
   whyConfusingVi: string | null;
-  category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
+  category:
+    | "idiom"
+    | "phrasal_verb"
+    | "technical_term"
+    | "collocation"
+    | "grammar_pattern"
+    | "business_phrase"
+    | "general_phrase";
   difficulty: DetectedLevel;
   isSensitive: boolean;
   createdAt: Date;
@@ -187,7 +204,14 @@ export interface SaveAnalysisInput {
     literalTranslationVi?: string;
     naturalTranslationVi?: string;
     whyConfusingVi?: string;
-    category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
+    category:
+      | "idiom"
+      | "phrasal_verb"
+      | "technical_term"
+      | "collocation"
+      | "grammar_pattern"
+      | "business_phrase"
+      | "general_phrase";
     difficulty: DetectedLevel;
   }>;
   sentenceBreakdowns: Array<{
@@ -231,13 +255,16 @@ export interface SaveExercisesInput {
   }>;
 }
 
-export interface SourceTextRepository {
-  findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null>;
+export interface LessonRepository {
+  // SourceText methods
+  findSourceText(
+    sourceTextId: string,
+    userId: string
+  ): Promise<SourceText | null>;
   deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
   getSourceTextsCount(userId: string): Promise<number>;
-}
 
-export interface LessonRepository {
+  // Lesson methods
   findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
   findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
   findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
@@ -266,21 +293,28 @@ export interface LessonRepository {
 
   buildAnalysisFromLesson(lessonId: string): Promise<SaveAnalysisInput>;
 
-  getLessonAggregate(lessonId: string, userId: string): Promise<LessonAggregate | null>;
-  getRecentLessons(userId: string, limit: number): Promise<Array<{
-    id: string;
-    title: string | null;
-    version: number;
-    analysisStatus: "pending" | "running" | "succeeded" | "failed";
-    exerciseStatus: "pending" | "running" | "succeeded" | "failed";
-    textType: TextType | "unknown";
-    inputMode: string;
-    detectedLevel: DetectedLevel | null;
-    createdAt: Date;
-  }>>;
-}
+  getLessonAggregate(
+    lessonId: string,
+    userId: string
+  ): Promise<LessonAggregate | null>;
+  getRecentLessons(
+    userId: string,
+    limit: number
+  ): Promise<
+    Array<{
+      id: string;
+      title: string | null;
+      version: number;
+      analysisStatus: "pending" | "running" | "succeeded" | "failed";
+      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      textType: TextType | "unknown";
+      inputMode: string;
+      detectedLevel: DetectedLevel | null;
+      createdAt: Date;
+    }>
+  >;
 
-export interface GenerationJobRepository {
+  // GenerationJob methods
   claimJob(workerId: string): Promise<GenerationJob | null>;
   updateJobStatus(
     jobId: string,
@@ -289,9 +323,8 @@ export interface GenerationJobRepository {
   ): Promise<void>;
   assertQueueCapacity(userId: string): Promise<string | null>;
   resetStuckJob(userId: string, lessonId: string): Promise<void>;
-}
 
-export interface GenerationProgressRepository {
+  // GenerationProgress methods
   recordMilestone(input: {
     lessonId: string;
     generationJobId: string;
@@ -321,18 +354,8 @@ export interface GenerationProgressRepository {
     milestones: GenerationMilestone[];
     thoughts: GenerationThought[];
   } | null>;
-}
 
-export interface LessonTransactionCoordinator {
-  runInTransaction<T>(
-    operation: (repos: {
-      sourceTexts: SourceTextRepository;
-      lessons: LessonRepository;
-      generationJobs: GenerationJobRepository;
-      generationProgress: GenerationProgressRepository;
-    }) => Promise<T>
-  ): Promise<T>;
-
+  // Transaction coordination methods
   createSourceTextAndLessonAndJob(
     userId: string,
     content: string,
@@ -372,7 +395,15 @@ export interface GenerationEngine {
 
 export type LessonGenerationResult =
   | { ok: true; lessonId: string; sourceTextId: string }
-  | { ok: false; error: "VALIDATION_FAILED" | "CAPACITY_EXCEEDED" | "NOT_FOUND" | "INVALID_STATE"; message: string };
+  | {
+      ok: false;
+      error:
+        | "VALIDATION_FAILED"
+        | "CAPACITY_EXCEEDED"
+        | "NOT_FOUND"
+        | "INVALID_STATE";
+      message: string;
+    };
 
 export type JobProcessResult =
   | { status: "processed"; jobId: string; lessonId: string; success: boolean }
@@ -384,12 +415,23 @@ export interface GenerationProgress {
   analysisStatus: "pending" | "running" | "succeeded" | "failed";
   exerciseStatus: "pending" | "running" | "succeeded" | "failed";
   latestMilestone: string | null;
-  thoughts: Array<{ stage: "analysis" | "exercises"; text: string; createdAt: Date }>;
+  thoughts: Array<{
+    stage: "analysis" | "exercises";
+    text: string;
+    createdAt: Date;
+  }>;
 }
 
 export interface LessonGenerationEngine {
-  queue(userId: string, content: string, requestedMode?: string): Promise<LessonGenerationResult>;
+  queue(
+    userId: string,
+    content: string,
+    requestedMode?: string
+  ): Promise<LessonGenerationResult>;
   retry(userId: string, lessonId: string): Promise<LessonGenerationResult>;
   processNext(workerId: string): Promise<JobProcessResult>;
-  getProgress(lessonId: string, userId: string): Promise<GenerationProgress | null>;
+  getProgress(
+    lessonId: string,
+    userId: string
+  ): Promise<GenerationProgress | null>;
 }

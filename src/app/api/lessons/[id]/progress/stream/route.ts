@@ -1,10 +1,14 @@
 import { requireUser } from "@/lib/auth/guards";
-import { getGenerationProgressRepository } from "@/domain/lesson";
+import { getLessonRepository } from "@/domain/lesson";
 import { isTerminalLessonStatus } from "@/domain/generation-progress";
 
 const encoder = new TextEncoder();
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-type ProgressSnapshot = NonNullable<Awaited<ReturnType<ReturnType<typeof getGenerationProgressRepository>["getLessonProgress"]>>>;
+type ProgressSnapshot = NonNullable<
+  Awaited<
+    ReturnType<ReturnType<typeof getLessonRepository>["getLessonProgress"]>
+  >
+>;
 type ProgressMilestone = ProgressSnapshot["milestones"][number];
 type ProgressThought = ProgressSnapshot["thoughts"][number];
 
@@ -49,7 +53,7 @@ function snapshotBody(snapshot: ProgressSnapshot) {
 function writeMilestoneEvent(
   payload: ProgressMilestone,
   snapshot: ProgressSnapshot,
-  cursor: { milestoneId: number; thoughtId: number },
+  cursor: { milestoneId: number; thoughtId: number }
 ) {
   const body = {
     ...snapshotBody(snapshot),
@@ -61,13 +65,15 @@ function writeMilestoneEvent(
     },
   };
 
-  return encoder.encode(`id: ${formatCursor(cursor)}\nevent: milestone\ndata: ${JSON.stringify(body)}\n\n`);
+  return encoder.encode(
+    `id: ${formatCursor(cursor)}\nevent: milestone\ndata: ${JSON.stringify(body)}\n\n`
+  );
 }
 
 function writeThoughtEvent(
   payload: ProgressThought,
   snapshot: ProgressSnapshot,
-  cursor: { milestoneId: number; thoughtId: number },
+  cursor: { milestoneId: number; thoughtId: number }
 ) {
   const body = {
     ...snapshotBody(snapshot),
@@ -79,14 +85,19 @@ function writeThoughtEvent(
     },
   };
 
-  return encoder.encode(`id: ${formatCursor(cursor)}\nevent: thought\ndata: ${JSON.stringify(body)}\n\n`);
+  return encoder.encode(
+    `id: ${formatCursor(cursor)}\nevent: thought\ndata: ${JSON.stringify(body)}\n\n`
+  );
 }
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const user = await requireUser();
   const { id } = await params;
   const cursor = parseLastEventId(request);
-  const repo = getGenerationProgressRepository();
+  const repo = getLessonRepository();
 
   const initial = await repo.getLessonProgress({
     lessonId: id,

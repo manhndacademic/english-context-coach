@@ -45,17 +45,35 @@ export interface AttemptRepository {
 }
 
 export interface MistakePatternRepository {
-  findMistakePattern(patternId: string, userId: string): Promise<MistakePattern | null>;
+  findMistakePattern(
+    patternId: string,
+    userId: string
+  ): Promise<MistakePattern | null>;
   findMistakePatternById(patternId: string): Promise<MistakePattern | null>;
-  findPatternByConcept(userId: string, conceptKey: string, errorType: string): Promise<MistakePattern | null>;
+  findPatternByConcept(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ): Promise<MistakePattern | null>;
   upsertMistakePattern(pattern: MistakePattern): Promise<MistakePattern>;
   saveMistakePattern(pattern: MistakePattern): Promise<void>;
   claimReviewPromptJob(workerId: string): Promise<MistakePattern | null>;
-  findDueMistakePatterns(userId: string, dueAt: Date, limit: number): Promise<MistakePattern[]>;
-  getDashboardMetrics(userId: string, dueAt: Date): Promise<{
+  findDueMistakePatterns(
+    userId: string,
+    dueAt: Date,
+    limit: number
+  ): Promise<MistakePattern[]>;
+  getDashboardMetrics(
+    userId: string,
+    dueAt: Date
+  ): Promise<{
     dueCount: number;
     patternCount: number;
     repeatedMistakes: MistakePattern[];
+    learningStreakDays: number;
+    masteredCount: number;
+    reviewSuccessRate: number;
+    masteredTrend: Array<{ week: string; cumulative: number }>;
   }>;
 }
 

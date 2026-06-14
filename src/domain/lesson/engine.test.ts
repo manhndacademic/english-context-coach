@@ -2,11 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLessonGenerationEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
 import type {
-  SourceTextRepository,
   LessonRepository,
-  GenerationJobRepository,
-  GenerationProgressRepository,
-  LessonTransactionCoordinator,
   GenerationEngine,
   LessonGenerationEngine,
   SourceText,
@@ -16,7 +12,7 @@ import type {
   GenerationThought,
 } from "./ports";
 
-class MockLessonRepository implements SourceTextRepository, LessonRepository, GenerationJobRepository, GenerationProgressRepository, LessonTransactionCoordinator {
+class MockLessonRepository implements LessonRepository {
   lessons = new Map<string, any>();
   sourceTexts = new Map<string, any>();
   generationJobs = new Map<string, any>();
@@ -28,12 +24,16 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
 
   async findLesson(lessonId: string, userId: string) {
     const lesson = this.lessons.get(lessonId);
-    return (lesson && lesson.userId === userId ? lesson : null) as unknown as Lesson | null;
+    return (lesson && lesson.userId === userId
+      ? lesson
+      : null) as unknown as Lesson | null;
   }
 
   async findSourceText(sourceTextId: string, userId: string) {
     const st = this.sourceTexts.get(sourceTextId);
-    return (st && st.userId === userId ? st : null) as unknown as SourceText | null;
+    return (st && st.userId === userId
+      ? st
+      : null) as unknown as SourceText | null;
   }
 
   async findLatestLesson(sourceTextId: string) {
@@ -54,26 +54,87 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
     return null;
   }
 
-  async createSourceTextAndLessonAndJob(userId: string, content: string, title: string, contentHash: string) {
-    const st = { id: `st-${this.sourceTexts.size + 1}`, userId, content, title, contentHash };
+  async createSourceTextAndLessonAndJob(
+    userId: string,
+    content: string,
+    title: string,
+    contentHash: string
+  ) {
+    const st = {
+      id: `st-${this.sourceTexts.size + 1}`,
+      userId,
+      content,
+      title,
+      contentHash,
+    };
     this.sourceTexts.set(st.id, st);
-    const lesson = { id: `les-${this.lessons.size + 1}`, sourceTextId: st.id, userId, version: 1, title: "Generating", analysisStatus: "pending", exerciseStatus: "pending" };
+    const lesson = {
+      id: `les-${this.lessons.size + 1}`,
+      sourceTextId: st.id,
+      userId,
+      version: 1,
+      title: "Generating",
+      analysisStatus: "pending",
+      exerciseStatus: "pending",
+    };
     this.lessons.set(lesson.id, lesson);
-    const job = { id: `job-${this.generationJobs.size + 1}`, userId, sourceTextId: st.id, lessonId: lesson.id, status: "queued", stage: "analysis", attempts: 0 };
+    const job = {
+      id: `job-${this.generationJobs.size + 1}`,
+      userId,
+      sourceTextId: st.id,
+      lessonId: lesson.id,
+      status: "queued",
+      stage: "analysis",
+      attempts: 0,
+    };
     this.generationJobs.set(job.id, job);
     return { lesson, job } as unknown as { lesson: Lesson; job: GenerationJob };
   }
 
-  async createLessonAndJob(userId: string, sourceTextId: string, version: number, stage: "analysis" | "exercises") {
-    const lesson = { id: `les-${this.lessons.size + 1}`, sourceTextId, userId, version, title: `Regen ${version}`, analysisStatus: "pending", exerciseStatus: "pending" };
+  async createLessonAndJob(
+    userId: string,
+    sourceTextId: string,
+    version: number,
+    stage: "analysis" | "exercises"
+  ) {
+    const lesson = {
+      id: `les-${this.lessons.size + 1}`,
+      sourceTextId,
+      userId,
+      version,
+      title: `Regen ${version}`,
+      analysisStatus: "pending",
+      exerciseStatus: "pending",
+    };
     this.lessons.set(lesson.id, lesson);
-    const job = { id: `job-${this.generationJobs.size + 1}`, userId, sourceTextId, lessonId: lesson.id, status: "queued", stage, attempts: 0 };
+    const job = {
+      id: `job-${this.generationJobs.size + 1}`,
+      userId,
+      sourceTextId,
+      lessonId: lesson.id,
+      status: "queued",
+      stage,
+      attempts: 0,
+    };
     this.generationJobs.set(job.id, job);
     return { lesson, job } as unknown as { lesson: Lesson; job: GenerationJob };
   }
 
-  async createJob(userId: string, sourceTextId: string, lessonId: string, stage: "analysis" | "exercises") {
-    const job = { id: `job-${this.generationJobs.size + 1}`, userId, sourceTextId, lessonId, status: "queued", stage, attempts: 0 };
+  async createJob(
+    userId: string,
+    sourceTextId: string,
+    lessonId: string,
+    stage: "analysis" | "exercises"
+  ) {
+    const job = {
+      id: `job-${this.generationJobs.size + 1}`,
+      userId,
+      sourceTextId,
+      lessonId,
+      status: "queued",
+      stage,
+      attempts: 0,
+    };
     this.generationJobs.set(job.id, job);
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
@@ -112,7 +173,12 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
     return null;
   }
 
-  async updateLessonStatus(lessonId: string, stage: any, status: any, extra?: any) {
+  async updateLessonStatus(
+    lessonId: string,
+    stage: any,
+    status: any,
+    extra?: any
+  ) {
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
       if (stage === "analysis") lesson.analysisStatus = status;
@@ -121,7 +187,12 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
     }
   }
 
-  async saveAnalysis(lessonId: string, userId: string, analysis: any, model: string) {
+  async saveAnalysis(
+    lessonId: string,
+    userId: string,
+    analysis: any,
+    model: string
+  ) {
     this.savedAnalysisLessonId = lessonId;
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
@@ -130,7 +201,12 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
     }
   }
 
-  async saveExercises(lessonId: string, userId: string, exercises: any, model: string) {
+  async saveExercises(
+    lessonId: string,
+    userId: string,
+    exercises: any,
+    model: string
+  ) {
     this.savedExercisesLessonId = lessonId;
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
@@ -148,8 +224,16 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
       naturalTranslationVi: "Dịch tự nhiên",
       contextExplanationVi: "Ngữ cảnh",
       sentenceBreakdowns: [],
-      keyPhrases: [{ phrase: "take a look", category: "general_phrase", meaningVi: "xem qua" }],
-      lessonFocuses: [{ title: "Tone Focus", category: "tone", explanationVi: "giải thích" }],
+      keyPhrases: [
+        {
+          phrase: "take a look",
+          category: "general_phrase",
+          meaningVi: "xem qua",
+        },
+      ],
+      lessonFocuses: [
+        { title: "Tone Focus", category: "tone", explanationVi: "giải thích" },
+      ],
     } as any;
   }
 
@@ -207,22 +291,6 @@ class MockLessonRepository implements SourceTextRepository, LessonRepository, Ge
   async getSourceTextsCount(userId: string): Promise<number> {
     return 0;
   }
-
-  async runInTransaction<T>(
-    operation: (repos: {
-      sourceTexts: SourceTextRepository;
-      lessons: LessonRepository;
-      generationJobs: GenerationJobRepository;
-      generationProgress: GenerationProgressRepository;
-    }) => Promise<T>
-  ): Promise<T> {
-    return await operation({
-      sourceTexts: this,
-      lessons: this,
-      generationJobs: this,
-      generationProgress: this,
-    });
-  }
 }
 
 class MockGenerationEngine implements GenerationEngine {
@@ -234,8 +302,16 @@ class MockGenerationEngine implements GenerationEngine {
     naturalTranslationVi: "Dịch tự nhiên",
     contextExplanationVi: "Giải thích",
     sentenceBreakdowns: [],
-    keyPhrases: [{ phrase: "take a look", category: "general_phrase", meaningVi: "xem qua" }],
-    lessonFocuses: [{ title: "Tone Focus", category: "tone", explanationVi: "Giọng điệu" }],
+    keyPhrases: [
+      {
+        phrase: "take a look",
+        category: "general_phrase",
+        meaningVi: "xem qua",
+      },
+    ],
+    lessonFocuses: [
+      { title: "Tone Focus", category: "tone", explanationVi: "Giọng điệu" },
+    ],
   };
 
   exercisesResult = {
@@ -307,7 +383,11 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
   beforeEach(() => {
     repo = new MockLessonRepository();
     genEngine = new MockGenerationEngine();
-    engine = new DefaultLessonGenerationEngine(repo, repo, repo, repo, repo, genEngine, getTextProcessor());
+    engine = new DefaultLessonGenerationEngine(
+      repo,
+      genEngine,
+      getTextProcessor()
+    );
 
     repo.sourceTexts.set("st-1", {
       id: "st-1",
@@ -328,13 +408,18 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
 
   describe("queue", () => {
     it("enqueues a new source text successfully", async () => {
-      const result = await engine.queue("user-1", "Hello world from english context coach.");
+      const result = await engine.queue(
+        "user-1",
+        "Hello world from english context coach."
+      );
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.lessonId).toBeDefined();
         expect(result.sourceTextId).toBeDefined();
-        
-        const milestone = repo.milestones.find((m) => m.lessonId === result.lessonId);
+
+        const milestone = repo.milestones.find(
+          (m) => m.lessonId === result.lessonId
+        );
         expect(milestone).toBeDefined();
         expect(milestone.code).toBe("queued");
       }
@@ -405,7 +490,7 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       expect(result.status).toBe("processed");
       if (result.status === "processed") {
         expect(result.success).toBe(true);
-        
+
         const updatedLesson = repo.lessons.get("les-1");
         expect(updatedLesson.analysisStatus).toBe("succeeded");
         expect(updatedLesson.exerciseStatus).toBe("succeeded");
@@ -433,7 +518,7 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       expect(result.status).toBe("processed");
       if (result.status === "processed") {
         expect(result.success).toBe(false);
-        
+
         const updatedLesson = repo.lessons.get("les-1");
         expect(updatedLesson.analysisStatus).toBe("failed");
         expect(repo.generationJobs.get("job-1").status).toBe("failed");
@@ -453,8 +538,10 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       repo.generationJobs.set(job.id, job);
       genEngine.analysisError = new Error("UNAVAILABLE (503 status code)");
 
-      await expect(engine.processNext("worker-1")).rejects.toThrow("UNAVAILABLE");
-      
+      await expect(engine.processNext("worker-1")).rejects.toThrow(
+        "UNAVAILABLE"
+      );
+
       const updatedLesson = repo.lessons.get("les-1");
       expect(updatedLesson.analysisStatus).toBe("pending");
       expect(repo.generationJobs.get("job-1").status).toBe("queued");

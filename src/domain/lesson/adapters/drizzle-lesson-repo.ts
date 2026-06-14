@@ -1,9 +1,27 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { db, schema } from "@/db";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  count,
+  or,
+  gt,
+  lte,
+  sql as drizzleSql,
+  type SQL,
+} from "drizzle-orm";
+import { db, schema, sql as rawSql, notifyJobQueued } from "@/db";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
 import { findMatchingLessonFocus } from "../rules";
-import { selectDisplayGenerationJob } from "@/domain/generation-progress";
+import {
+  selectDisplayGenerationJob,
+  type GenerationMilestoneCode,
+  type GenerationStage,
+  sanitizeGenerationThought,
+} from "@/domain/generation-progress";
+import type { MistakePattern as DbMistakePattern } from "@/db/schema";
 import type {
   LessonRepository,
   Lesson,
@@ -15,6 +33,11 @@ import type {
   SaveExercisesInput,
   LessonAggregate,
   GenerationJob,
+  SourceText,
+  GenerationMilestone,
+  GenerationThought,
+  TextType,
+  DetectedLevel,
 } from "../ports";
 import type {
   KeyPhrase as DbKeyPhrase,
@@ -28,11 +51,92 @@ export class DrizzleLessonRepository implements LessonRepository {
     private textProcessor: TextProcessor = getTextProcessor()
   ) {}
 
+  // ==========================================
+  // SourceText Methods
+  // ==========================================
+
+  async findSourceText(
+    sourceTextId: string,
+    userId: string
+  ): Promise<SourceText | null> {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.sourceTexts)
+      .where(
+        and(
+          eq(schema.sourceTexts.id, sourceTextId),
+          eq(schema.sourceTexts.userId, userId),
+          drizzleSql`${schema.sourceTexts.deletedAt} is null`
+        )
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {
+    const lessons = await this.dbClient
+      .select({ id: schema.lessons.id })
+      .from(schema.lessons)
+      .where(
+        and(
+          eq(schema.lessons.sourceTextId, sourceTextId),
+          eq(schema.lessons.userId, userId)
+        )
+      );
+
+    const lessonIds = lessons.map((lesson: { id: string }) => lesson.id);
+    if (lessonIds.length) {
+      const patterns = await this.dbClient
+        .select()
+        .from(schema.mistakePatterns)
+        .where(eq(schema.mistakePatterns.userId, userId));
+
+      const sensitivePatternIds = patterns
+        .filter((pattern: DbMistakePattern) =>
+          this.textProcessor.shouldScrubMistakePattern({
+            normalizedPhrase: pattern.normalizedPhrase,
+            meaningVi: pattern.meaningVi,
+            safeReviewPromptVi: pattern.safeReviewPromptVi,
+          })
+        )
+        .map((pattern: DbMistakePattern) => pattern.id);
+
+      if (sensitivePatternIds.length > 0) {
+        await this.dbClient
+          .delete(schema.mistakePatterns)
+          .where(inArray(schema.mistakePatterns.id, sensitivePatternIds));
+      }
+    }
+
+    await this.dbClient
+      .delete(schema.sourceTexts)
+      .where(
+        and(
+          eq(schema.sourceTexts.id, sourceTextId),
+          eq(schema.sourceTexts.userId, userId)
+        )
+      );
+  }
+
+  async getSourceTextsCount(userId: string): Promise<number> {
+    const [row] = await this.dbClient
+      .select({ value: count() })
+      .from(schema.sourceTexts)
+      .where(eq(schema.sourceTexts.userId, userId));
+    return row?.value ?? 0;
+  }
+
+  // ==========================================
+  // Lesson Methods
+  // ==========================================
+
   async findLesson(lessonId: string, userId: string): Promise<Lesson | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.lessons)
-      .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)))
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
       .limit(1);
     return (row as Lesson) ?? null;
   }
@@ -116,7 +220,11 @@ export class DrizzleLessonRepository implements LessonRepository {
             conceptPhrase: phrase.conceptPhrase,
             conceptMeaningVi: phrase.conceptMeaningVi,
             normalizedPhrase: this.textProcessor.normalizePhrase(phrase.phrase),
-            senseKey: this.textProcessor.buildSenseKey(phrase.phrase, phrase.meaningVi, phrase.category),
+            senseKey: this.textProcessor.buildSenseKey(
+              phrase.phrase,
+              phrase.meaningVi,
+              phrase.category
+            ),
             meaningVi: phrase.meaningVi,
             meaningInContextVi: phrase.meaningInContextVi,
             exampleEn: phrase.exampleEn,
@@ -185,16 +293,31 @@ export class DrizzleLessonRepository implements LessonRepository {
       .where(eq(schema.lessonFocuses.lessonId, lessonId));
 
     const phraseByNormalized = new Map<string, DbKeyPhrase>(
-      phrases.map((phrase: DbKeyPhrase) => [this.textProcessor.normalizePhrase(phrase.phrase), phrase])
+      phrases.map((phrase: DbKeyPhrase) => [
+        this.textProcessor.normalizePhrase(phrase.phrase),
+        phrase,
+      ])
     );
 
     await this.dbClient.transaction(async (tx: any) => {
-      await tx.delete(schema.exercises).where(eq(schema.exercises.lessonId, lessonId));
+      await tx
+        .delete(schema.exercises)
+        .where(eq(schema.exercises.lessonId, lessonId));
       if (exercises.exercises.length) {
         await tx.insert(schema.exercises).values(
           exercises.exercises.map((exercise, index) => {
-            const keyPhrase = exercise.phrase ? phraseByNormalized.get(this.textProcessor.normalizePhrase(exercise.phrase)) : undefined;
-            const lessonFocus = exercise.focus ? findMatchingLessonFocus(exercise.focus, lessonFocuses, this.textProcessor) : undefined;
+            const keyPhrase = exercise.phrase
+              ? phraseByNormalized.get(
+                  this.textProcessor.normalizePhrase(exercise.phrase)
+                )
+              : undefined;
+            const lessonFocus = exercise.focus
+              ? findMatchingLessonFocus(
+                  exercise.focus,
+                  lessonFocuses,
+                  this.textProcessor
+                )
+              : undefined;
             return {
               lessonId,
               userId,
@@ -226,8 +349,17 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async buildAnalysisFromLesson(lessonId: string): Promise<SaveAnalysisInput> {
-    const [lesson] = await this.dbClient.select().from(schema.lessons).where(eq(schema.lessons.id, lessonId)).limit(1);
-    if (!lesson?.summaryVi || !lesson.naturalTranslationVi || !lesson.contextExplanationVi || !lesson.detectedLevel) {
+    const [lesson] = await this.dbClient
+      .select()
+      .from(schema.lessons)
+      .where(eq(schema.lessons.id, lessonId))
+      .limit(1);
+    if (
+      !lesson?.summaryVi ||
+      !lesson.naturalTranslationVi ||
+      !lesson.contextExplanationVi ||
+      !lesson.detectedLevel
+    ) {
       throw new Error("Lesson analysis is incomplete.");
     }
     const phrases = await this.dbClient
@@ -254,13 +386,15 @@ export class DrizzleLessonRepository implements LessonRepository {
       summaryVi: lesson.summaryVi,
       naturalTranslationVi: lesson.naturalTranslationVi,
       contextExplanationVi: lesson.contextExplanationVi,
-      sentenceBreakdowns: sentenceBreakdowns.map((breakdown: DbSentenceBreakdown) => ({
-        sentence: breakdown.sentence,
-        correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
-        naturalMeaningVi: breakdown.naturalMeaningVi,
-        structureNotesVi: breakdown.structureNotesVi,
-        toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
-      })),
+      sentenceBreakdowns: sentenceBreakdowns.map(
+        (breakdown: DbSentenceBreakdown) => ({
+          sentence: breakdown.sentence,
+          correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
+          naturalMeaningVi: breakdown.naturalMeaningVi,
+          structureNotesVi: breakdown.structureNotesVi,
+          toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
+        })
+      ),
       keyPhrases: phrases.map((phrase: DbKeyPhrase) => ({
         phrase: phrase.phrase,
         conceptKey: phrase.conceptKey,
@@ -289,7 +423,10 @@ export class DrizzleLessonRepository implements LessonRepository {
     };
   }
 
-  private async getLessonProgressHelper(lessonId: string, userId: string): Promise<any> {
+  private async getLessonProgressHelper(
+    lessonId: string,
+    userId: string
+  ): Promise<any> {
     const [lesson] = await this.dbClient
       .select({
         id: schema.lessons.id,
@@ -297,14 +434,21 @@ export class DrizzleLessonRepository implements LessonRepository {
         exerciseStatus: schema.lessons.exerciseStatus,
       })
       .from(schema.lessons)
-      .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)))
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
       .limit(1);
     if (!lesson) return null;
 
     const jobs = (await this.dbClient
       .select()
       .from(schema.generationJobs)
-      .where(and(eq(schema.generationJobs.lessonId, lessonId), eq(schema.generationJobs.userId, userId)))
+      .where(
+        and(
+          eq(schema.generationJobs.lessonId, lessonId),
+          eq(schema.generationJobs.userId, userId)
+        )
+      )
       .orderBy(desc(schema.generationJobs.createdAt))) as GenerationJob[];
     const job = selectDisplayGenerationJob(jobs);
 
@@ -346,11 +490,16 @@ export class DrizzleLessonRepository implements LessonRepository {
     };
   }
 
-  async getLessonAggregate(lessonId: string, userId: string): Promise<LessonAggregate | null> {
+  async getLessonAggregate(
+    lessonId: string,
+    userId: string
+  ): Promise<LessonAggregate | null> {
     const [lesson] = await this.dbClient
       .select()
       .from(schema.lessons)
-      .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId)))
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
       .limit(1);
     if (!lesson) return null;
 
@@ -367,7 +516,12 @@ export class DrizzleLessonRepository implements LessonRepository {
       this.dbClient
         .select()
         .from(schema.sourceTexts)
-        .where(and(eq(schema.sourceTexts.id, lesson.sourceTextId), eq(schema.sourceTexts.userId, userId)))
+        .where(
+          and(
+            eq(schema.sourceTexts.id, lesson.sourceTextId),
+            eq(schema.sourceTexts.userId, userId)
+          )
+        )
         .limit(1),
       this.dbClient
         .select()
@@ -401,12 +555,21 @@ export class DrizzleLessonRepository implements LessonRepository {
       this.getLessonProgressHelper(lesson.id, userId),
     ]);
 
-    const conceptKeys: string[] = Array.from(new Set(userErrors.map((error: { conceptKey: string }) => error.conceptKey)));
+    const conceptKeys: string[] = Array.from(
+      new Set(
+        userErrors.map((error: { conceptKey: string }) => error.conceptKey)
+      )
+    );
     const mistakePatterns = conceptKeys.length
       ? await this.dbClient
           .select()
           .from(schema.mistakePatterns)
-          .where(and(eq(schema.mistakePatterns.userId, userId), inArray(schema.mistakePatterns.conceptKey, conceptKeys)))
+          .where(
+            and(
+              eq(schema.mistakePatterns.userId, userId),
+              inArray(schema.mistakePatterns.conceptKey, conceptKeys)
+            )
+          )
       : [];
 
     return {
@@ -463,5 +626,413 @@ export class DrizzleLessonRepository implements LessonRepository {
       textType: row.textType ?? "unknown",
       detectedLevel: row.detectedLevel,
     }));
+  }
+
+  // ==========================================
+  // GenerationJob Methods
+  // ==========================================
+
+  async claimJob(workerId: string): Promise<GenerationJob | null> {
+    const rows = await rawSql`
+      update generation_jobs
+      set status = 'running',
+          locked_at = now(),
+          locked_by = ${workerId},
+          attempts = attempts + 1,
+          updated_at = now()
+      where id = (
+        select id
+        from generation_jobs
+        where status = 'queued'
+           or (status = 'running' and locked_at < now() - interval '10 minutes')
+        order by created_at asc
+        for update skip locked
+        limit 1
+      )
+      returning
+        id,
+        user_id as "userId",
+        source_text_id as "sourceTextId",
+        lesson_id as "lessonId",
+        status,
+        stage,
+        attempts,
+        error_message as "errorMessage",
+        locked_at as "lockedAt",
+        locked_by as "lockedBy",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `;
+    const job = rows[0] as
+      | typeof schema.generationJobs.$inferSelect
+      | undefined;
+    return (job as GenerationJob) ?? null;
+  }
+
+  async updateJobStatus(
+    jobId: string,
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: Partial<GenerationJob>
+  ): Promise<void> {
+    await this.dbClient
+      .update(schema.generationJobs)
+      .set({
+        status,
+        ...extra,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.generationJobs.id, jobId));
+
+    if (status === "queued") {
+      await notifyJobQueued();
+    }
+  }
+
+  async assertQueueCapacity(userId: string): Promise<string | null> {
+    const [active] = await this.dbClient
+      .select({ value: count() })
+      .from(schema.generationJobs)
+      .where(
+        and(
+          eq(schema.generationJobs.userId, userId),
+          or(
+            eq(schema.generationJobs.status, "running"),
+            eq(schema.generationJobs.status, "queued")
+          )
+        )
+      );
+    if ((active?.value ?? 0) >= 1) {
+      return "Bạn đang có bài học đang xử lý hoặc đang chờ trong hàng đợi. Vui lòng đợi bài học trước hoàn thành.";
+    }
+
+    return null;
+  }
+
+  async resetStuckJob(userId: string, lessonId: string): Promise<void> {
+    await this.dbClient.transaction(async (tx: any) => {
+      await tx
+        .update(schema.lessons)
+        .set({
+          analysisStatus: "pending",
+          exerciseStatus: "pending",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.lessons.id, lessonId),
+            eq(schema.lessons.userId, userId)
+          )
+        );
+
+      await tx
+        .update(schema.generationJobs)
+        .set({
+          status: "queued",
+          attempts: 0,
+          lockedAt: null,
+          lockedBy: null,
+          errorMessage: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.generationJobs.lessonId, lessonId),
+            eq(schema.generationJobs.userId, userId)
+          )
+        );
+    });
+  }
+
+  // ==========================================
+  // GenerationProgress Methods
+  // ==========================================
+
+  async recordMilestone(input: {
+    lessonId: string;
+    generationJobId: string;
+    code: GenerationMilestoneCode;
+    stage: GenerationStage;
+  }): Promise<void> {
+    await this.dbClient.execute(drizzleSql`
+      insert into generation_milestones (lesson_id, generation_job_id, code, stage)
+      select
+        ${input.lessonId},
+        ${input.generationJobId},
+        ${input.code}::generation_milestone_code,
+        ${input.stage}
+      where not exists (
+        select 1
+        from generation_milestones
+        where generation_job_id = ${input.generationJobId}
+          and code = ${input.code}::generation_milestone_code
+          and stage is not distinct from ${input.stage}
+      )
+    `);
+  }
+
+  async recordThought(input: {
+    lessonId: string;
+    generationJobId: string;
+    stage: GenerationStage;
+    text: string;
+  }): Promise<void> {
+    const text = sanitizeGenerationThought(input.text, this.textProcessor);
+    if (!text) return;
+
+    const [latest] = await this.dbClient
+      .select({ text: schema.generationThoughts.text })
+      .from(schema.generationThoughts)
+      .where(
+        eq(schema.generationThoughts.generationJobId, input.generationJobId)
+      )
+      .orderBy(desc(schema.generationThoughts.id))
+      .limit(1);
+    if (latest?.text === text) return;
+
+    await this.dbClient.insert(schema.generationThoughts).values({
+      lessonId: input.lessonId,
+      generationJobId: input.generationJobId,
+      stage: input.stage,
+      text,
+    });
+  }
+
+  async getLessonProgress(input: {
+    lessonId: string;
+    userId: string;
+    afterMilestoneId?: number;
+    afterThoughtId?: number;
+  }): Promise<{
+    lesson: {
+      id: string;
+      analysisStatus: "pending" | "running" | "succeeded" | "failed";
+      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    };
+    job: GenerationJob | null;
+    milestones: GenerationMilestone[];
+    thoughts: GenerationThought[];
+  } | null> {
+    const [lesson] = await this.dbClient
+      .select({
+        id: schema.lessons.id,
+        analysisStatus: schema.lessons.analysisStatus,
+        exerciseStatus: schema.lessons.exerciseStatus,
+      })
+      .from(schema.lessons)
+      .where(
+        and(
+          eq(schema.lessons.id, input.lessonId),
+          eq(schema.lessons.userId, input.userId)
+        )
+      )
+      .limit(1);
+    if (!lesson) return null;
+
+    const jobs = (await this.dbClient
+      .select()
+      .from(schema.generationJobs)
+      .where(
+        and(
+          eq(schema.generationJobs.lessonId, input.lessonId),
+          eq(schema.generationJobs.userId, input.userId)
+        )
+      )
+      .orderBy(desc(schema.generationJobs.createdAt))) as GenerationJob[];
+    const job = selectDisplayGenerationJob(jobs);
+
+    const milestoneFilters: SQL[] = [];
+    const thoughtFilters: SQL[] = [];
+    if (job) {
+      milestoneFilters.push(
+        eq(schema.generationMilestones.lessonId, input.lessonId)
+      );
+      milestoneFilters.push(
+        eq(schema.generationMilestones.generationJobId, job.id)
+      );
+      if (input.afterMilestoneId) {
+        milestoneFilters.push(
+          gt(schema.generationMilestones.id, input.afterMilestoneId)
+        );
+      }
+
+      thoughtFilters.push(
+        eq(schema.generationThoughts.lessonId, input.lessonId)
+      );
+      thoughtFilters.push(
+        eq(schema.generationThoughts.generationJobId, job.id)
+      );
+      if (input.afterThoughtId) {
+        thoughtFilters.push(
+          gt(schema.generationThoughts.id, input.afterThoughtId)
+        );
+      }
+    }
+
+    const milestones = job
+      ? await this.dbClient
+          .select()
+          .from(schema.generationMilestones)
+          .where(and(...milestoneFilters))
+          .orderBy(schema.generationMilestones.id)
+      : [];
+
+    const thoughts = job
+      ? await this.dbClient
+          .select()
+          .from(schema.generationThoughts)
+          .where(and(...thoughtFilters))
+          .orderBy(schema.generationThoughts.id)
+      : [];
+
+    return {
+      lesson: {
+        id: lesson.id,
+        analysisStatus: lesson.analysisStatus as
+          | "pending"
+          | "running"
+          | "succeeded"
+          | "failed",
+        exerciseStatus: lesson.exerciseStatus as
+          | "pending"
+          | "running"
+          | "succeeded"
+          | "failed",
+      },
+      job: job ?? null,
+      milestones: milestones as GenerationMilestone[],
+      thoughts: thoughts as GenerationThought[],
+    };
+  }
+
+  // ==========================================
+  // Transaction Coordination Methods
+  // ==========================================
+
+  async createSourceTextAndLessonAndJob(
+    userId: string,
+    content: string,
+    title: string,
+    contentHash: string,
+    requestedMode?: string
+  ): Promise<{ lesson: Lesson; job: GenerationJob }> {
+    const result = await this.dbClient.transaction(async (tx: any) => {
+      const [sourceText] = await tx
+        .insert(schema.sourceTexts)
+        .values({
+          userId,
+          title,
+          content,
+          contentHash,
+        })
+        .returning();
+
+      const [lesson] = await tx
+        .insert(schema.lessons)
+        .values({
+          sourceTextId: sourceText.id,
+          userId,
+          version: 1,
+          title: "Generating lesson",
+          inputMode: requestedMode || "understand_and_practice",
+          analysisStatus: "pending",
+          exerciseStatus: "pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const [job] = await tx
+        .insert(schema.generationJobs)
+        .values({
+          userId,
+          sourceTextId: sourceText.id,
+          lessonId: lesson.id,
+          status: "queued",
+          stage: "analysis",
+        })
+        .returning();
+
+      return { lesson, job };
+    });
+    await notifyJobQueued();
+    return result as { lesson: Lesson; job: GenerationJob };
+  }
+
+  async createLessonAndJob(
+    userId: string,
+    sourceTextId: string,
+    version: number,
+    stage: "analysis" | "exercises"
+  ): Promise<{ lesson: Lesson; job: GenerationJob }> {
+    const result = await this.dbClient.transaction(async (tx: any) => {
+      const [lesson] = await tx
+        .insert(schema.lessons)
+        .values({
+          sourceTextId,
+          userId,
+          version,
+          title: `Regeneration ${version}`,
+          analysisStatus: "pending",
+          exerciseStatus: "pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const [job] = await tx
+        .insert(schema.generationJobs)
+        .values({
+          userId,
+          sourceTextId,
+          lessonId: lesson.id,
+          status: "queued",
+          stage,
+        })
+        .returning();
+
+      return { lesson, job };
+    });
+    await notifyJobQueued();
+    return result as { lesson: Lesson; job: GenerationJob };
+  }
+
+  async createJob(
+    userId: string,
+    sourceTextId: string,
+    lessonId: string,
+    stage: "analysis" | "exercises"
+  ): Promise<GenerationJob> {
+    const result = await this.dbClient.transaction(async (tx: any) => {
+      const [job] = await tx
+        .insert(schema.generationJobs)
+        .values({
+          userId,
+          sourceTextId,
+          lessonId,
+          status: "queued",
+          stage,
+        })
+        .returning();
+
+      if (stage === "analysis") {
+        await tx
+          .update(schema.lessons)
+          .set({
+            analysisStatus: "pending",
+            exerciseStatus: "pending",
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.lessons.id, lessonId));
+      } else {
+        await tx
+          .update(schema.lessons)
+          .set({ exerciseStatus: "pending", updatedAt: new Date() })
+          .where(eq(schema.lessons.id, lessonId));
+      }
+
+      return job;
+    });
+    await notifyJobQueued();
+    return result as GenerationJob;
   }
 }

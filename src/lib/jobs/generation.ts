@@ -1,9 +1,9 @@
-import { getSourceTextRepository } from "@/domain/lesson";
+import { getLessonRepository } from "@/domain/lesson";
 
 export async function deleteSourceTextWithPrivacy(input: {
   userId: string;
   sourceTextId: string;
 }) {
-  const repo = getSourceTextRepository();
+  const repo = getLessonRepository();
   await repo.deleteSourceText(input.userId, input.sourceTextId);
 }

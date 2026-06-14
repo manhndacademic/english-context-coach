@@ -8,11 +8,7 @@ import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import type {
   LessonGenerationEngine as LessonGenerationEngineInterface,
-  SourceTextRepository,
   LessonRepository,
-  GenerationJobRepository,
-  GenerationProgressRepository,
-  LessonTransactionCoordinator,
   GenerationEngine,
   LessonGenerationResult,
   JobProcessResult,
@@ -54,11 +50,7 @@ function logSpringStyle(
 
 export class DefaultLessonGenerationEngine implements LessonGenerationEngineInterface {
   constructor(
-    private sourceTexts: SourceTextRepository,
     private lessons: LessonRepository,
-    private generationJobs: GenerationJobRepository,
-    private generationProgress: GenerationProgressRepository,
-    private txCoordinator: LessonTransactionCoordinator,
     private genEngine: GenerationEngine,
     private textProcessor: TextProcessor
   ) {}
@@ -86,7 +78,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.generationJobs.assertQueueCapacity(userId);
+    const capacityError = await this.lessons.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -95,7 +87,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const result = await this.txCoordinator.createSourceTextAndLessonAndJob(
+    const result = await this.lessons.createSourceTextAndLessonAndJob(
       userId,
       content,
       "Untitled source",
@@ -103,7 +95,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       requestedMode
     );
 
-    await this.generationProgress.recordMilestone({
+    await this.lessons.recordMilestone({
       lessonId: result.lesson.id,
       generationJobId: result.job.id,
       code: "queued",
@@ -141,7 +133,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.generationJobs.assertQueueCapacity(userId);
+    const capacityError = await this.lessons.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -156,14 +148,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       lesson.exerciseStatus === "succeeded"
     ) {
       const nextVersion = lesson.version + 1;
-      const result = await this.txCoordinator.createLessonAndJob(
+      const result = await this.lessons.createLessonAndJob(
         userId,
         lesson.sourceTextId,
         nextVersion,
         "analysis"
       );
 
-      await this.generationProgress.recordMilestone({
+      await this.lessons.recordMilestone({
         lessonId: result.lesson.id,
         generationJobId: result.job.id,
         code: "queued",
@@ -192,14 +184,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const job = await this.txCoordinator.createJob(
+    const job = await this.lessons.createJob(
       userId,
       lesson.sourceTextId,
       lesson.id,
       stage
     );
 
-    await this.generationProgress.recordMilestone({
+    await this.lessons.recordMilestone({
       lessonId: lesson.id,
       generationJobId: job.id,
       code: "queued",
@@ -214,7 +206,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
   }
 
   async processNext(workerId: string): Promise<JobProcessResult> {
-    const job = await this.generationJobs.claimJob(workerId);
+    const job = await this.lessons.claimJob(workerId);
     if (!job) {
       return { status: "idle" };
     }
@@ -230,7 +222,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`
     );
 
-    await this.generationProgress.recordMilestone({
+    await this.lessons.recordMilestone({
       lessonId: job.lessonId,
       generationJobId: job.id,
       code: "claimed",
@@ -240,7 +232,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     let currentStage = job.stage as "analysis" | "exercises";
 
     try {
-      const sourceText = await this.sourceTexts.findSourceText(
+      const sourceText = await this.lessons.findSourceText(
         job.sourceTextId,
         job.userId
       );
@@ -265,7 +257,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           "analysis",
           "running"
         );
-        await this.generationProgress.recordMilestone({
+        await this.lessons.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_started",
@@ -292,7 +284,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
               this.textProcessor
             );
             if (sanitized) {
-              await this.generationProgress.recordThought({
+              await this.lessons.recordThought({
                 lessonId: job.lessonId,
                 generationJobId: job.id,
                 stage: "analysis",
@@ -311,7 +303,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-flash-lite"
         );
 
-        await this.generationProgress.recordMilestone({
+        await this.lessons.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_saved",
@@ -325,7 +317,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           `Stage "analysis" succeeded in ${analysisDuration}ms.`
         );
 
-        await this.generationJobs.updateJobStatus(job.id, "running", {
+        await this.lessons.updateJobStatus(job.id, "running", {
           stage: "exercises",
         });
         currentStage = "exercises";
@@ -342,7 +334,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         "exercise",
         "running"
       );
-      await this.generationProgress.recordMilestone({
+      await this.lessons.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_started",
@@ -361,7 +353,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
               this.textProcessor
             );
             if (sanitized) {
-              await this.generationProgress.recordThought({
+              await this.lessons.recordThought({
                 lessonId: job.lessonId,
                 generationJobId: job.id,
                 stage: "exercises",
@@ -395,7 +387,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         process.env.GEMINI_FAST_MODEL ?? "gemini-3.1-flash-lite"
       );
 
-      await this.generationProgress.recordMilestone({
+      await this.lessons.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_saved",
@@ -409,11 +401,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         `Stage "exercises" succeeded in ${exercisesDuration}ms.`
       );
 
-      await this.generationJobs.updateJobStatus(job.id, "succeeded", {
+      await this.lessons.updateJobStatus(job.id, "succeeded", {
         errorMessage: null,
       });
 
-      await this.generationProgress.recordMilestone({
+      await this.lessons.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "completed",
@@ -455,7 +447,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           "pending"
         );
 
-        await this.generationJobs.updateJobStatus(job.id, "queued", {
+        await this.lessons.updateJobStatus(job.id, "queued", {
           stage: currentStage,
           errorMessage: message,
           lockedAt: null,
@@ -472,12 +464,12 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         "failed"
       );
 
-      await this.generationJobs.updateJobStatus(job.id, "failed", {
+      await this.lessons.updateJobStatus(job.id, "failed", {
         stage: currentStage,
         errorMessage: message,
       });
 
-      await this.generationProgress.recordMilestone({
+      await this.lessons.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "failed",
@@ -497,7 +489,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     lessonId: string,
     userId: string
   ): Promise<GenerationProgress | null> {
-    const progress = await this.generationProgress.getLessonProgress({
+    const progress = await this.lessons.getLessonProgress({
       lessonId,
       userId,
     });
