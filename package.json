@@ -17,7 +17,9 @@
     "docker:local:reset": "docker compose -f docker-compose.local.yml down -v",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
@@ -51,6 +53,9 @@
     "drizzle-kit": "^0.31.1",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.9",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.4",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
