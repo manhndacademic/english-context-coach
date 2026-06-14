@@ -2,18 +2,18 @@ import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 vi.unmock("@/db");
 import { db, schema } from "@/db";
 import { encryptApiKey } from "@/lib/crypto";
-import { generateJson } from "./provider";
+import { GeminiLLMProvider } from "@/domain/ai/adapters/gemini-provider";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 describe("AI Key Rotation & Error Handling", () => {
   let testUser: any;
-  let systemKey1: any;
-  let systemKey2: any;
+  let provider: GeminiLLMProvider;
 
   beforeAll(async () => {
     // Set up test encryption key
     process.env.ENCRYPTION_SECRET = "rotation-test-secret-key-123456789012";
+    provider = new GeminiLLMProvider();
 
     // Clean up
     await db.delete(schema.aiApiKeys);
@@ -46,8 +46,6 @@ describe("AI Key Rotation & Error Handling", () => {
       .set({ customGeminiApiKey: encryptApiKey(fakeUserKey) })
       .where(eq(schema.users.id, testUser.id));
 
-    // Verify it fails with our specific user key when the mock key is invalid rather than falling back
-    // (since Google Gen AI API call will reject this key)
     const options = {
       userId: testUser.id,
       purpose: "repair" as const,
@@ -58,7 +56,7 @@ describe("AI Key Rotation & Error Handling", () => {
       modelKind: "fast" as const,
     };
 
-    await expect(generateJson(options)).rejects.toThrow("Custom User API Key failed");
+    await expect(provider.generateJson(options)).rejects.toThrow("Custom User API Key failed");
   });
 
   it("should rotately mark rate-limited keys and exclude them", async () => {
@@ -105,7 +103,7 @@ describe("AI Key Rotation & Error Handling", () => {
 
     try {
       // Since both system keys are invalid API keys, the rotation loop will try them and mark them as invalid.
-      await expect(generateJson(options)).rejects.toThrow();
+      await expect(provider.generateJson(options)).rejects.toThrow();
 
       // Check that both keys were marked as invalid in the database
       const dbKeys = await db.select().from(schema.aiApiKeys);
@@ -139,7 +137,7 @@ describe("AI Key Rotation & Error Handling", () => {
         modelKind: "fast" as const,
       };
 
-      await expect(generateJson(options)).rejects.toThrow();
+      await expect(provider.generateJson(options)).rejects.toThrow();
     } finally {
       process.env.GEMINI_API_KEY = originalEnvKey;
       process.env.GEMINI_API_KEYS = originalEnvKeys;

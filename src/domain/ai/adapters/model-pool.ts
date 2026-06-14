@@ -1,12 +1,5 @@
 import { ThinkingLevel } from "@google/genai";
 
-/**
- * Ordered list of models to try for each modelKind.
- * Priority: fastest/cheapest first; escalate when rate-limited.
- * Can be overridden via env vars:
- *   GEMINI_ANALYSIS_MODELS=model1,model2,...
- *   GEMINI_FAST_MODELS=model1,model2,...
- */
 const DEFAULT_ANALYSIS_MODELS = [
   "gemini-3.1-flash-lite",
   "gemma-4-31b-it",
@@ -22,8 +15,6 @@ const DEFAULT_FAST_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.5-flash",
 ];
-
-const COOLDOWN_MS = 30_000;
 
 /** Models that only support MINIMAL or HIGH thinking levels. */
 const GEMMA_MODELS = new Set(["gemma-4-31b-it", "gemma-4-26b-a4b-it"]);
@@ -42,16 +33,6 @@ export interface ModelCooldown {
   cooldownUntil: number;
 }
 
-/**
- * ProviderRotationPool — singleton that tracks per-model in-process cooldowns.
- *
- * Represents the "model" dimension of ApiRotationPool (see CONTEXT.md).
- * The key dimension is handled separately in `callGeminiWithRetry`.
- *
- * State is in-process and resets on worker restart. This is intentional:
- * model cooldowns are short-lived (30 s) and not worth a DB round-trip.
- * See ADR 0012.
- */
 export class ProviderRotationPool {
   private analysisModels: string[];
   private fastModels: string[];
@@ -68,14 +49,21 @@ export class ProviderRotationPool {
       parseModelList(process.env.GEMINI_FAST_MODELS, DEFAULT_FAST_MODELS);
   }
 
+  private getCooldownMs(): number {
+    const envVal = process.env.GEMINI_COOLDOWN_MS;
+    if (envVal) {
+      const parsed = parseInt(envVal, 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return 30_000;
+  }
+
   getModels(kind: "analysis" | "fast"): string[] {
     return kind === "analysis" ? this.analysisModels : this.fastModels;
   }
 
-  /**
-   * Returns the first model in the pool that is not currently cooling down.
-   * If all models are cooling down, returns the first model (best-effort).
-   */
   getNextAvailable(kind: "analysis" | "fast", excluded?: Set<string>): string {
     const now = Date.now();
     const pool = this.getModels(kind);
@@ -96,39 +84,26 @@ export class ProviderRotationPool {
     return pool[0];
   }
 
-  /**
-   * Marks a model as rate-limited with a 30-second cooldown.
-   */
   markRateLimited(model: string): void {
-    const until = Date.now() + COOLDOWN_MS;
+    const cooldownMs = this.getCooldownMs();
+    const until = Date.now() + cooldownMs;
     this.cooldowns.set(model, until);
     console.warn(
-      `[ProviderRotationPool] Model "${model}" rate-limited. Cooling down for ${COOLDOWN_MS / 1000}s until ${new Date(until).toISOString()}.`
+      `[ProviderRotationPool] Model "${model}" rate-limited. Cooling down for ${cooldownMs / 1000}s until ${new Date(until).toISOString()}.`
     );
   }
 
-  /**
-   * Clears the cooldown for a model (called on successful response).
-   */
   clearCooldown(model: string): void {
     if (this.cooldowns.has(model)) {
       this.cooldowns.delete(model);
     }
   }
 
-  /**
-   * Returns whether a model is currently in cooldown.
-   */
   isAvailable(model: string): boolean {
     const until = this.cooldowns.get(model) ?? 0;
     return Date.now() >= until;
   }
 
-  /**
-   * Maps the global thinking level to one supported by the given model.
-   * Gemma models only support MINIMAL and HIGH.
-   * If the requested level is LOW or MEDIUM and the model is Gemma → MINIMAL.
-   */
   getThinkingLevel(model: string, requestedLevel: ThinkingLevel): ThinkingLevel {
     if (GEMMA_MODELS.has(model)) {
       const levelKey = Object.keys(ThinkingLevel).find(
@@ -141,9 +116,6 @@ export class ProviderRotationPool {
     return requestedLevel;
   }
 
-  /**
-   * Returns all models that are currently in cooldown (for testing/observability).
-   */
   getCooldowns(): ModelCooldown[] {
     const now = Date.now();
     return Array.from(this.cooldowns.entries())
@@ -152,5 +124,4 @@ export class ProviderRotationPool {
   }
 }
 
-/** Singleton instance shared across all requests in the process. See ADR 0012. */
 export const providerRotationPool = new ProviderRotationPool();

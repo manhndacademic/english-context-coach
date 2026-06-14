@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerceJsonForSchema, getGeminiThinkingLevel, extractJson } from "./provider";
+import { coerceJsonForSchema, getGeminiThinkingLevel, extractJson } from "@/domain/ai/adapters/gemini-utils";
 
 describe("AI provider JSON coercion", () => {
   it("wraps top-level exercise arrays in the expected object shape", () => {

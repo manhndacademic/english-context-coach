@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { ThinkingLevel } from "@google/genai";
-import { ProviderRotationPool } from "./model_pool";
+import { ProviderRotationPool } from "@/domain/ai/adapters/model-pool";
 
 describe("ProviderRotationPool", () => {
   let pool: ProviderRotationPool;
@@ -227,6 +227,22 @@ describe("ProviderRotationPool", () => {
         expect(envPool.getModels("analysis")).toEqual(["model-x", "model-y"]);
       } finally {
         process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
+      }
+    });
+
+    it("respects GEMINI_COOLDOWN_MS env var when set", () => {
+      const originalCooldown = process.env.GEMINI_COOLDOWN_MS;
+      process.env.GEMINI_COOLDOWN_MS = "15000";
+      try {
+        vi.useFakeTimers();
+        const testPool = new ProviderRotationPool(["model-a"], []);
+        testPool.markRateLimited("model-a");
+        expect(testPool.isAvailable("model-a")).toBe(false);
+
+        vi.advanceTimersByTime(15001);
+        expect(testPool.isAvailable("model-a")).toBe(true);
+      } finally {
+        process.env.GEMINI_COOLDOWN_MS = originalCooldown;
       }
     });
   });
