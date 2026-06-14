@@ -1,9 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, SendHorizontal, HelpCircle, History } from "lucide-react";
-import { submitReviewAttemptAction, type ReviewResultState } from "@/app/actions/review";
-import type { MistakePattern } from "@/domain/memory";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  SendHorizontal,
+  HelpCircle,
+  History,
+} from "lucide-react";
+import {
+  submitReviewAttemptAction,
+  type ReviewResultState,
+} from "@/app/actions/review";
+import type { MistakePatternPlain } from "@/domain/memory";
 import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
@@ -21,28 +31,35 @@ export function ReviewCard({
   pattern,
   onComplete,
 }: {
-  pattern: MistakePattern;
+  pattern: MistakePatternPlain;
   onComplete: () => void;
 }) {
   const [answer, setAnswer] = useState("");
-  
-  const [state, formAction, isPending] = useActionState<ReviewResultState, FormData>(
-    submitReviewAttemptAction,
-    {}
-  );
+
+  const [state, formAction, isPending] = useActionState<
+    ReviewResultState,
+    FormData
+  >(submitReviewAttemptAction, {});
 
   const promptEn = pattern.reviewPromptEn ?? pattern.normalizedPhrase;
-  const promptVi = pattern.reviewPromptVi ?? `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${pattern.normalizedPhrase}"`;
+  const promptVi =
+    pattern.reviewPromptVi ??
+    `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${pattern.normalizedPhrase}"`;
   const canSubmit = answer.trim().length > 0;
   const hasSubmitted = Boolean(state.success);
   const disclosure = getReviewDisclosureState(hasSubmitted);
   const nextReviewDate = formatReviewDate(state.nextReviewAt);
-  const naturalAnswer = state.naturalAnswer ?? pattern.reviewCorrectAnswer ?? pattern.meaningVi;
+  const naturalAnswer =
+    state.naturalAnswer ?? pattern.reviewCorrectAnswer ?? pattern.meaningVi;
 
   return (
-    <article className={`border border-border rounded-xl p-6 sm:p-8 bg-surface relative grid gap-5 shadow-lg transition-all duration-200 ${
-      state.isCorrect ? "shadow-[0_8px_30px_rgb(16,185,129,0.06)] border-success/30" : ""
-    }`}>
+    <article
+      className={`border border-border rounded-xl p-6 sm:p-8 bg-surface relative grid gap-5 shadow-lg transition-all duration-200 ${
+        state.isCorrect
+          ? "shadow-[0_8px_30px_rgb(16,185,129,0.06)] border-success/30"
+          : ""
+      }`}
+    >
       {/* Header tags and stats */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -53,17 +70,19 @@ export function ReviewCard({
             {pattern.errorType.replaceAll("_", " ")}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <span className="text-muted text-xs font-medium flex items-center gap-1">
             <History size={12} /> Đã gặp {pattern.occurrenceCount} lần
           </span>
           {state.score !== undefined && (
-            <span className={`text-sm font-bold px-2 py-0.5 rounded ${
-              state.isCorrect 
-                ? "bg-success-light text-success border border-success/15" 
-                : "bg-danger-light text-danger border border-danger/15"
-            }`}>
+            <span
+              className={`text-sm font-bold px-2 py-0.5 rounded ${
+                state.isCorrect
+                  ? "bg-success-light text-success border border-success/15"
+                  : "bg-danger-light text-danger border border-danger/15"
+              }`}
+            >
               {state.score}/100 điểm
             </span>
           )}
@@ -76,19 +95,29 @@ export function ReviewCard({
             <AlertCircle size={14} /> Mẫu lỗi đang được kiểm tra
           </div>
           <div className="text-text mt-0.5">
-            Hãy dịch câu mới trước. Nghĩa chuẩn và lỗi cũ sẽ hiện sau khi bạn gửi câu trả lời.
+            Hãy dịch câu mới trước. Nghĩa chuẩn và lỗi cũ sẽ hiện sau khi bạn
+            gửi câu trả lời.
           </div>
         </div>
       ) : disclosure.showOldMistakeContext ? (
-      <div className="rounded-lg p-4 bg-warning-light/40 border border-warning/15 text-sm leading-relaxed flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5 text-warning font-semibold text-xs uppercase tracking-wider">
-          <AlertCircle size={14} /> Gợi ý lỗi sai cũ
+        <div className="rounded-lg p-4 bg-warning-light/40 border border-warning/15 text-sm leading-relaxed flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-warning font-semibold text-xs uppercase tracking-wider">
+            <AlertCircle size={14} /> Gợi ý lỗi sai cũ
+          </div>
+          <div className="text-text mt-0.5">
+            Bạn từng dịch sai cụm từ:{" "}
+            <strong className="text-accent font-bold font-mono text-[14px] bg-accent-light px-1.5 py-0.5 rounded border border-accent/10">
+              {pattern.normalizedPhrase}
+            </strong>
+            <span className="text-muted ml-1.5">
+              (nghĩa chuẩn:{" "}
+              <strong className="font-semibold text-text">
+                {pattern.meaningVi}
+              </strong>
+              )
+            </span>
+          </div>
         </div>
-        <div className="text-text mt-0.5">
-          Bạn từng dịch sai cụm từ: <strong className="text-accent font-bold font-mono text-[14px] bg-accent-light px-1.5 py-0.5 rounded border border-accent/10">{pattern.normalizedPhrase}</strong>
-          <span className="text-muted ml-1.5">(nghĩa chuẩn: <strong className="font-semibold text-text">{pattern.meaningVi}</strong>)</span>
-        </div>
-      </div>
       ) : null}
 
       {/* Prompt / Challenge block */}
@@ -99,7 +128,7 @@ export function ReviewCard({
         <p className="text-muted text-sm m-0 -mt-1 leading-relaxed">
           {renderRichText(promptVi)}
         </p>
-        
+
         <blockquote className="font-serif text-lg sm:text-xl font-bold text-accent-strong bg-gradient-to-br from-surface to-surface-strong border border-border border-l-4 border-l-accent p-5 rounded-r-xl my-1 leading-relaxed italic shadow-inner">
           {renderRichText(promptEn)}
         </blockquote>
@@ -108,7 +137,7 @@ export function ReviewCard({
       {/* User Input Form */}
       <form action={formAction} className="grid gap-4">
         <input name="patternId" type="hidden" value={pattern.id} />
-        
+
         <div className="grid gap-2 text-left">
           <label htmlFor="answer" className="text-sm font-semibold text-text">
             Bản dịch tự nhiên của bạn
@@ -161,25 +190,39 @@ export function ReviewCard({
 
       {/* Grading Feedback Panel */}
       {state.success && disclosure.showCorrectMeaning && state.feedbackVi && (
-        <div className={`grid gap-2 border-t border-border pt-4 mt-2 animate-in fade-in slide-in-from-top-3 duration-200 rounded-xl p-5 border ${
-          state.isCorrect 
-            ? "bg-success-light/40 border-success/15" 
-            : "bg-warning-light/40 border-warning/15"
-        }`}>
+        <div
+          className={`grid gap-2 border-t border-border pt-4 mt-2 animate-in fade-in slide-in-from-top-3 duration-200 rounded-xl p-5 border ${
+            state.isCorrect
+              ? "bg-success-light/40 border-success/15"
+              : "bg-warning-light/40 border-warning/15"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-              state.isCorrect ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-            }`}>
+            <span
+              className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                state.isCorrect
+                  ? "bg-success/10 text-success"
+                  : "bg-warning/10 text-warning"
+              }`}
+            >
               {state.isCorrect ? "Đạt yêu cầu" : "Cần cải thiện"}
             </span>
-            <strong className={`text-sm ${state.isCorrect ? "text-success" : "text-warning"}`}>
+            <strong
+              className={`text-sm ${state.isCorrect ? "text-success" : "text-warning"}`}
+            >
               {state.isCorrect ? "Hoàn thành xuất sắc" : "Gợi ý cải thiện"}
             </strong>
           </div>
-          <p className="text-sm leading-relaxed m-0 text-text font-medium">{renderRichText(state.feedbackVi)}</p>
+          <p className="text-sm leading-relaxed m-0 text-text font-medium">
+            {renderRichText(state.feedbackVi)}
+          </p>
           <div className="grid gap-1.5 bg-surface border border-border rounded-lg p-3 mt-1">
-            <strong className="text-xs font-bold uppercase tracking-wider text-muted">Đáp án tự nhiên</strong>
-            <p className="text-sm leading-relaxed m-0 text-text font-semibold">{renderRichText(naturalAnswer)}</p>
+            <strong className="text-xs font-bold uppercase tracking-wider text-muted">
+              Đáp án tự nhiên
+            </strong>
+            <p className="text-sm leading-relaxed m-0 text-text font-semibold">
+              {renderRichText(naturalAnswer)}
+            </p>
           </div>
           {nextReviewDate ? (
             <p className="text-xs text-muted m-0">

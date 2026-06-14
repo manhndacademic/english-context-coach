@@ -14,7 +14,24 @@ services:
     networks:
       - default_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-english_context_coach}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d ${DB_NAME:-english_context_coach}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - default_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,6 +43,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-english_context_coach}
+      REDIS_URL: redis://redis:6379
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       HOSTNAME: "0.0.0.0"
     # Option 1: Uncomment ports if you want to expose the application to the host directly
@@ -38,6 +56,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   migrate:
     build: .
@@ -58,14 +78,18 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-english_context_coach}
+      REDIS_URL: redis://redis:6379
     networks:
       - default_net
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres-data:
+  redis-data:
 
 networks:
   default_net: # Private internal network for English Context Coach services

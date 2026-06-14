@@ -1,6 +1,9 @@
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import type { TextProcessor } from "@/domain/text";
-import { getPlainTextFromJSON, getHighlightsFromJSON } from "@/domain/text/processor";
+import {
+  getPlainTextFromJSON,
+  getHighlightsFromJSON,
+} from "@/domain/text/processor";
 import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import type {
@@ -17,7 +20,6 @@ import type {
   SaveExercisesInput,
 } from "./ports";
 
-
 import { getLogger, parseDbDate } from "@/lib/logger";
 
 const log = getLogger("d.l.engine.LessonGenerationEngine");
@@ -27,16 +29,20 @@ function isTransientGenerationError(error: unknown) {
   return (
     message.includes("ECONNRESET") ||
     message.includes("socket connection was closed") ||
-    message.includes("\"code\":429") ||
+    message.includes('"code":429') ||
     message.includes("Too Many Requests") ||
     message.includes("RESOURCE_EXHAUSTED") ||
-    message.includes("\"code\":503") ||
+    message.includes('"code":503') ||
     message.includes("UNAVAILABLE") ||
     message.includes("high demand")
   );
 }
 
-function logSpringStyle(level: "INFO" | "WARN" | "ERROR", workerId: string, message: string) {
+function logSpringStyle(
+  level: "INFO" | "WARN" | "ERROR",
+  workerId: string,
+  message: string
+) {
   if (level === "ERROR") {
     log.error(message, undefined, workerId);
   } else if (level === "WARN") {
@@ -57,8 +63,13 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     private textProcessor: TextProcessor
   ) {}
 
-  async queue(userId: string, content: string, requestedMode?: string): Promise<LessonGenerationResult> {
-    const { normalized, hash: contentHash } = this.textProcessor.processSource(content);
+  async queue(
+    userId: string,
+    content: string,
+    requestedMode?: string
+  ): Promise<LessonGenerationResult> {
+    const { normalized, hash: contentHash } =
+      this.textProcessor.processSource(content);
     if (!normalized) {
       return {
         ok: false,
@@ -86,7 +97,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
     const result = await this.txCoordinator.createSourceTextAndLessonAndJob(
       userId,
-      normalized,
+      content,
       "Untitled source",
       contentHash,
       requestedMode
@@ -106,7 +117,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     };
   }
 
-  async retry(userId: string, lessonId: string): Promise<LessonGenerationResult> {
+  async retry(
+    userId: string,
+    lessonId: string
+  ): Promise<LessonGenerationResult> {
     const lesson = await this.lessons.findLesson(lessonId, userId);
     if (!lesson) {
       return {
@@ -116,7 +130,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    if (lesson.analysisStatus === "running" || lesson.exerciseStatus === "running") {
+    if (
+      lesson.analysisStatus === "running" ||
+      lesson.exerciseStatus === "running"
+    ) {
       return {
         ok: false,
         error: "INVALID_STATE",
@@ -134,7 +151,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     }
 
     // 1. If both are succeeded, it's a regeneration (create a new version)
-    if (lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "succeeded") {
+    if (
+      lesson.analysisStatus === "succeeded" &&
+      lesson.exerciseStatus === "succeeded"
+    ) {
       const nextVersion = lesson.version + 1;
       const result = await this.txCoordinator.createLessonAndJob(
         userId,
@@ -158,7 +178,12 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     }
 
     // 2. If analysis failed or exercises failed, retry the failed stage on the SAME lesson record
-    const stage = lesson.analysisStatus === "failed" ? "analysis" : lesson.exerciseStatus === "failed" ? "exercises" : null;
+    const stage =
+      lesson.analysisStatus === "failed"
+        ? "analysis"
+        : lesson.exerciseStatus === "failed"
+          ? "exercises"
+          : null;
     if (!stage) {
       return {
         ok: false,
@@ -167,7 +192,12 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const job = await this.txCoordinator.createJob(userId, lesson.sourceTextId, lesson.id, stage);
+    const job = await this.txCoordinator.createJob(
+      userId,
+      lesson.sourceTextId,
+      lesson.id,
+      stage
+    );
 
     await this.generationProgress.recordMilestone({
       lessonId: lesson.id,
@@ -191,8 +221,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
     const jobClaimTime = Date.now();
     const parsedCreatedVal = parseDbDate(job.createdAt);
-    const queueLatency = parsedCreatedVal ? (jobClaimTime - parsedCreatedVal.getTime()) : 0;
-    logSpringStyle("INFO", workerId, `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`);
+    const queueLatency = parsedCreatedVal
+      ? jobClaimTime - parsedCreatedVal.getTime()
+      : 0;
+    logSpringStyle(
+      "INFO",
+      workerId,
+      `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`
+    );
 
     await this.generationProgress.recordMilestone({
       lessonId: job.lessonId,
@@ -204,7 +240,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     let currentStage = job.stage as "analysis" | "exercises";
 
     try {
-      const sourceText = await this.sourceTexts.findSourceText(job.sourceTextId, job.userId);
+      const sourceText = await this.sourceTexts.findSourceText(
+        job.sourceTextId,
+        job.userId
+      );
       if (!sourceText) {
         throw new Error("Source text is unavailable.");
       }
@@ -215,9 +254,17 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       }
 
       if (currentStage === "analysis") {
-        logSpringStyle("INFO", workerId, `Starting stage "analysis" for Lesson ${job.lessonId}...`);
+        logSpringStyle(
+          "INFO",
+          workerId,
+          `Starting stage "analysis" for Lesson ${job.lessonId}...`
+        );
         const analysisStart = Date.now();
-        await this.lessons.updateLessonStatus(job.lessonId, "analysis", "running");
+        await this.lessons.updateLessonStatus(
+          job.lessonId,
+          "analysis",
+          "running"
+        );
         await this.generationProgress.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
@@ -240,7 +287,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         const result = await this.genEngine.generateAnalysis(
           plainText,
           async (text) => {
-            const sanitized = sanitizeGenerationThought(text, this.textProcessor);
+            const sanitized = sanitizeGenerationThought(
+              text,
+              this.textProcessor
+            );
             if (sanitized) {
               await this.generationProgress.recordThought({
                 lessonId: job.lessonId,
@@ -269,15 +319,29 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         });
 
         const analysisDuration = Date.now() - analysisStart;
-        logSpringStyle("INFO", workerId, `Stage "analysis" succeeded in ${analysisDuration}ms.`);
+        logSpringStyle(
+          "INFO",
+          workerId,
+          `Stage "analysis" succeeded in ${analysisDuration}ms.`
+        );
 
-        await this.generationJobs.updateJobStatus(job.id, "running", { stage: "exercises" });
+        await this.generationJobs.updateJobStatus(job.id, "running", {
+          stage: "exercises",
+        });
         currentStage = "exercises";
       }
 
-      logSpringStyle("INFO", workerId, `Starting stage "exercises" for Lesson ${job.lessonId}...`);
+      logSpringStyle(
+        "INFO",
+        workerId,
+        `Starting stage "exercises" for Lesson ${job.lessonId}...`
+      );
       const exercisesStart = Date.now();
-      await this.lessons.updateLessonStatus(job.lessonId, "exercise", "running");
+      await this.lessons.updateLessonStatus(
+        job.lessonId,
+        "exercise",
+        "running"
+      );
       await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
@@ -289,17 +353,23 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       let exercises: SaveExercisesInput | null = null;
 
       for (let attempt = 1; attempt <= 2; attempt += 1) {
-        const candidate = await this.genEngine.generateExercises(analysis, async (text) => {
-          const sanitized = sanitizeGenerationThought(text, this.textProcessor);
-          if (sanitized) {
-            await this.generationProgress.recordThought({
-              lessonId: job.lessonId,
-              generationJobId: job.id,
-              stage: "exercises",
-              text: sanitized,
-            });
+        const candidate = await this.genEngine.generateExercises(
+          analysis,
+          async (text) => {
+            const sanitized = sanitizeGenerationThought(
+              text,
+              this.textProcessor
+            );
+            if (sanitized) {
+              await this.generationProgress.recordThought({
+                lessonId: job.lessonId,
+                generationJobId: job.id,
+                stage: "exercises",
+                text: sanitized,
+              });
+            }
           }
-        });
+        );
 
         try {
           assertCompleteExercises(candidate, analysis, this.textProcessor);
@@ -313,7 +383,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       }
 
       if (!exercises) {
-        throw new Error("Exercise generation did not return a complete Lesson.");
+        throw new Error(
+          "Exercise generation did not return a complete Lesson."
+        );
       }
 
       await this.lessons.saveExercises(
@@ -331,9 +403,15 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       });
 
       const exercisesDuration = Date.now() - exercisesStart;
-      logSpringStyle("INFO", workerId, `Stage "exercises" succeeded in ${exercisesDuration}ms.`);
+      logSpringStyle(
+        "INFO",
+        workerId,
+        `Stage "exercises" succeeded in ${exercisesDuration}ms.`
+      );
 
-      await this.generationJobs.updateJobStatus(job.id, "succeeded", { errorMessage: null });
+      await this.generationJobs.updateJobStatus(job.id, "succeeded", {
+        errorMessage: null,
+      });
 
       await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
@@ -344,8 +422,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
       const totalProcessingTime = Date.now() - jobClaimTime;
       const parsedCreatedVal2 = parseDbDate(job.createdAt);
-      const totalJobLifetime = parsedCreatedVal2 ? (Date.now() - parsedCreatedVal2.getTime()) : 0;
-      logSpringStyle("INFO", workerId, `Job ${job.id} completed successfully. Active processing: ${totalProcessingTime}ms (Total lifetime: ${totalJobLifetime}ms).`);
+      const totalJobLifetime = parsedCreatedVal2
+        ? Date.now() - parsedCreatedVal2.getTime()
+        : 0;
+      logSpringStyle(
+        "INFO",
+        workerId,
+        `Job ${job.id} completed successfully. Active processing: ${totalProcessingTime}ms (Total lifetime: ${totalJobLifetime}ms).`
+      );
 
       return {
         status: "processed",
@@ -354,13 +438,22 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         success: true,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown generation error";
-      logSpringStyle("ERROR", workerId, `Job ${job.id} failed with error: ${message}`);
+      const message =
+        error instanceof Error ? error.message : "Unknown generation error";
+      logSpringStyle(
+        "ERROR",
+        workerId,
+        `Job ${job.id} failed with error: ${message}`
+      );
       const transient = isTransientGenerationError(error);
 
       if (transient && job.attempts < 3) {
         const field = currentStage === "analysis" ? "analysis" : "exercise";
-        await this.lessons.updateLessonStatus(job.lessonId, field as any, "pending");
+        await this.lessons.updateLessonStatus(
+          job.lessonId,
+          field as any,
+          "pending"
+        );
 
         await this.generationJobs.updateJobStatus(job.id, "queued", {
           stage: currentStage,
@@ -373,7 +466,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       }
 
       const field = currentStage === "analysis" ? "analysis" : "exercise";
-      await this.lessons.updateLessonStatus(job.lessonId, field as any, "failed");
+      await this.lessons.updateLessonStatus(
+        job.lessonId,
+        field as any,
+        "failed"
+      );
 
       await this.generationJobs.updateJobStatus(job.id, "failed", {
         stage: currentStage,
@@ -396,13 +493,20 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     }
   }
 
-  async getProgress(lessonId: string, userId: string): Promise<GenerationProgress | null> {
-    const progress = await this.generationProgress.getLessonProgress({ lessonId, userId });
+  async getProgress(
+    lessonId: string,
+    userId: string
+  ): Promise<GenerationProgress | null> {
+    const progress = await this.generationProgress.getLessonProgress({
+      lessonId,
+      userId,
+    });
     if (!progress) {
       return null;
     }
 
-    const latestMilestone = progress.milestones[progress.milestones.length - 1]?.code ?? null;
+    const latestMilestone =
+      progress.milestones[progress.milestones.length - 1]?.code ?? null;
     const thoughts = progress.thoughts.map((t) => ({
       stage: t.stage as "analysis" | "exercises",
       text: t.text,

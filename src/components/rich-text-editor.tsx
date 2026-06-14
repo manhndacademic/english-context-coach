@@ -27,19 +27,26 @@ export function RichTextEditor({
       }),
     ],
     content: "",
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(JSON.stringify(editor.getJSON()));
     },
     editorProps: {
       attributes: {
-        class: "w-full bg-surface text-text px-4 py-3 outline-none min-h-[200px] max-h-[400px] overflow-y-auto leading-relaxed ProseMirror",
+        class:
+          "w-full bg-surface text-text px-4 py-3 outline-none min-h-[200px] max-h-[400px] overflow-y-auto leading-relaxed ProseMirror",
       },
     },
   });
 
   // Sync initial content once when editor is ready
   useEffect(() => {
-    if (editor && !editor.isDestroyed && value && editor.getText().length === 0) {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      value &&
+      editor.getText().length === 0
+    ) {
       try {
         const json = JSON.parse(value);
         editor.commands.setContent(json);
@@ -55,7 +62,8 @@ export function RichTextEditor({
       editor.setOptions({
         editorProps: {
           attributes: {
-            class: "w-full bg-surface text-text px-4 py-3 outline-none min-h-[200px] max-h-[400px] overflow-y-auto leading-relaxed ProseMirror",
+            class:
+              "w-full bg-surface text-text px-4 py-3 outline-none min-h-[200px] max-h-[400px] overflow-y-auto leading-relaxed ProseMirror",
             "data-placeholder": placeholder,
           },
         },

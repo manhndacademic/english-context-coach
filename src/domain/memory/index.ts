@@ -62,7 +62,9 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
     const lessonRepo = getLessonRepository();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
-    const dispatcher = new QueueJobDispatcherAdapter(() => getMistakePatternRepository());
+    const dispatcher = new QueueJobDispatcherAdapter(() =>
+      getMistakePatternRepository()
+    );
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
     cachedEngine = new DefaultLearnerMemoryEngine(
       exerciseRepo,
@@ -91,6 +93,7 @@ export type {
   ReviewAttempt,
 } from "./types";
 export { MistakePattern } from "./mistake-pattern";
+export type { MistakePatternPlain } from "./mistake-pattern";
 export type {
   ExerciseRepository,
   AttemptRepository,

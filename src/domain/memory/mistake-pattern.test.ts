@@ -170,4 +170,33 @@ describe("MistakePattern Domain Aggregate", () => {
       expect(pattern.dueAt.getUTCDate()).toBe(15);
     });
   });
+
+  describe("toPlainObject serialization", () => {
+    it("should return a plain object with all dates serialized as ISO strings", () => {
+      const pattern = MistakePattern.createNew({
+        id: "pattern-1",
+        userId: "user-123",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-123",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "hoãn lại",
+        safeReviewPromptVi: "Dịch câu sau: ...",
+        isSensitive: false,
+      });
+
+      const plain = pattern.toPlainObject();
+
+      expect(typeof plain.dueAt).toBe("string");
+      expect(typeof plain.createdAt).toBe("string");
+      expect(typeof plain.updatedAt).toBe("string");
+      expect(plain.lastReviewedAt).toBeNull();
+      expect(plain.occurrenceCount).toBe(1);
+      expect(plain.intervalDays).toBe(0);
+      expect(plain.masteryState).toBe("active");
+      expect(plain.id).toBe("pattern-1");
+      expect(plain.userId).toBe("user-123");
+    });
+  });
 });

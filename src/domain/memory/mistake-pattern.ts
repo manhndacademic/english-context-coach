@@ -5,8 +5,15 @@ export class MistakePattern {
   public static readonly MASTERED_INTERVAL_DAYS = 14;
 
   public static nextReviewAfterSuccess(currentIntervalDays: number): number {
-    const next = MistakePattern.REVIEW_INTERVALS.find((interval) => interval > currentIntervalDays);
-    return next ?? MistakePattern.REVIEW_INTERVALS[MistakePattern.REVIEW_INTERVALS.length - 1];
+    const next = MistakePattern.REVIEW_INTERVALS.find(
+      (interval) => interval > currentIntervalDays
+    );
+    return (
+      next ??
+      MistakePattern.REVIEW_INTERVALS[
+        MistakePattern.REVIEW_INTERVALS.length - 1
+      ]
+    );
   }
 
   public static nextDueDate(intervalDays: number, from = new Date()): Date {
@@ -21,8 +28,13 @@ export class MistakePattern {
     return due;
   }
 
-  public static masteryStateAfterReview(isCorrect: boolean, intervalDays: number): MasteryState {
-    return isCorrect && intervalDays >= MistakePattern.MASTERED_INTERVAL_DAYS ? "mastered" : "active";
+  public static masteryStateAfterReview(
+    isCorrect: boolean,
+    intervalDays: number
+  ): MasteryState {
+    return isCorrect && intervalDays >= MistakePattern.MASTERED_INTERVAL_DAYS
+      ? "mastered"
+      : "active";
   }
 
   private constructor(
@@ -31,8 +43,24 @@ export class MistakePattern {
     public readonly conceptKey: string,
     public readonly normalizedPhrase: string,
     public readonly senseKey: string | null,
-    public readonly category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase",
-    public readonly errorType: "literal_translation" | "phrase_misunderstanding" | "technical_term_misunderstanding" | "phrasal_verb_error" | "collocation_error" | "grammar_structure_misread" | "pronoun_reference_misread" | "tone_register_misread" | "missing_context",
+    public readonly category:
+      | "idiom"
+      | "phrasal_verb"
+      | "technical_term"
+      | "collocation"
+      | "grammar_pattern"
+      | "business_phrase"
+      | "general_phrase",
+    public readonly errorType:
+      | "literal_translation"
+      | "phrase_misunderstanding"
+      | "technical_term_misunderstanding"
+      | "phrasal_verb_error"
+      | "collocation_error"
+      | "grammar_structure_misread"
+      | "pronoun_reference_misread"
+      | "tone_register_misread"
+      | "missing_context",
     public readonly meaningVi: string,
     public readonly safeReviewPromptVi: string,
     public readonly isSensitive: boolean,
@@ -100,6 +128,17 @@ export class MistakePattern {
   }
 
   static reconstitute(state: any): MistakePattern {
+    const parseDate = (val: any) => {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const parseDateRequired = (val: any) => {
+      const d = parseDate(val);
+      return d ?? new Date();
+    };
+
     return new MistakePattern(
       state.id,
       state.userId,
@@ -114,10 +153,10 @@ export class MistakePattern {
       state.occurrenceCount,
       state.intervalDays,
       state.masteryState,
-      state.dueAt,
-      state.lastReviewedAt,
-      state.createdAt,
-      state.updatedAt,
+      parseDateRequired(state.dueAt),
+      parseDate(state.lastReviewedAt),
+      parseDateRequired(state.createdAt),
+      parseDateRequired(state.updatedAt),
       state.reviewPromptEn,
       state.reviewPromptVi,
       state.reviewRubricVi,
@@ -126,29 +165,61 @@ export class MistakePattern {
       state.reviewPromptStatus,
       state.reviewPromptAttempts,
       state.reviewPromptError,
-      state.reviewPromptLockedAt,
+      parseDate(state.reviewPromptLockedAt),
       state.reviewPromptLockedBy
     );
   }
 
   // Getters for mutated fields
-  get occurrenceCount() { return this._occurrenceCount; }
-  get intervalDays() { return this._intervalDays; }
-  get masteryState() { return this._masteryState; }
-  get dueAt() { return this._dueAt; }
-  get lastReviewedAt() { return this._lastReviewedAt; }
-  get updatedAt() { return this._updatedAt; }
-  
-  get reviewPromptEn() { return this._reviewPromptEn; }
-  get reviewPromptVi() { return this._reviewPromptVi; }
-  get reviewRubricVi() { return this._reviewRubricVi; }
-  get reviewCorrectAnswer() { return this._reviewCorrectAnswer; }
-  get reviewAcceptableAnswers() { return this._reviewAcceptableAnswers; }
-  get reviewPromptStatus() { return this._reviewPromptStatus; }
-  get reviewPromptAttempts() { return this._reviewPromptAttempts; }
-  get reviewPromptError() { return this._reviewPromptError; }
-  get reviewPromptLockedAt() { return this._reviewPromptLockedAt; }
-  get reviewPromptLockedBy() { return this._reviewPromptLockedBy; }
+  get occurrenceCount() {
+    return this._occurrenceCount;
+  }
+  get intervalDays() {
+    return this._intervalDays;
+  }
+  get masteryState() {
+    return this._masteryState;
+  }
+  get dueAt() {
+    return this._dueAt;
+  }
+  get lastReviewedAt() {
+    return this._lastReviewedAt;
+  }
+  get updatedAt() {
+    return this._updatedAt;
+  }
+
+  get reviewPromptEn() {
+    return this._reviewPromptEn;
+  }
+  get reviewPromptVi() {
+    return this._reviewPromptVi;
+  }
+  get reviewRubricVi() {
+    return this._reviewRubricVi;
+  }
+  get reviewCorrectAnswer() {
+    return this._reviewCorrectAnswer;
+  }
+  get reviewAcceptableAnswers() {
+    return this._reviewAcceptableAnswers;
+  }
+  get reviewPromptStatus() {
+    return this._reviewPromptStatus;
+  }
+  get reviewPromptAttempts() {
+    return this._reviewPromptAttempts;
+  }
+  get reviewPromptError() {
+    return this._reviewPromptError;
+  }
+  get reviewPromptLockedAt() {
+    return this._reviewPromptLockedAt;
+  }
+  get reviewPromptLockedBy() {
+    return this._reviewPromptLockedBy;
+  }
 
   // Business operations (Mutators)
   incrementOccurrence() {
@@ -171,9 +242,16 @@ export class MistakePattern {
   }
 
   recordReviewAttempt(isCorrect: boolean, now = new Date()) {
-    this._intervalDays = isCorrect ? MistakePattern.nextReviewAfterSuccess(this._intervalDays) : 0;
-    this._dueAt = isCorrect ? MistakePattern.nextDueDate(this._intervalDays, now) : MistakePattern.resetDueAfterFailure(now);
-    this._masteryState = MistakePattern.masteryStateAfterReview(isCorrect, this._intervalDays);
+    this._intervalDays = isCorrect
+      ? MistakePattern.nextReviewAfterSuccess(this._intervalDays)
+      : 0;
+    this._dueAt = isCorrect
+      ? MistakePattern.nextDueDate(this._intervalDays, now)
+      : MistakePattern.resetDueAfterFailure(now);
+    this._masteryState = MistakePattern.masteryStateAfterReview(
+      isCorrect,
+      this._intervalDays
+    );
     this._lastReviewedAt = now;
     this._updatedAt = now;
   }
@@ -205,14 +283,21 @@ export class MistakePattern {
     this._updatedAt = new Date();
   }
 
-  setJobStatus(status: "queued" | "running" | "succeeded" | "failed", extra?: any) {
+  setJobStatus(
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: any
+  ) {
     this._reviewPromptStatus = status;
     this._updatedAt = new Date();
     if (extra) {
-      if (extra.reviewPromptError !== undefined) this._reviewPromptError = extra.reviewPromptError;
-      if (extra.reviewPromptAttempts !== undefined) this._reviewPromptAttempts = extra.reviewPromptAttempts;
-      if (extra.reviewPromptLockedAt !== undefined) this._reviewPromptLockedAt = extra.reviewPromptLockedAt;
-      if (extra.reviewPromptLockedBy !== undefined) this._reviewPromptLockedBy = extra.reviewPromptLockedBy;
+      if (extra.reviewPromptError !== undefined)
+        this._reviewPromptError = extra.reviewPromptError;
+      if (extra.reviewPromptAttempts !== undefined)
+        this._reviewPromptAttempts = extra.reviewPromptAttempts;
+      if (extra.reviewPromptLockedAt !== undefined)
+        this._reviewPromptLockedAt = extra.reviewPromptLockedAt;
+      if (extra.reviewPromptLockedBy !== undefined)
+        this._reviewPromptLockedBy = extra.reviewPromptLockedBy;
     }
   }
 
@@ -251,4 +336,82 @@ export class MistakePattern {
       reviewPromptLockedBy: this._reviewPromptLockedBy,
     };
   }
+
+  toPlainObject(): MistakePatternPlain {
+    return {
+      id: this.id,
+      userId: this.userId,
+      conceptKey: this.conceptKey,
+      normalizedPhrase: this.normalizedPhrase,
+      senseKey: this.senseKey,
+      category: this.category,
+      errorType: this.errorType,
+      meaningVi: this.meaningVi,
+      safeReviewPromptVi: this.safeReviewPromptVi,
+      isSensitive: this.isSensitive,
+      occurrenceCount: this._occurrenceCount,
+      intervalDays: this._intervalDays,
+      masteryState: this._masteryState,
+      dueAt: this._dueAt.toISOString(),
+      lastReviewedAt: this._lastReviewedAt?.toISOString() ?? null,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this._updatedAt.toISOString(),
+      reviewPromptEn: this._reviewPromptEn,
+      reviewPromptVi: this._reviewPromptVi,
+      reviewRubricVi: this._reviewRubricVi,
+      reviewCorrectAnswer: this._reviewCorrectAnswer,
+      reviewAcceptableAnswers: this._reviewAcceptableAnswers,
+      reviewPromptStatus: this._reviewPromptStatus,
+      reviewPromptAttempts: this._reviewPromptAttempts,
+      reviewPromptError: this._reviewPromptError,
+      reviewPromptLockedAt: this._reviewPromptLockedAt?.toISOString() ?? null,
+      reviewPromptLockedBy: this._reviewPromptLockedBy,
+    };
+  }
+}
+
+export interface MistakePatternPlain {
+  id: string;
+  userId: string;
+  conceptKey: string;
+  normalizedPhrase: string;
+  senseKey: string | null;
+  category:
+    | "idiom"
+    | "phrasal_verb"
+    | "technical_term"
+    | "collocation"
+    | "grammar_pattern"
+    | "business_phrase"
+    | "general_phrase";
+  errorType:
+    | "literal_translation"
+    | "phrase_misunderstanding"
+    | "technical_term_misunderstanding"
+    | "phrasal_verb_error"
+    | "collocation_error"
+    | "grammar_structure_misread"
+    | "pronoun_reference_misread"
+    | "tone_register_misread"
+    | "missing_context";
+  meaningVi: string;
+  safeReviewPromptVi: string;
+  isSensitive: boolean;
+  occurrenceCount: number;
+  intervalDays: number;
+  masteryState: MasteryState;
+  dueAt: string;
+  lastReviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reviewPromptEn: string | null;
+  reviewPromptVi: string | null;
+  reviewRubricVi: string | null;
+  reviewCorrectAnswer: string | null;
+  reviewAcceptableAnswers: string[] | null;
+  reviewPromptStatus: "queued" | "running" | "succeeded" | "failed";
+  reviewPromptAttempts: number;
+  reviewPromptError: string | null;
+  reviewPromptLockedAt: string | null;
+  reviewPromptLockedBy: string | null;
 }

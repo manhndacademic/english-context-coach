@@ -6,7 +6,12 @@ import { getMistakePatternRepository } from "@/domain/memory";
 export default async function ReviewPage() {
   const user = await requireUser();
   const repo = getMistakePatternRepository();
-  const patterns = await repo.findDueMistakePatterns(user.id, new Date(), 20);
+  const rawPatterns = await repo.findDueMistakePatterns(
+    user.id,
+    new Date(),
+    20
+  );
+  const patterns = rawPatterns.map((p) => p.toPlainObject());
 
   return (
     <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
@@ -17,10 +22,11 @@ export default async function ReviewPage() {
             Ôn tập mẫu lỗi (Spaced Repetition)
           </h1>
           <p className="text-muted text-sm leading-relaxed m-0 mt-1.5">
-            Ôn tập sử dụng ngữ cảnh khái quát hóa an toàn, không chứa thông tin cá nhân từ bài học gốc.
+            Ôn tập sử dụng ngữ cảnh khái quát hóa an toàn, không chứa thông tin
+            cá nhân từ bài học gốc.
           </p>
         </div>
-        
+
         <div className="w-full">
           <ReviewSession patterns={patterns} />
         </div>
