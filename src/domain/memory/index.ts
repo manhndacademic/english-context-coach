@@ -100,4 +100,3 @@ export type {
   JobDispatcher,
 } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
-export { isDueMistakePattern, masteryStateAfterReview } from "./mastery";

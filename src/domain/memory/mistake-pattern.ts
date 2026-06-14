@@ -1,8 +1,30 @@
 import type { MasteryState } from "./types";
-import { nextReviewAfterSuccess, nextDueDate, resetDueAfterFailure } from "@/domain/review";
-import { masteryStateAfterReview } from "./mastery";
 
 export class MistakePattern {
+  public static readonly REVIEW_INTERVALS = [1, 3, 7, 14];
+  public static readonly MASTERED_INTERVAL_DAYS = 14;
+
+  public static nextReviewAfterSuccess(currentIntervalDays: number): number {
+    const next = MistakePattern.REVIEW_INTERVALS.find((interval) => interval > currentIntervalDays);
+    return next ?? MistakePattern.REVIEW_INTERVALS[MistakePattern.REVIEW_INTERVALS.length - 1];
+  }
+
+  public static nextDueDate(intervalDays: number, from = new Date()): Date {
+    const due = new Date(from);
+    due.setDate(due.getDate() + intervalDays);
+    return due;
+  }
+
+  public static resetDueAfterFailure(from = new Date()): Date {
+    const due = new Date(from);
+    due.setDate(due.getDate() + 1);
+    return due;
+  }
+
+  public static masteryStateAfterReview(isCorrect: boolean, intervalDays: number): MasteryState {
+    return isCorrect && intervalDays >= MistakePattern.MASTERED_INTERVAL_DAYS ? "mastered" : "active";
+  }
+
   private constructor(
     public readonly id: string,
     public readonly userId: string,
@@ -140,10 +162,18 @@ export class MistakePattern {
     }
   }
 
+  isDue(now = new Date()): boolean {
+    return (
+      this._masteryState === "active" &&
+      this._reviewPromptStatus === "succeeded" &&
+      this._dueAt.getTime() <= now.getTime()
+    );
+  }
+
   recordReviewAttempt(isCorrect: boolean, now = new Date()) {
-    this._intervalDays = isCorrect ? nextReviewAfterSuccess(this._intervalDays) : 0;
-    this._dueAt = isCorrect ? nextDueDate(this._intervalDays, now) : resetDueAfterFailure(now);
-    this._masteryState = masteryStateAfterReview(isCorrect, this._intervalDays);
+    this._intervalDays = isCorrect ? MistakePattern.nextReviewAfterSuccess(this._intervalDays) : 0;
+    this._dueAt = isCorrect ? MistakePattern.nextDueDate(this._intervalDays, now) : MistakePattern.resetDueAfterFailure(now);
+    this._masteryState = MistakePattern.masteryStateAfterReview(isCorrect, this._intervalDays);
     this._lastReviewedAt = now;
     this._updatedAt = now;
   }

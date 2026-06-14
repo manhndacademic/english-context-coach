@@ -1,5 +1,16 @@
-import type { TextProcessor } from "../ports";
 import { sha256, hashCanonicalPayload } from "@/lib/crypto";
+
+export interface TextProcessor {
+  processSource(content: string): { normalized: string; hash: string };
+  normalizePhrase(phrase: string): string;
+  buildSenseKey(phrase: string, meaningVi: string, category: string): string;
+  isSafe(text: string): boolean;
+  shouldScrubMistakePattern(input: {
+    normalizedPhrase: string;
+    meaningVi: string;
+    safeReviewPromptVi: string;
+  }): boolean;
+}
 
 const sensitivePatterns = [
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,

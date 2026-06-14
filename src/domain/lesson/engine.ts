@@ -1,6 +1,6 @@
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import type { TextProcessor } from "@/domain/text";
-import { getPlainTextFromJSON, getHighlightsFromJSON } from "@/domain/text/adapters/default-processor";
+import { getPlainTextFromJSON, getHighlightsFromJSON } from "@/domain/text/processor";
 import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import type {

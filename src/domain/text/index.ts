@@ -1,5 +1,5 @@
-import { DefaultTextProcessor } from "./adapters/default-processor";
-import type { TextProcessor } from "./ports";
+import { DefaultTextProcessor } from "./processor";
+import type { TextProcessor } from "./processor";
 
 let cachedProcessor: TextProcessor | null = null;
 
@@ -10,4 +10,4 @@ export function getTextProcessor(): TextProcessor {
   return cachedProcessor;
 }
 
-export type { TextProcessor } from "./ports";
+export type { TextProcessor } from "./processor";
