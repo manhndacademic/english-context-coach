@@ -66,7 +66,7 @@ export function ConfirmDialog({
       ref={dialogRef}
       onClose={onClose}
       onClick={handleBackdropClick}
-      className="z-50 bg-transparent border-none p-0 outline-none backdrop:bg-black/60 dark:backdrop:bg-black/80 backdrop:backdrop-blur-md animate-in fade-in duration-200"
+      className="z-50 m-auto bg-transparent border-none p-0 outline-none backdrop:bg-black/60 dark:backdrop:bg-black/80 backdrop:backdrop-blur-md animate-in fade-in duration-200"
     >
       {/* Dialog card */}
       <div className="relative w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl p-6 overflow-hidden flex flex-col gap-4 scale-100 animate-in zoom-in-95 duration-200">
