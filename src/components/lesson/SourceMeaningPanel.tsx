@@ -1,4 +1,3 @@
-import React from "react";
 import { renderRichText } from "@/lib/rich-text";
 
 interface SourceMeaningPanelProps {

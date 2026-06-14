@@ -15,7 +15,7 @@ const addSystemApiKeySchema = z.object({
 
 export const addSystemApiKeyAction = validatedAction(
   addSystemApiKeySchema,
-  async (data, user) => {
+  async (data, _user) => {
     const encrypted = encryptApiKey(data.apiKey);
 
     await db.insert(schema.aiApiKeys).values({
@@ -36,7 +36,7 @@ const deleteSystemApiKeySchema = z.object({
 
 export const deleteSystemApiKeyAction = validatedAction(
   deleteSystemApiKeySchema,
-  async (data, user) => {
+  async (data, _user) => {
     await db
       .delete(schema.aiApiKeys)
       .where(eq(schema.aiApiKeys.id, data.keyId));
@@ -51,7 +51,7 @@ const reverifySystemApiKeySchema = z.object({
 
 export const reverifySystemApiKeyAction = validatedAction(
   reverifySystemApiKeySchema,
-  async (data, user) => {
+  async (data, _user) => {
     await db
       .update(schema.aiApiKeys)
       .set({

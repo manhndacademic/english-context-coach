@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { dedupeKeyPhrases, exerciseCompletenessIssues, findMatchingLessonFocus } from "./lesson";
+import {
+  dedupeKeyPhrases,
+  exerciseCompletenessIssues,
+  findMatchingLessonFocus,
+} from "./lesson";
 import { getTextProcessor } from "@/domain/text";
-import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
 const basePhrase: any = {
   conceptKey: "push_back",
@@ -56,17 +59,22 @@ describe("lesson product rules", () => {
           conceptMeaningVi: "thỏa thuận kỹ thuật API",
           meaningVi: "thỏa thuận kỹ thuật API",
           meaningInContextVi: "tài liệu cần chốt trước khi tiếp tục",
-          exampleEn: "The API contract should be finalized before implementation.",
-          exampleVi: "Tài liệu thống nhất API nên được chốt trước khi triển khai.",
+          exampleEn:
+            "The API contract should be finalized before implementation.",
+          exampleVi:
+            "Tài liệu thống nhất API nên được chốt trước khi triển khai.",
           category: "technical_term",
           difficulty: "B2",
         },
       ],
       "We need to push this back until the API contract is finalized.",
-      getTextProcessor(),
+      getTextProcessor()
     );
 
-    expect(phrases.map((phrase) => phrase.phrase)).toEqual(["push this back", "API contract"]);
+    expect(phrases.map((phrase) => phrase.phrase)).toEqual([
+      "push this back",
+      "API contract",
+    ]);
   });
 
   it("allows short text analysis with fewer than three key phrases", () => {
@@ -84,7 +92,8 @@ describe("lesson product rules", () => {
             type: "focus_question",
             focus: "Phản hồi đồng ý ngắn",
             promptVi: "Tin nhắn này thể hiện thái độ gì?",
-            rubricVi: "Câu trả lời cần nêu đây là phản hồi đồng ý/ngầm chấp thuận ngắn gọn.",
+            rubricVi:
+              "Câu trả lời cần nêu đây là phản hồi đồng ý/ngầm chấp thuận ngắn gọn.",
           },
           {
             type: "natural_translation",
@@ -139,7 +148,7 @@ describe("lesson product rules", () => {
           },
         ],
       },
-      getTextProcessor(),
+      getTextProcessor()
     );
 
     expect(issues).toEqual([]);
@@ -189,9 +198,9 @@ describe("lesson product rules", () => {
       ],
     };
 
-    expect(exerciseCompletenessIssues(result, baseAnalysis, getTextProcessor())).toContain(
-      "A complete Lesson needs at least one LessonFocus Exercise.",
-    );
+    expect(
+      exerciseCompletenessIssues(result, baseAnalysis, getTextProcessor())
+    ).toContain("A complete Lesson needs at least one LessonFocus Exercise.");
   });
 
   describe("findMatchingLessonFocus", () => {
@@ -208,31 +217,51 @@ describe("lesson product rules", () => {
     ];
 
     it("matches exactly on conceptPhrase", () => {
-      const match = findMatchingLessonFocus("academic tone", mockFocuses, getTextProcessor());
+      const match = findMatchingLessonFocus(
+        "academic tone",
+        mockFocuses,
+        getTextProcessor()
+      );
       expect(match).toBeDefined();
       expect(match?.conceptKey).toBe("academic_tone");
     });
 
     it("matches exactly on conceptKey (with space replacement)", () => {
-      const match = findMatchingLessonFocus("academic tone", mockFocuses, getTextProcessor());
+      const match = findMatchingLessonFocus(
+        "academic tone",
+        mockFocuses,
+        getTextProcessor()
+      );
       expect(match).toBeDefined();
       expect(match?.conceptKey).toBe("academic_tone");
     });
 
     it("matches exactly on category", () => {
-      const match = findMatchingLessonFocus("tone", mockFocuses, getTextProcessor());
+      const match = findMatchingLessonFocus(
+        "tone",
+        mockFocuses,
+        getTextProcessor()
+      );
       expect(match).toBeDefined();
       expect(match?.conceptKey).toBe("academic_tone");
     });
 
     it("matches substring for longer inputs", () => {
-      const match = findMatchingLessonFocus("academic", mockFocuses, getTextProcessor());
+      const match = findMatchingLessonFocus(
+        "academic",
+        mockFocuses,
+        getTextProcessor()
+      );
       expect(match).toBeDefined();
       expect(match?.conceptKey).toBe("academic_tone");
     });
 
     it("returns undefined for non-matching inputs", () => {
-      const match = findMatchingLessonFocus("random topic", mockFocuses, getTextProcessor());
+      const match = findMatchingLessonFocus(
+        "random topic",
+        mockFocuses,
+        getTextProcessor()
+      );
       expect(match).toBeUndefined();
     });
   });

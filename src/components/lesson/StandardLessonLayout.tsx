@@ -1,4 +1,3 @@
-import React from "react";
 import { AppHeader } from "@/components/app-header";
 import { ReadableSourceText } from "@/components/readable-source-text";
 import { KeyPhraseList } from "@/components/key-phrase-list";

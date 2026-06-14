@@ -12,12 +12,10 @@ export function RichTextEditor({
   onChange,
   placeholder,
   value,
-  maxLength,
 }: {
   onChange: (value: string) => void;
   placeholder?: string;
   value: string;
-  maxLength?: number;
 }) {
   const extensions = useMemo(
     () => [

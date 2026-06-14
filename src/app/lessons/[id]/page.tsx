@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import React from "react";
 import { AlertCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";

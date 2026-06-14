@@ -1,4 +1,3 @@
-import React from "react";
 import { ExerciseStepper } from "@/components/exercise-stepper";
 
 interface ExercisePanelProps {

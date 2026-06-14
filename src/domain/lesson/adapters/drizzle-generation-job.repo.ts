@@ -1,4 +1,4 @@
-import { and, count, desc, eq, or, sql as drizzleSql } from "drizzle-orm";
+import { and, count, eq, or } from "drizzle-orm";
 import { db, schema, sql as rawSql } from "@/db";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
 import type { GenerationJobRepository, GenerationJob } from "../ports";

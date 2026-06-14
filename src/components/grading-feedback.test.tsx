@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, expect, it } from "vitest";
 import { GradingFeedback } from "./grading-feedback";
 import { renderToStaticMarkup } from "react-dom/server";

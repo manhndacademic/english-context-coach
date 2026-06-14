@@ -1,4 +1,3 @@
-import React from "react";
 import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { SourceMeaningPanel } from "./SourceMeaningPanel";
 

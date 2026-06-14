@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { ChevronUp, ChevronDown, AlertCircle } from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
 

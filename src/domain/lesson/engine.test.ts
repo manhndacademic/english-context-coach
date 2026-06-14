@@ -8,8 +8,6 @@ import type {
   SourceText,
   Lesson,
   GenerationJob,
-  GenerationMilestone,
-  GenerationThought,
 } from "./ports";
 
 class MockLessonRepository implements LessonRepository {
@@ -46,11 +44,11 @@ class MockLessonRepository implements LessonRepository {
     return latest as unknown as Lesson | null;
   }
 
-  async findKeyPhrase(keyPhraseId: string) {
+  async findKeyPhrase(_keyPhraseId: string) {
     return null;
   }
 
-  async findLessonFocus(lessonFocusId: string) {
+  async findLessonFocus(_lessonFocusId: string) {
     return null;
   }
 
@@ -148,7 +146,7 @@ class MockLessonRepository implements LessonRepository {
     return job as unknown as GenerationJob;
   }
 
-  async claimJob(workerId: string) {
+  async claimJob(_workerId: string) {
     for (const j of this.generationJobs.values()) {
       if (j.status === "queued") {
         j.status = "running";
@@ -169,7 +167,7 @@ class MockLessonRepository implements LessonRepository {
     }
   }
 
-  async assertQueueCapacity(userId: string) {
+  async assertQueueCapacity(_userId: string) {
     return null;
   }
 
@@ -189,9 +187,9 @@ class MockLessonRepository implements LessonRepository {
 
   async saveAnalysis(
     lessonId: string,
-    userId: string,
+    _userId: string,
     analysis: any,
-    model: string
+    _model: string
   ) {
     this.savedAnalysisLessonId = lessonId;
     const lesson = this.lessons.get(lessonId);
@@ -203,9 +201,9 @@ class MockLessonRepository implements LessonRepository {
 
   async saveExercises(
     lessonId: string,
-    userId: string,
-    exercises: any,
-    model: string
+    _userId: string,
+    _exercises: any,
+    _model: string
   ) {
     this.savedExercisesLessonId = lessonId;
     const lesson = this.lessons.get(lessonId);
@@ -237,11 +235,11 @@ class MockLessonRepository implements LessonRepository {
     } as any;
   }
 
-  async deleteSourceText(userId: string, sourceTextId: string) {
+  async deleteSourceText(_userId: string, sourceTextId: string) {
     this.sourceTexts.delete(sourceTextId);
   }
 
-  async resetStuckJob(userId: string, lessonId: string) {
+  async resetStuckJob(_userId: string, lessonId: string) {
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
       lesson.analysisStatus = "pending";
@@ -280,15 +278,15 @@ class MockLessonRepository implements LessonRepository {
     };
   }
 
-  async getLessonAggregate(lessonId: string, userId: string): Promise<any> {
+  async getLessonAggregate(_lessonId: string, _userId: string): Promise<any> {
     return null;
   }
 
-  async getRecentLessons(userId: string, limit: number): Promise<any[]> {
+  async getRecentLessons(_userId: string, _limit: number): Promise<any[]> {
     return [];
   }
 
-  async getSourceTextsCount(userId: string): Promise<number> {
+  async getSourceTextsCount(_userId: string): Promise<number> {
     return 0;
   }
 }
@@ -358,7 +356,7 @@ class MockGenerationEngine implements GenerationEngine {
   analysisError: Error | null = null;
   exercisesError: Error | null = null;
 
-  async generateAnalysis(sourceText: string, onThought?: any) {
+  async generateAnalysis(_sourceText: string, onThought?: any) {
     if (this.analysisError) throw this.analysisError;
     if (onThought) {
       await onThought("Thought 1");
@@ -366,7 +364,7 @@ class MockGenerationEngine implements GenerationEngine {
     return this.analysisResult as any;
   }
 
-  async generateExercises(analysis: any, onThought?: any) {
+  async generateExercises(_analysis: any, onThought?: any) {
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");

@@ -3,7 +3,7 @@ import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { LLMProvider } from "@/domain/ai";
 import { gradingPrompt } from "@/lib/ai/prompts";
 import { gradingSchema, type GradingResult } from "@/lib/ai/schemas";
-import type { GradingEngine } from "../ports";
+import type { GradingEngine, LearnerGradingResult } from "../ports";
 
 function normalizeAnswer(value: string) {
   return value
@@ -59,7 +59,7 @@ export class DefaultGradingEngine implements GradingEngine {
     lessonId?: string;
     exercise: Exercise;
     answer: string;
-  }): Promise<GradingResult> {
+  }): Promise<LearnerGradingResult> {
     const ruleGrade = gradeObjectiveExercise(input.exercise, input.answer);
     if (ruleGrade) {
       return ruleGrade;
@@ -87,6 +87,7 @@ export class DefaultGradingEngine implements GradingEngine {
       return {
         score: 0,
         isCorrect: false,
+        systemFailure: true,
         feedbackVi:
           "Chưa thể chấm câu trả lời này do phản hồi AI không hợp lệ. Hãy thử gửi lại sau.",
         error: {

@@ -1,4 +1,3 @@
-import React from "react";
 import { Server, Clock3, Loader2, XCircle } from "lucide-react";
 
 interface GenerationJobsTableProps {

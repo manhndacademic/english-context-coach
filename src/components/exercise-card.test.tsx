@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ExerciseCard } from "./exercise-card";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -100,7 +99,7 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
     // Should contain the target phrase text and link
     expect(html).toContain("Luyện tập cụm từ:");
     expect(html).toContain("excel at");
-    expect(html).toContain("href=\"#keyphrase-kp-1\"");
+    expect(html).toContain('href="#keyphrase-kp-1"');
   });
 
   it("shows the target phrase link for an unsolved phrase_production exercise", () => {

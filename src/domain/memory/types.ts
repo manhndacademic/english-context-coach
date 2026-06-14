@@ -1,5 +1,3 @@
-import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson/ports";
-
 export interface Attempt {
   id: string;
   exerciseId: string;

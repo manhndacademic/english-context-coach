@@ -1,7 +1,11 @@
 import type { Exercise } from "@/domain/lesson/ports";
-import type { Attempt, UserError, ReviewAttempt, MasteryState } from "./types";
+import type { Attempt, UserError, ReviewAttempt } from "./types";
 import type { GradingResult } from "@/lib/ai/schemas";
 import { MistakePattern } from "./mistake-pattern";
+
+export type LearnerGradingResult = GradingResult & {
+  systemFailure?: boolean;
+};
 
 export interface ExerciseRepository {
   findExercise(exerciseId: string, userId: string): Promise<Exercise | null>;
@@ -93,7 +97,7 @@ export interface GradingEngine {
     lessonId?: string;
     exercise: Exercise;
     answer: string;
-  }): Promise<GradingResult>;
+  }): Promise<LearnerGradingResult>;
 }
 
 export interface JobDispatcher {

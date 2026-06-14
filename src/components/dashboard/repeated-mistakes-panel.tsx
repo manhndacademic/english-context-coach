@@ -1,4 +1,3 @@
-import React from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowRight } from "lucide-react";
 import { retryReviewPromptGenerationAction } from "@/app/actions/review";

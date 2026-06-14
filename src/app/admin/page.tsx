@@ -11,7 +11,6 @@ import { PurposeBreakdownTable } from "@/components/admin/PurposeBreakdownTable"
 import { TopUsersTable } from "@/components/admin/TopUsersTable";
 import { GenerationJobsTable } from "@/components/admin/GenerationJobsTable";
 import dynamic from "next/dynamic";
-import React from "react";
 
 const MetricsChart = dynamic(
   () =>

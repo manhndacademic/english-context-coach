@@ -93,7 +93,15 @@ export type {
   ReviewAttempt,
 } from "./types";
 export { MistakePattern } from "./mistake-pattern";
+export {
+  AttemptMemoryTransition,
+  MIN_USER_ERROR_CONFIDENCE,
+} from "./attempt-memory-transition";
 export type { MistakePatternPlain } from "./mistake-pattern";
+export type {
+  AttemptMemoryTransitionInput,
+  AttemptMemoryTransitionResult,
+} from "./attempt-memory-transition";
 export type {
   ExerciseRepository,
   AttemptRepository,
@@ -101,5 +109,6 @@ export type {
   TransactionCoordinator,
   GradingEngine,
   JobDispatcher,
+  LearnerGradingResult,
 } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
