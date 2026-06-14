@@ -1,12 +1,20 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DrizzleMistakePatternRepository } from "./drizzle-repositories";
 
+const formatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function mockChain(result: any) {
   const chain: any = {
     select: () => chain,
     selectDistinct: () => chain,
     from: () => chain,
     where: () => chain,
+    groupBy: () => chain,
     orderBy: () => chain,
     limit: () => chain,
     then: (onfulfilled: any) => Promise.resolve(result).then(onfulfilled),
@@ -17,18 +25,19 @@ function mockChain(result: any) {
 describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
   let repository: DrizzleMistakePatternRepository;
   let mockDbClient: any;
+  const testDate = new Date("2026-06-14T12:00:00Z"); // Vietnam: 2026-06-14
 
   beforeEach(() => {
     mockDbClient = {
-      select: vi.fn(),
-      selectDistinct: vi.fn(),
+      select: vi.fn().mockImplementation(() => mockChain([])),
+      selectDistinct: vi.fn().mockImplementation(() => mockChain([])),
     };
     repository = new DrizzleMistakePatternRepository(mockDbClient);
   });
 
   it("should return correct counts, streak, and trend", async () => {
     // 1. Mock selectDistinct for streak: activity only today
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = formatter.format(testDate);
     mockDbClient.selectDistinct
       .mockReturnValueOnce(mockChain([{ activityDate: todayStr }])) // attempts
       .mockReturnValueOnce(mockChain([])); // reviewAttempts
@@ -46,9 +55,14 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
           { week: "2026-06-01" },
           { week: "2026-06-08" },
         ])
-      ); // masteredTrend
+      ) // masteredTrend
+      .mockReturnValueOnce(mockChain([{ value: 10 }])) // exercisesCompleted
+      .mockReturnValueOnce(mockChain([{ value: 4 }])) // lessonsCompleted
+      .mockReturnValueOnce(
+        mockChain([{ week: "2026-06-08", total: 10, literalCount: 3 }])
+      ); // literalErrorTrend
 
-    const result = await repository.getDashboardMetrics("user-1", new Date());
+    const result = await repository.getDashboardMetrics("user-1", testDate);
 
     expect(result.dueCount).toBe(3);
     expect(result.patternCount).toBe(15);
@@ -58,6 +72,11 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
     expect(result.masteredTrend).toEqual([
       { week: "2026-06-01", cumulative: 2 },
       { week: "2026-06-08", cumulative: 3 },
+    ]);
+    expect(result.exercisesCompleted).toBe(10);
+    expect(result.lessonsCompleted).toBe(4);
+    expect(result.literalErrorTrend).toEqual([
+      { week: "2026-06-08", total: 10, literalRatio: 30 },
     ]);
   });
 
@@ -75,14 +94,13 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
         .mockReturnValueOnce(mockChain([])) // reviewSuccessRate
         .mockReturnValueOnce(mockChain([])); // masteredTrend
 
-      const result = await repository.getDashboardMetrics("user-1", new Date());
+      const result = await repository.getDashboardMetrics("user-1", testDate);
       expect(result.learningStreakDays).toBe(0);
     });
 
     it("should return 1 when there is activity only yesterday", async () => {
-      const yesterdayDate = new Date();
-      yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
-      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      const yesterdayDate = new Date(testDate.getTime() - 24 * 60 * 60 * 1000);
+      const yesterdayStr = formatter.format(yesterdayDate);
 
       mockDbClient.selectDistinct
         .mockReturnValueOnce(mockChain([]))
@@ -96,14 +114,13 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
         .mockReturnValueOnce(mockChain([]))
         .mockReturnValueOnce(mockChain([]));
 
-      const result = await repository.getDashboardMetrics("user-1", new Date());
+      const result = await repository.getDashboardMetrics("user-1", testDate);
       expect(result.learningStreakDays).toBe(1);
     });
 
     it("should return 0 when the last activity was 2 days ago (streak broken)", async () => {
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setUTCDate(twoDaysAgo.getUTCDate() - 2);
-      const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10);
+      const twoDaysAgo = new Date(testDate.getTime() - 2 * 24 * 60 * 60 * 1000);
+      const twoDaysAgoStr = formatter.format(twoDaysAgo);
 
       mockDbClient.selectDistinct
         .mockReturnValueOnce(mockChain([{ activityDate: twoDaysAgoStr }]))
@@ -117,16 +134,15 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
         .mockReturnValueOnce(mockChain([]))
         .mockReturnValueOnce(mockChain([]));
 
-      const result = await repository.getDashboardMetrics("user-1", new Date());
+      const result = await repository.getDashboardMetrics("user-1", testDate);
       expect(result.learningStreakDays).toBe(0);
     });
 
     it("should compute consecutive days correctly (e.g. 5 days)", async () => {
       const dates: string[] = [];
       for (let i = 0; i < 5; i++) {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() - i);
-        dates.push(d.toISOString().slice(0, 10));
+        const d = new Date(testDate.getTime() - i * 24 * 60 * 60 * 1000);
+        dates.push(formatter.format(d));
       }
 
       mockDbClient.selectDistinct
@@ -153,7 +169,7 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
         .mockReturnValueOnce(mockChain([]))
         .mockReturnValueOnce(mockChain([]));
 
-      const result = await repository.getDashboardMetrics("user-1", new Date());
+      const result = await repository.getDashboardMetrics("user-1", testDate);
       expect(result.learningStreakDays).toBe(5);
     });
   });

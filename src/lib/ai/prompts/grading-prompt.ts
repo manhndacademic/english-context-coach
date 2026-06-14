@@ -18,12 +18,16 @@ export function gradingPrompt(input: {
   answer: string;
   rubricVi?: string | null;
   correctAnswer?: string | null;
+  forceCorrect?: boolean;
 }) {
   return [
     "Grade this Vietnamese learner answer.",
     "Prioritize whether the answer captures the English meaning in context naturally. Do not require word-by-word translation.",
     "Accept multiple natural Vietnamese answers when they preserve the meaning.",
     "Provide concise, actionable Vietnamese feedback.",
+    input.forceCorrect
+      ? "NOTE: The learner's answer is already confirmed correct by the local engine. You MUST set 'isCorrect' to true. Set 'feedbackDetails' to null and 'error' to null. Always provide 'naturalAnswer' in Vietnamese and a brief, encouraging Vietnamese reinforcement feedback message in 'feedbackVi'."
+      : "",
     "If the learner's answer is correct/accurate:",
     "  - Set 'isCorrect' to true.",
     "  - Set 'feedbackDetails' to null and 'error' to null. Do not generate detailed error or feedback objects to save tokens.",

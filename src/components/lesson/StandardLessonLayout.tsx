@@ -6,7 +6,9 @@ import { LessonHeader } from "./LessonHeader";
 import { DeveloperErrorView } from "./DeveloperErrorView";
 import { GrammarCorrectionView } from "./GrammarCorrectionView";
 import { SourceMeaningPanel } from "./SourceMeaningPanel";
+import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { ExercisePanel } from "./ExercisePanel";
+import { MixedLanguageView } from "./MixedLanguageView";
 import {
   groupAttemptsByExercise,
   indexById,
@@ -93,9 +95,8 @@ export function StandardLessonLayout({
     ])
   );
 
-  const { isDeveloperError, isGrammarCorrection } = classifyInputMode(
-    lesson.inputMode
-  );
+  const { isDeveloperError, isGrammarCorrection, isMixedLanguage } =
+    classifyInputMode(lesson.inputMode);
 
   const hasSideColumn =
     phrases.length > 0 ||
@@ -121,6 +122,12 @@ export function StandardLessonLayout({
               />
             ) : isGrammarCorrection ? (
               <GrammarCorrectionView
+                lesson={lesson}
+                sentenceBreakdowns={sentenceBreakdowns}
+                lessonFocuses={lessonFocuses}
+              />
+            ) : isMixedLanguage ? (
+              <MixedLanguageView
                 lesson={lesson}
                 sentenceBreakdowns={sentenceBreakdowns}
                 lessonFocuses={lessonFocuses}
@@ -152,6 +159,13 @@ export function StandardLessonLayout({
                   lesson={lesson}
                   lessonFocuses={lessonFocuses}
                 />
+
+                {sentenceBreakdowns.length > 0 && (
+                  <SentenceBreakdownPanel
+                    sentenceBreakdowns={sentenceBreakdowns}
+                    mode="standard"
+                  />
+                )}
               </>
             )}
           </div>

@@ -9,12 +9,24 @@ import { LessonCard } from "@/components/dashboard/lesson-card";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { RepeatedMistakesPanel } from "@/components/dashboard/repeated-mistakes-panel";
 import dynamic from "next/dynamic";
-import { Sparkles, BookOpen, TrendingUp } from "lucide-react";
+import { Sparkles, BookOpen, TrendingUp, TrendingDown } from "lucide-react";
 
 const MasteredTrendChart = dynamic(
   () =>
     import("@/components/dashboard/mastered-trend-chart").then(
       (mod) => mod.MasteredTrendChart
+    ),
+  {
+    loading: () => (
+      <div className="w-full h-45 bg-surface-strong/10 animate-pulse rounded-md" />
+    ),
+  }
+);
+
+const LiteralErrorTrendChart = dynamic(
+  () =>
+    import("@/components/dashboard/literal-error-trend-chart").then(
+      (mod) => mod.LiteralErrorTrendChart
     ),
   {
     loading: () => (
@@ -44,6 +56,9 @@ export default async function DashboardPage() {
     masteredCount,
     reviewSuccessRate,
     masteredTrend,
+    exercisesCompleted,
+    lessonsCompleted,
+    literalErrorTrend,
   } = dashboardMetrics;
 
   return (
@@ -86,6 +101,8 @@ export default async function DashboardPage() {
               patternCount={patternCount}
               masteredCount={masteredCount}
               reviewSuccessRate={reviewSuccessRate}
+              exercisesCompleted={exercisesCompleted}
+              lessonsCompleted={lessonsCompleted}
             />
 
             {/* Repeated Mistakes Card */}
@@ -93,16 +110,30 @@ export default async function DashboardPage() {
           </aside>
         </div>
 
-        {/* Progress Trend Chart */}
-        <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
-          <h2 className="text-2xl font-bold text-text flex items-center gap-2.5 m-0">
-            <TrendingUp size={20} className="text-muted" /> Tiến bộ theo thời
-            gian
-          </h2>
-          <p className="text-muted text-sm m-0 -mt-2">
-            North Star: số mẫu lỗi lặp lại đã thành thạo tích lũy theo tuần
-          </p>
-          <MasteredTrendChart data={masteredTrend} />
+        {/* Progress Trend Charts */}
+        <section className="grid grid-cols-1 min-[960px]:grid-cols-2 gap-layout-gap">
+          <div className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
+            <h2 className="text-2xl font-bold text-text flex items-center gap-2.5 m-0">
+              <TrendingUp size={20} className="text-emerald-600" /> Thành thạo
+              tích lũy
+            </h2>
+            <p className="text-muted text-sm m-0 -mt-2">
+              Số mẫu lỗi đã thành thạo (mastered) tích lũy theo tuần
+            </p>
+            <MasteredTrendChart data={masteredTrend} />
+          </div>
+
+          <div className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
+            <h2 className="text-2xl font-bold text-text flex items-center gap-2.5 m-0">
+              <TrendingDown size={20} className="text-orange-600" /> Tỷ lệ dịch
+              literal
+            </h2>
+            <p className="text-muted text-sm m-0 -mt-2">
+              Tỷ lệ lỗi dịch word-by-word (literal_translation) trên tổng số lỗi
+              theo tuần
+            </p>
+            <LiteralErrorTrendChart data={literalErrorTrend} />
+          </div>
         </section>
 
         {/* Recent Lessons Section */}

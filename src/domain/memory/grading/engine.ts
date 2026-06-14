@@ -62,7 +62,36 @@ export class DefaultGradingEngine implements GradingEngine {
   }): Promise<LearnerGradingResult> {
     const ruleGrade = gradeObjectiveExercise(input.exercise, input.answer);
     if (ruleGrade) {
-      return ruleGrade;
+      try {
+        const aiResponse = await this.llm.generateJson({
+          userId: input.userId,
+          lessonId: input.lessonId,
+          purpose: "grading",
+          prompt: gradingPrompt({
+            promptEn: input.exercise.promptEn ?? "",
+            promptVi: input.exercise.promptVi,
+            answer: input.answer,
+            rubricVi: input.exercise.rubricVi,
+            correctAnswer: input.exercise.correctAnswer,
+            forceCorrect: true,
+          }),
+          promptVersion: PROMPT_VERSIONS.grading,
+          schemaVersion: "grading",
+          schema: gradingSchema,
+          modelKind: "analysis",
+        });
+        return {
+          ...ruleGrade,
+          feedbackVi: aiResponse.feedbackVi || ruleGrade.feedbackVi,
+          naturalAnswer: aiResponse.naturalAnswer || ruleGrade.naturalAnswer,
+        };
+      } catch (error) {
+        console.error(
+          "[GradingEngine] AI feedback call for objective correct answer failed, falling back to static grade:",
+          error
+        );
+        return ruleGrade;
+      }
     }
 
     try {

@@ -58,7 +58,7 @@ export class DrizzleSourceTextRepository implements SourceTextRepository {
       const sensitivePatternIds = patterns
         .filter((pattern: DbMistakePattern) =>
           this.textProcessor.shouldScrubMistakePattern({
-            normalizedPhrase: pattern.normalizedPhrase,
+            phrase: pattern.normalizedPhrase,
             meaningVi: pattern.meaningVi,
             safeReviewPromptVi: pattern.safeReviewPromptVi,
           })

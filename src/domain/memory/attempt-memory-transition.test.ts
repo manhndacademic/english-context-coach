@@ -102,6 +102,9 @@ class MockMistakePatternRepository implements MistakePatternRepository {
       masteredCount: 0,
       reviewSuccessRate: 0,
       masteredTrend: [],
+      exercisesCompleted: 0,
+      lessonsCompleted: 0,
+      literalErrorTrend: [],
     };
   }
 }

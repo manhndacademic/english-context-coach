@@ -288,12 +288,19 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     masteredCount: number;
     reviewSuccessRate: number;
     masteredTrend: Array<{ week: string; cumulative: number }>;
+    exercisesCompleted: number;
+    lessonsCompleted: number;
+    literalErrorTrend: Array<{
+      week: string;
+      literalRatio: number;
+      total: number;
+    }>;
   }> {
     // 1. Fetch Streak dates
     const attemptDates = await this.dbClient
       .selectDistinct({
         activityDate:
-          drizzleSql<string>`DATE(${schema.attempts.createdAt} AT TIME ZONE 'UTC')`.as(
+          drizzleSql<string>`DATE(${schema.attempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
             "activity_date"
           ),
       })
@@ -303,7 +310,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     const reviewDates = await this.dbClient
       .selectDistinct({
         activityDate:
-          drizzleSql<string>`DATE(${schema.reviewAttempts.createdAt} AT TIME ZONE 'UTC')`.as(
+          drizzleSql<string>`DATE(${schema.reviewAttempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
             "activity_date"
           ),
       })
@@ -322,11 +329,16 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       const sortedDates = Array.from(allDateStrings).sort((a, b) =>
         b.localeCompare(a)
       );
-      // Compute "today" and "yesterday" in UTC date strings
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const yesterdayDate = new Date();
-      yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
-      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      // Compute "today" and "yesterday" in Vietnam date strings relative to dueAt
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const todayStr = formatter.format(dueAt);
+      const yesterday = new Date(dueAt.getTime() - 24 * 60 * 60 * 1000);
+      const yesterdayStr = formatter.format(yesterday);
 
       // Streak must start from today or yesterday; otherwise streak is 0
       if (sortedDates[0] === todayStr || sortedDates[0] === yesterdayStr) {
@@ -352,6 +364,9 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       repeatedMistakesRows,
       reviewSuccessRateRows,
       masteredTrendRows,
+      exercisesCompletedResult,
+      lessonsCompletedResult,
+      literalErrorTrendRows,
     ] = await Promise.all([
       // dueCount
       this.dbClient
@@ -406,7 +421,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       // masteredTrend
       this.dbClient
         .select({
-          week: drizzleSql<string>`TO_CHAR(DATE_TRUNC('week', ${schema.mistakePatterns.updatedAt}), 'YYYY-MM-DD')`,
+          week: drizzleSql<string>`TO_CHAR(DATE_TRUNC('week', ${schema.mistakePatterns.updatedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD')`,
         })
         .from(schema.mistakePatterns)
         .where(
@@ -416,6 +431,38 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
           )
         )
         .orderBy(schema.mistakePatterns.updatedAt),
+      // exercisesCompleted
+      this.dbClient
+        .select({ value: count() })
+        .from(schema.attempts)
+        .where(
+          and(
+            eq(schema.attempts.userId, userId),
+            eq(schema.attempts.isCorrect, true)
+          )
+        ),
+      // lessonsCompleted
+      this.dbClient
+        .select({
+          value: drizzleSql<number>`COUNT(DISTINCT ${schema.attempts.lessonId})`,
+        })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.userId, userId)),
+      // literalErrorTrend
+      this.dbClient
+        .select({
+          week: drizzleSql<string>`TO_CHAR(DATE_TRUNC('week', ${schema.userErrors.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD')`,
+          total: count(),
+          literalCount: drizzleSql<number>`SUM(CASE WHEN ${schema.userErrors.errorType} = 'literal_translation' THEN 1 ELSE 0 END)`,
+        })
+        .from(schema.userErrors)
+        .where(eq(schema.userErrors.userId, userId))
+        .groupBy(
+          drizzleSql`DATE_TRUNC('week', ${schema.userErrors.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`
+        )
+        .orderBy(
+          drizzleSql`DATE_TRUNC('week', ${schema.userErrors.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`
+        ),
     ]);
 
     const reviewSuccessRateTotal = reviewSuccessRateRows[0]?.total ?? 0;
@@ -442,6 +489,18 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       }
     }
 
+    const literalErrorTrend = (literalErrorTrendRows || []).map((row: any) => {
+      const total = Number(row.total) || 0;
+      const literalCount = Number(row.literalCount) || 0;
+      const literalRatio =
+        total > 0 ? Math.round((literalCount / total) * 100) : 0;
+      return {
+        week: row.week,
+        literalRatio,
+        total,
+      };
+    });
+
     return {
       dueCount: dueCountResult[0]?.value ?? 0,
       patternCount: patternCountResult[0]?.value ?? 0,
@@ -452,6 +511,9 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       masteredCount: masteredCountResult[0]?.value ?? 0,
       reviewSuccessRate,
       masteredTrend: trend,
+      exercisesCompleted: exercisesCompletedResult[0]?.value ?? 0,
+      lessonsCompleted: Number(lessonsCompletedResult[0]?.value) ?? 0,
+      literalErrorTrend,
     };
   }
 }

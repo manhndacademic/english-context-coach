@@ -118,5 +118,12 @@ export interface LearnerMemoryEngine {
     masteredCount: number;
     reviewSuccessRate: number;
     masteredTrend: Array<{ week: string; cumulative: number }>;
+    exercisesCompleted: number;
+    lessonsCompleted: number;
+    literalErrorTrend: Array<{
+      week: string;
+      literalRatio: number;
+      total: number;
+    }>;
   }>;
 }

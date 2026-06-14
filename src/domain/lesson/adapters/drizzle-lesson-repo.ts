@@ -92,7 +92,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       const sensitivePatternIds = patterns
         .filter((pattern: DbMistakePattern) =>
           this.textProcessor.shouldScrubMistakePattern({
-            normalizedPhrase: pattern.normalizedPhrase,
+            phrase: pattern.normalizedPhrase,
             meaningVi: pattern.meaningVi,
             safeReviewPromptVi: pattern.safeReviewPromptVi,
           })

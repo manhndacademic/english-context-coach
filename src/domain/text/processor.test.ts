@@ -67,6 +67,38 @@ describe("DefaultTextProcessor", () => {
     });
   });
 
+  describe("shouldScrubMistakePattern", () => {
+    it("scrubs when the phrase is sensitive", () => {
+      expect(
+        processor.shouldScrubMistakePattern({
+          phrase: "John Doe",
+          meaningVi: "Người ẩn danh",
+          safeReviewPromptVi: "Ôn lại cụm john doe",
+        })
+      ).toBe(true);
+    });
+
+    it("scrubs when the meaning is sensitive", () => {
+      expect(
+        processor.shouldScrubMistakePattern({
+          phrase: "secret",
+          meaningVi: "Thoại với John Doe",
+          safeReviewPromptVi: "Ôn lại cụm secret",
+        })
+      ).toBe(true);
+    });
+
+    it("does not scrub safe phrases", () => {
+      expect(
+        processor.shouldScrubMistakePattern({
+          phrase: "push back",
+          meaningVi: "trì hoãn",
+          safeReviewPromptVi: "Ôn lại cụm push back",
+        })
+      ).toBe(false);
+    });
+  });
+
   describe("getHighlightsFromJSON", () => {
     it("extracts unique highlighted texts from rich editor JSON", () => {
       const node = {

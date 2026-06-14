@@ -6,6 +6,8 @@ interface DashboardStatsProps {
   patternCount: number;
   masteredCount: number;
   reviewSuccessRate: number;
+  exercisesCompleted?: number;
+  lessonsCompleted?: number;
 }
 
 export function DashboardStats({
@@ -13,6 +15,8 @@ export function DashboardStats({
   patternCount,
   masteredCount,
   reviewSuccessRate,
+  exercisesCompleted = 0,
+  lessonsCompleted = 0,
 }: DashboardStatsProps) {
   return (
     <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-4">
@@ -54,6 +58,22 @@ export function DashboardStats({
           </span>
           <strong className="text-2xl font-bold block leading-tight">
             {reviewSuccessRate > 0 ? `${reviewSuccessRate}%` : "—"}
+          </strong>
+        </div>
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
+          <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
+            Luyện tập đúng
+          </span>
+          <strong className="text-2xl font-bold block leading-tight text-accent">
+            {exercisesCompleted}
+          </strong>
+        </div>
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
+          <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
+            Bài học đã học
+          </span>
+          <strong className="text-2xl font-bold block leading-tight">
+            {lessonsCompleted}
           </strong>
         </div>
       </div>

@@ -6,7 +6,7 @@ export interface TextProcessor {
   buildSenseKey(phrase: string, meaningVi: string, category: string): string;
   isSafe(text: string): boolean;
   shouldScrubMistakePattern(input: {
-    normalizedPhrase: string;
+    phrase: string;
     meaningVi: string;
     safeReviewPromptVi: string;
   }): boolean;
@@ -132,12 +132,12 @@ export class DefaultTextProcessor implements TextProcessor {
   }
 
   shouldScrubMistakePattern(input: {
-    normalizedPhrase: string;
+    phrase: string;
     meaningVi: string;
     safeReviewPromptVi: string;
   }): boolean {
     return (
-      !this.isSafe(input.normalizedPhrase) ||
+      !this.isSafe(input.phrase) ||
       !this.isSafe(input.meaningVi) ||
       !this.isSafe(input.safeReviewPromptVi)
     );

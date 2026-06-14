@@ -132,4 +132,42 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
     expect(html).toContain("Luyện tập cụm từ:");
     expect(html).toContain("excel at");
   });
+
+  it("disables the textarea input and shows the 'Luyện tập lại' button when solved", () => {
+    const exercise: Exercise = {
+      id: "ex-3",
+      lessonId: "les-1",
+      type: "natural_translation",
+      promptVi: "Dịch sang tiếng Việt tự nhiên",
+      promptEn: "We should push this back.",
+      correctAnswer: "Chúng ta nên dời lịch lại.",
+      acceptableAnswers: ["Chúng ta nên dời lịch lại."],
+    } as any;
+
+    const attempts: Attempt[] = [
+      {
+        id: "att-2",
+        userId: "user-1",
+        exerciseId: "ex-3",
+        lessonId: "les-1",
+        answer: "Chúng ta nên dời lịch lại.",
+        score: 100,
+        isCorrect: true,
+        feedbackVi: "Chính xác!",
+        createdAt: new Date(),
+      } as any,
+    ];
+
+    const html = renderToStaticMarkup(
+      <ExerciseCard exercise={exercise} attempts={attempts} />
+    );
+
+    // Should render the textarea with disabled attribute
+    expect(html).toContain("<textarea");
+    expect(html).toContain("disabled");
+
+    // Should render the Luyện tập lại button
+    expect(html).toContain("Luyện tập lại");
+    expect(html).not.toContain("Gửi câu trả lời");
+  });
 });

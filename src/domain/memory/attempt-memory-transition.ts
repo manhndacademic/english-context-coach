@@ -229,10 +229,13 @@ export class AttemptMemoryTransition {
     const conceptMeaningVi =
       keyPhrase?.conceptMeaningVi ?? lessonFocus?.conceptMeaningVi ?? meaningVi;
     const safeReviewPromptVi = `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`;
+    const originalPhrase =
+      keyPhrase?.phrase ?? lessonFocus?.title ?? targetItem;
+
     const isSensitive =
       Boolean(keyPhrase?.isSensitive) ||
       this.textProcessor.shouldScrubMistakePattern({
-        normalizedPhrase: conceptPhrase,
+        phrase: originalPhrase,
         meaningVi: conceptMeaningVi,
         safeReviewPromptVi,
       });

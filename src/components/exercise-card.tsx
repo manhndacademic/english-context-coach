@@ -85,6 +85,8 @@ export function ExerciseCard({
   const [answer, setAnswer] = useState(
     latest && !latest.isCorrect ? latest.answer : ""
   );
+  const [isPracticingAgain, setIsPracticingAgain] = useState(false);
+
   const statusLabel = solved
     ? "Đã xong"
     : needsRetry
@@ -94,11 +96,7 @@ export function ExerciseCard({
         : "Chưa bắt đầu";
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
-  const submitLabel = needsRetry
-    ? "Thử lại"
-    : solved
-      ? "Luyện tập lại"
-      : "Gửi câu trả lời";
+  const submitLabel = needsRetry ? "Thử lại" : "Gửi câu trả lời";
   const choiceSet = useMemo(
     () =>
       new Set(
@@ -255,6 +253,7 @@ export function ExerciseCard({
       <form
         action={async (formData) => {
           await submitAttemptAction(formData);
+          setIsPracticingAgain(false);
           if (isChoiceType) {
             setAnswer("");
           }
@@ -274,7 +273,7 @@ export function ExerciseCard({
               <label
                 key={`${exercise.id}-choice-${index}`}
                 className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${
-                  solved && choiceSet.has(choice)
+                  solved && !isPracticingAgain && choiceSet.has(choice)
                     ? "bg-success-light border-success text-success font-semibold"
                     : answer === choice
                       ? "border-accent bg-accent-light/30 ring-2 ring-accent/30 font-medium"
@@ -282,7 +281,7 @@ export function ExerciseCard({
                 }`}
               >
                 <input
-                  disabled={solved}
+                  disabled={solved && !isPracticingAgain}
                   name="answer"
                   required
                   type="radio"
@@ -294,7 +293,7 @@ export function ExerciseCard({
                 <span className="text-sm md:text-[15px]">
                   {renderRichText(choice)}
                 </span>
-                {solved && choiceSet.has(choice) ? (
+                {solved && !isPracticingAgain && choiceSet.has(choice) ? (
                   <CheckCircle2
                     className="ml-auto text-success shrink-0"
                     size={15}
@@ -309,6 +308,7 @@ export function ExerciseCard({
             Câu trả lời của bạn
             <textarea
               name="answer"
+              disabled={solved && !isPracticingAgain}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={getPlaceholder(exercise.type, needsRetry)}
               required
@@ -317,7 +317,20 @@ export function ExerciseCard({
             />
           </label>
         )}
-        <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
+        {solved && !isPracticingAgain ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsPracticingAgain(true);
+              setAnswer("");
+            }}
+            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer mt-3 w-fit"
+          >
+            Luyện tập lại
+          </button>
+        ) : (
+          <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
+        )}
       </form>
 
       {latest ? (
