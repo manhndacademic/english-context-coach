@@ -498,7 +498,11 @@ export default async function LessonPage({
                     </span>
                   </div>
                   <div className="border border-border rounded-md p-6 bg-surface font-serif text-[17px] md:text-lg leading-relaxed overflow-y-auto max-h-[340px] min-[860px]:max-h-[500px] shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] text-text space-y-3 [&_h3]:text-lg [&_h3]:font-bold [&_blockquote]:border-l-3 [&_blockquote]:border-accent [&_blockquote]:pl-3.5 [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_pre]:overflow-auto [&_pre]:border [&_pre]:border-border [&_pre]:rounded-md [&_pre]:bg-surface-strong [&_pre]:p-3 [&_pre]:whitespace-pre-wrap">
-                    <ReadableSourceText doc={sourceContent} phrases={phrases} />
+                    <ReadableSourceText
+                      key={`${lesson.id}-${phrases.map((p) => p.id).join(",")}`}
+                      doc={sourceContent}
+                      phrases={phrases}
+                    />
                   </div>
                 </section>
               ) : null}
