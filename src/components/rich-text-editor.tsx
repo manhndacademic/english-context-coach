@@ -3,6 +3,8 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
+import Placeholder from "@tiptap/extension-placeholder";
+import CharacterCount from "@tiptap/extension-character-count";
 import { useEffect } from "react";
 import { Bold, List, Highlighter } from "lucide-react";
 
@@ -25,6 +27,10 @@ export function RichTextEditor({
       Highlight.configure({
         multicolor: false,
       }),
+      Placeholder.configure({
+        placeholder: placeholder || "",
+      }),
+      CharacterCount.configure(),
     ],
     content: "",
     immediatelyRender: false,
@@ -39,37 +45,32 @@ export function RichTextEditor({
     },
   });
 
-  // Sync initial content once when editor is ready
+  // Sync initial content and parent-triggered updates (like resets) safely without loops
   useEffect(() => {
-    if (
-      editor &&
-      !editor.isDestroyed &&
-      value &&
-      editor.getText().length === 0
-    ) {
+    if (!editor || editor.isDestroyed) return;
+
+    const currentJSONStr = JSON.stringify(editor.getJSON());
+
+    // Handle clearing the editor when value is set to empty/reset
+    if (!value) {
+      if (editor.getText().length > 0) {
+        editor.commands.clearContent();
+      }
+      return;
+    }
+
+    // Update content only if value differs from the current editor state
+    if (value !== currentJSONStr) {
       try {
         const json = JSON.parse(value);
         editor.commands.setContent(json);
       } catch {
-        editor.commands.setContent(value);
+        if (value !== editor.getText()) {
+          editor.commands.setContent(value);
+        }
       }
     }
   }, [editor, value]);
-
-  // Set initial placeholder attr
-  useEffect(() => {
-    if (editor && !editor.isDestroyed && placeholder) {
-      editor.setOptions({
-        editorProps: {
-          attributes: {
-            class:
-              "w-full bg-surface text-text px-4 py-3 outline-none min-h-[200px] max-h-[400px] overflow-y-auto leading-relaxed ProseMirror",
-            "data-placeholder": placeholder,
-          },
-        },
-      });
-    }
-  }, [editor, placeholder]);
 
   return (
     <div className="flex flex-col w-full border border-border rounded-md focus-within:ring-4 focus-within:ring-accent-light focus-within:border-accent overflow-hidden mt-1">

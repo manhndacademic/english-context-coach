@@ -1,4 +1,15 @@
-export const SOURCE_TEXT_MAX_LENGTH = 8_000;
+const getSourceTextMaxLength = () => {
+  const envVal =
+    process.env.NEXT_PUBLIC_SOURCE_TEXT_MAX_LENGTH ||
+    process.env.SOURCE_TEXT_MAX_LENGTH;
+  if (envVal) {
+    const parsed = parseInt(envVal, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 8_000;
+};
+
+export const SOURCE_TEXT_MAX_LENGTH = getSourceTextMaxLength();
 export const MIN_PASSWORD_LENGTH = 12;
 export const MIN_LESSON_ITEMS = 3;
 export const MAX_LESSON_ITEMS = 7;

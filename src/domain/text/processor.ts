@@ -25,9 +25,20 @@ export function getPlainTextFromJSON(node: any): string {
   if (node.type === "text") {
     return node.text || "";
   }
+  if (node.type === "hardBreak") {
+    return "\n";
+  }
   if (node.content && Array.isArray(node.content)) {
-    const isBlockContainer = node.type === "doc" || node.type === "bulletList" || node.type === "orderedList";
-    return node.content.map(getPlainTextFromJSON).join(isBlockContainer ? "\n" : "");
+    const isBlockContainer =
+      node.type === "doc" ||
+      node.type === "bulletList" ||
+      node.type === "orderedList" ||
+      node.type === "listItem" ||
+      node.type === "blockquote" ||
+      node.type === "codeBlock";
+    return node.content
+      .map(getPlainTextFromJSON)
+      .join(isBlockContainer ? "\n" : "");
   }
   return "";
 }
@@ -35,20 +46,49 @@ export function getPlainTextFromJSON(node: any): string {
 export function getHighlightsFromJSON(node: any): string[] {
   if (!node) return [];
   const highlights: string[] = [];
-  
-  const traverse = (n: any) => {
-    if (n.type === "text" && n.marks && Array.isArray(n.marks)) {
-      const isHighlighted = n.marks.some((mark: any) => mark.type === "highlight");
-      if (isHighlighted && n.text) {
-        highlights.push(n.text.trim());
-      }
+  let currentHighlight = "";
+
+  const flush = () => {
+    if (currentHighlight.trim()) {
+      highlights.push(currentHighlight.trim());
     }
+    currentHighlight = "";
+  };
+
+  const traverse = (n: any) => {
+    if (!n) return;
+
+    const isBlock = n.type && n.type !== "text" && n.type !== "hardBreak";
+    if (isBlock) {
+      flush();
+    }
+
+    if (n.type === "text") {
+      const isHighlighted =
+        n.marks &&
+        Array.isArray(n.marks) &&
+        n.marks.some((mark: any) => mark.type === "highlight");
+      if (isHighlighted) {
+        currentHighlight += n.text || "";
+      } else {
+        flush();
+      }
+    } else if (n.type === "hardBreak") {
+      flush();
+    }
+
     if (n.content && Array.isArray(n.content)) {
       n.content.forEach(traverse);
     }
+
+    if (isBlock) {
+      flush();
+    }
   };
-  
+
   traverse(node);
+  flush();
+
   return Array.from(new Set(highlights)).filter(Boolean);
 }
 

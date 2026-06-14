@@ -14,6 +14,7 @@ The goal is to build a Vietnamese-first learning system that helps users underst
 English Context Coach helps Vietnamese learners paste any English text from work, study, documentation, emails, messages, GitHub issues, PR comments, blogs, articles, or general reading.
 
 The app helps users:
+
 1. Understand the real meaning in context.
 2. Avoid word-by-word translation.
 3. Practice with exercises generated from the pasted text.
@@ -23,6 +24,7 @@ The app helps users:
 7. See that they are making fewer repeated mistakes over time.
 
 The product loop is:
+
 ```txt
 Paste text
 → Understand context
@@ -32,6 +34,7 @@ Paste text
 → Review later
 → Improve over time
 ```
+
 Every important feature should strengthen this loop.
 
 ---
@@ -41,6 +44,7 @@ Every important feature should strengthen this loop.
 ```txt
 A context-first English learning coach for Vietnamese learners.
 ```
+
 Designed for real English encountered in work and study: Slack messages, emails, GitHub issues, PR comments, API documentation, technical blogs, error messages, academic materials, and general English text.
 
 ---
@@ -55,6 +59,7 @@ A news/article-only app.
 A Duolingo clone.
 A weaker ChatGPT wrapper.
 ```
+
 Avoid building generic chatbot features unless they directly support the learning loop. Avoid features that make the app broader but not deeper.
 
 ---
@@ -62,6 +67,7 @@ Avoid building generic chatbot features unless they directly support the learnin
 ## 4. Strategic Differentiation
 
 The app competes on:
+
 1. Specialized workflow.
 2. Vietnamese-native explanations.
 3. Context-first understanding.
@@ -71,6 +77,7 @@ The app competes on:
 7. Progress over time.
 
 The strongest product moat is:
+
 ```txt
 Personal Error Memory + Review System
 ```
@@ -80,6 +87,7 @@ Personal Error Memory + Review System
 ## 5. Five Guiding Questions for Every PR
 
 Before starting any PR, answer these questions:
+
 1. Does this PR help the user understand context better?
 2. Does this PR help the user detect word-by-word translation traps?
 3. Does this PR turn a wrong answer into reusable learning memory?
@@ -93,6 +101,7 @@ If the answer is “no” to all five, the PR is probably not core and should be
 ## 6. Current Product Priority
 
 Prioritize depth over breadth. Make this loop reliable before adding new items:
+
 ```txt
 Submit answer
 → Grade answer
@@ -109,21 +118,22 @@ Do not prioritize: browser extension, payment, social features, leaderboard, adv
 
 ## 7. Specifications Directory (Reference map)
 
-Detailed technical specifications, requirements, layouts, and test cases have been separated into modular files. 
+Detailed technical specifications, requirements, layouts, and test cases have been separated into modular files.
 
 > [!IMPORTANT]
 > **Agent Directive**: When implementing features or fixing bugs related to any of the domains below, you **MUST** read and adhere to the detailed specification file linked.
 
-*   **UI/UX & Explanation style**: Refer to [ux-principles.md](docs/specs/ux-principles.md). Explains the Literal vs Natural trap rendering requirements and Vietnamese explanation guidelines.
-*   **Features, Exercises & Database schemas**: Refer to [core-features.md](docs/specs/core-features.md). Details Key Phrases, Exercises, AI Grading, Error Memory Schema, and the Spaced Repetition Review system.
-*   **Text Processing & Input Modes**: Refer to [input-modes.md](docs/specs/input-modes.md). Outlines classification rules and customized rendering layouts for Vietlish Grammar corrections and Developer Trace console layouts.
-*   **E2E Test Samples**: Refer to [test-samples.md](docs/specs/test-samples.md). Contains concrete text inputs and expected AI grading output to run manual or automated E2E test runs.
+- **UI/UX & Explanation style**: Refer to [ux-principles.md](docs/specs/ux-principles.md). Explains the Literal vs Natural trap rendering requirements and Vietnamese explanation guidelines.
+- **Features, Exercises & Database schemas**: Refer to [core-features.md](docs/specs/core-features.md). Details Key Phrases, Exercises, AI Grading, Error Memory Schema, and the Spaced Repetition Review system.
+- **Text Processing & Input Modes**: Refer to [input-modes.md](docs/specs/input-modes.md). Outlines classification rules and customized rendering layouts for Vietlish Grammar corrections and Developer Trace console layouts.
+- **E2E Test Samples**: Refer to [test-samples.md](docs/specs/test-samples.md). Contains concrete text inputs and expected AI grading output to run manual or automated E2E test runs.
 
 ---
 
 ## 8. PR Description Requirements
 
 Every PR should include:
+
 ```txt
 Product impact:
 Which part of the learning loop does this improve?
@@ -145,23 +155,36 @@ How can a human verify this feature in the app?
 
 This project uses **Bun** as its primary package manager, dependency resolver, and runtime. All future coding agents MUST prioritize running commands via Bun instead of npm:
 
-*   **Install dependencies**: `bun install`
-*   **Run dev server**: `bun run dev`
-*   **Run background worker**: `bun run worker`
-*   **Run linting**: `bun run lint`
-*   **Run tests**: `bun run test` (Vitest). Do not use raw `bun test` as the release gate because this repo uses Vitest APIs.
-*   **Build production**: `bun run build`
-*   **Database migrations/push**: `bun run db:push` / `bun run db:migrate`
+- **Install dependencies**: `bun install`
+- **Run dev server**: `bun run dev`
+- **Run background worker**: `bun run worker`
+- **Run linting**: `bun run lint`
+- **Run tests**: `bun run test` (Vitest). Do not use raw `bun test` as the release gate because this repo uses Vitest APIs.
+- **Build production**: `bun run build`
+- **Database migrations/push**: `bun run db:push` / `bun run db:migrate`
+
+---
+
+## 10. Code Verification Policy (Mandatory)
+
+To ensure high-quality code at all times, every coding agent **MUST** run the following verification checks and confirm they pass before declaring a task complete or submitting a PR:
+
+1.  **Linting**: Run `bun run lint` to verify there are no ESLint errors or style warnings.
+2.  **Testing**: Run `bun run test` to verify all automated unit/integration tests pass.
+3.  **Building**: Run `bun run build` to verify the Next.js production build succeeds without TypeScript or bundler errors.
 
 ---
 
 ## Agent skills
 
 ### Issue tracker
+
 Issues and PRDs live as markdown files in `.scratch/`. See [issue-tracker.md](docs/agents/issue-tracker.md).
 
 ### Triage labels
+
 Triage roles map to default label strings like `needs-triage` and `ready-for-agent`. See [triage-labels.md](docs/agents/triage-labels.md).
 
 ### Domain docs
+
 The repo uses a single-context layout with `CONTEXT.md` and `docs/adr/` at the root. See [domain.md](docs/agents/domain.md).
