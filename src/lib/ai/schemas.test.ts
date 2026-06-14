@@ -217,4 +217,14 @@ describe("AI schemas", () => {
 
     expect(result.success).toBe(false);
   });
+  it("rejects gradingSchema with naturalAnswer over the bounded max length", () => {
+    const result = gradingSchema.safeParse({
+      score: 80,
+      isCorrect: true,
+      feedbackVi: "Ổn rồi.",
+      naturalAnswer: "a".repeat(301),
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
