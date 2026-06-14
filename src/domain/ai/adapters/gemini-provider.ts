@@ -19,6 +19,40 @@ import {
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
 
+type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
+
+function generationConfigForPurpose(purpose: AiPurpose) {
+  switch (purpose) {
+    case "grading":
+      return {
+        maxOutputTokens: 700,
+        temperature: 0.1,
+        topP: 0.8,
+        systemInstruction:
+          "Return compact valid JSON only. Do not include markdown. Do not list multiple alternative answers unless explicitly requested. For grading, naturalAnswer must be exactly one best Vietnamese answer. Keep all fields concise and bounded.",
+      };
+    case "analysis":
+      return {
+        maxOutputTokens: 4000,
+        systemInstruction:
+          "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
+      };
+    case "exercise_generation":
+      return {
+        maxOutputTokens: 2200,
+        systemInstruction:
+          "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
+      };
+    case "repair":
+      return {
+        maxOutputTokens: 1200,
+        temperature: 0.1,
+        systemInstruction:
+          "Repair the response into compact valid JSON only. Do not include markdown or commentary. Preserve the original meaning while fitting the requested schema.",
+      };
+  }
+}
+
 export { parseApiKeys } from "./key-resolver";
 
 export class GeminiLLMProvider implements LLMProvider {
@@ -34,7 +68,8 @@ export class GeminiLLMProvider implements LLMProvider {
     model: string,
     thinkingLevel: ThinkingLevel,
     zodSchema?: z.ZodTypeAny,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    purpose: AiPurpose = "analysis"
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
     let attempts = 0;
     const maxKeyAttempts = 3;
@@ -65,11 +100,11 @@ export class GeminiLLMProvider implements LLMProvider {
 
       try {
         const ai = new GoogleGenAI({ apiKey: key });
+        const purposeConfig = generationConfigForPurpose(purpose);
         const config = {
+          ...purposeConfig,
           responseMimeType: "application/json",
           responseSchema: zodSchema ? zodToGeminiSchema(zodSchema) : undefined,
-          systemInstruction:
-            "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
           thinkingConfig: onThought
             ? {
                 includeThoughts: true,
@@ -175,7 +210,8 @@ export class GeminiLLMProvider implements LLMProvider {
     prompt: string,
     modelKind: "analysis" | "fast",
     zodSchema?: z.ZodTypeAny,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    purpose: AiPurpose = "analysis"
   ): Promise<{
     text: string;
     inputTokens: number;
@@ -209,7 +245,8 @@ export class GeminiLLMProvider implements LLMProvider {
           model,
           thinkingLevel,
           zodSchema,
-          onThought
+          onThought,
+          purpose
         );
         // Success — clear any lingering model cooldown
         providerRotationPool.clearCooldown(model);
@@ -268,13 +305,14 @@ export class GeminiLLMProvider implements LLMProvider {
       const { data, model, inputTokens, outputTokens } =
         await this.jsonRepairStrategy.execute(
           options,
-          async (prompt, useOnThought) => {
+          async (prompt, useOnThought, purposeOverride) => {
             return this.callGeminiWithRetry(
               options.userId,
               prompt,
               options.modelKind,
               options.schema,
-              useOnThought ? options.onThought : undefined
+              useOnThought ? options.onThought : undefined,
+              purposeOverride ?? options.purpose
             );
           }
         );

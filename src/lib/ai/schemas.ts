@@ -183,17 +183,17 @@ export const exercisesSchema = z.object({
 export const gradingSchema = z.object({
   score: z.number().int().min(0).max(100),
   isCorrect: z.boolean(),
-  feedbackVi: z.string().min(1),
-  naturalAnswer: z.string().nullable().optional(),
-  literalTranslationTrap: z.string().nullable().optional(),
+  feedbackVi: z.string().min(1).max(300),
+  naturalAnswer: z.string().min(1).max(300).nullable().optional(),
+  literalTranslationTrap: z.string().min(1).max(300).nullable().optional(),
   feedbackDetails: z
     .object({
-      whatWasWrong: z.string().min(1),
-      whyItWasWrong: z.string().min(1),
-      correctUnderstanding: z.string().min(1),
-      mistakeType: z.string().min(1),
-      nextPracticeItem: z.string().nullable().optional(),
-      detailedExplanation: z.string().min(1),
+      whatWasWrong: z.string().min(1).max(300),
+      whyItWasWrong: z.string().min(1).max(500),
+      correctUnderstanding: z.string().min(1).max(500),
+      mistakeType: z.string().min(1).max(100),
+      nextPracticeItem: z.string().min(1).max(300).nullable().optional(),
+      detailedExplanation: z.string().min(1).max(800),
     })
     .nullable()
     .optional(),
@@ -202,8 +202,8 @@ export const gradingSchema = z.object({
       shouldSave: z.boolean(),
       confidence: z.number().int().min(0).max(100),
       errorType: errorTypeSchema.nullable().optional(),
-      explanationVi: z.string().nullable().optional(),
-      targetItem: z.string().nullable().optional(),
+      explanationVi: z.string().min(1).max(500).nullable().optional(),
+      targetItem: z.string().min(1).max(200).nullable().optional(),
     })
     .nullable()
     .optional(),
