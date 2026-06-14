@@ -255,16 +255,38 @@ export interface SaveExercisesInput {
   }>;
 }
 
-export interface LessonRepository {
-  // SourceText methods
+// ---------------------------------------------------------------------------
+// Focused repository interfaces (split from the original monolithic interface)
+// ---------------------------------------------------------------------------
+
+/** Manages SourceText lifecycle: creation, lookup, deletion, and hashing. */
+export interface SourceTextRepository {
   findSourceText(
     sourceTextId: string,
     userId: string
   ): Promise<SourceText | null>;
   deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
   getSourceTextsCount(userId: string): Promise<number>;
+  getRecentLessons(
+    userId: string,
+    limit: number
+  ): Promise<
+    Array<{
+      id: string;
+      title: string | null;
+      version: number;
+      analysisStatus: "pending" | "running" | "succeeded" | "failed";
+      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      textType: TextType | "unknown";
+      inputMode: string;
+      detectedLevel: DetectedLevel | null;
+      createdAt: Date;
+    }>
+  >;
+}
 
-  // Lesson methods
+/** Manages Lesson entity lifecycle: CRUD, status updates, analysis/exercise saving. */
+export interface LessonContentRepository {
   findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
   findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
   findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
@@ -297,24 +319,10 @@ export interface LessonRepository {
     lessonId: string,
     userId: string
   ): Promise<LessonAggregate | null>;
-  getRecentLessons(
-    userId: string,
-    limit: number
-  ): Promise<
-    Array<{
-      id: string;
-      title: string | null;
-      version: number;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
-      textType: TextType | "unknown";
-      inputMode: string;
-      detectedLevel: DetectedLevel | null;
-      createdAt: Date;
-    }>
-  >;
+}
 
-  // GenerationJob methods
+/** Manages GenerationJob queue: claiming, status updates, capacity checks. */
+export interface GenerationJobRepository {
   claimJob(workerId: string): Promise<GenerationJob | null>;
   updateJobStatus(
     jobId: string,
@@ -323,8 +331,10 @@ export interface LessonRepository {
   ): Promise<void>;
   assertQueueCapacity(userId: string): Promise<string | null>;
   resetStuckJob(userId: string, lessonId: string): Promise<void>;
+}
 
-  // GenerationProgress methods
+/** Records and queries durable generation progress: milestones and thoughts. */
+export interface GenerationProgressRepository {
   recordMilestone(input: {
     lessonId: string;
     generationJobId: string;
@@ -354,8 +364,10 @@ export interface LessonRepository {
     milestones: GenerationMilestone[];
     thoughts: GenerationThought[];
   } | null>;
+}
 
-  // Transaction coordination methods
+/** Transaction coordination: atomically creates source texts, lessons, and jobs together. */
+export interface LessonTransactionRepository {
   createSourceTextAndLessonAndJob(
     userId: string,
     content: string,
@@ -378,6 +390,23 @@ export interface LessonRepository {
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob>;
 }
+
+/**
+ * Combined repository interface for the lesson bounded context.
+ * Composes all four focused sub-repositories.
+ * Existing consumers can continue to use this single type.
+ */
+export interface LessonRepository
+  extends
+    SourceTextRepository,
+    LessonContentRepository,
+    GenerationJobRepository,
+    GenerationProgressRepository,
+    LessonTransactionRepository {}
+
+// ---------------------------------------------------------------------------
+// Engine ports
+// ---------------------------------------------------------------------------
 
 export interface GenerationEngine {
   generateAnalysis(

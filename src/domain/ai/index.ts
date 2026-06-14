@@ -1,7 +1,9 @@
 import { GeminiLLMProvider } from "./adapters/gemini-provider";
-import type { LLMProvider } from "./ports";
+import { DrizzleKeyResolver } from "./adapters/key-resolver";
+import type { LLMProvider, KeyResolver } from "./ports";
 
 let cachedProvider: LLMProvider | null = null;
+let cachedKeyResolver: KeyResolver | null = null;
 
 export function getLLMProvider(): LLMProvider {
   if (!cachedProvider) {
@@ -10,4 +12,11 @@ export function getLLMProvider(): LLMProvider {
   return cachedProvider;
 }
 
-export type { LLMProvider } from "./ports";
+export function getKeyResolver(): KeyResolver {
+  if (!cachedKeyResolver) {
+    cachedKeyResolver = new DrizzleKeyResolver();
+  }
+  return cachedKeyResolver;
+}
+
+export type { LLMProvider, KeyResolver } from "./ports";

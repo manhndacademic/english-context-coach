@@ -5,8 +5,6 @@ import { useFormStatus } from "react-dom";
 import {
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Loader2,
   SendHorizontal,
   Target,
@@ -15,6 +13,7 @@ import { submitAttemptAction } from "@/app/actions/attempts";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
 import type { Attempt } from "@/domain/memory";
 import { renderRichText } from "@/lib/rich-text";
+import { GradingFeedback } from "@/components/grading-feedback";
 
 function formatLabel(value: string) {
   return value.replaceAll("_", " ");
@@ -23,9 +22,9 @@ function formatLabel(value: string) {
 function getExerciseTypeLabel(type: string) {
   switch (type) {
     case "meaning_choice":
-      return "Chọn nghĩa đúng";
+      return "Trắc nghiệm nghĩa";
     case "cloze_phrase":
-      return "Điền vào chỗ trống";
+      return "Điền từ vào ô trống";
     case "natural_translation":
       return "Dịch sang tiếng Việt";
     case "focus_question":
@@ -95,7 +94,6 @@ export function ExerciseCard({
         : "Chưa bắt đầu";
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
-  const feedbackId = `exercise-${exercise.id}-feedback`;
   const submitLabel = needsRetry
     ? "Thử lại"
     : solved
@@ -110,11 +108,12 @@ export function ExerciseCard({
       ),
     [exercise]
   );
+
   const isRepeated =
     latest && !latest.isCorrect
       ? Boolean(userErrorsByAttemptId?.get(latest.id)?.isRepeated)
       : false;
-  const [showExplainMore, setShowExplainMore] = useState(false);
+
   const metadata = latest?.gradingMetadata as
     | {
         naturalAnswer?: string;
@@ -198,14 +197,12 @@ export function ExerciseCard({
             {keyPhrase.difficulty}
           </span>
         </a>
-      ) : null}
-
-      {lessonFocus ? (
+      ) : lessonFocus ? (
         <a
           className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors"
           href={`#lessonfocus-${lessonFocus.id}`}
         >
-          <span>Luyện tập chủ điểm:</span>
+          <span>Lưu ý:</span>
           <strong>{lessonFocus.title}</strong>
           <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
             {formatLabel(lessonFocus.category)}
@@ -216,37 +213,46 @@ export function ExerciseCard({
         </a>
       ) : null}
 
-      <h3 id={promptId} className="text-lg mt-2 font-semibold text-text m-0">
-        {renderRichText(exercise.promptVi)}
-      </h3>
+      <div
+        className="text-sm md:text-base leading-relaxed text-text mt-2 font-serif text-left"
+        id={promptId}
+      >
+        {renderRichText(exercise.promptEn || "")}
+      </div>
 
-      {exercise.promptEn ? (
-        <p className="font-serif text-sm md:text-base italic text-muted my-1 m-0">
-          {renderRichText(exercise.promptEn)}
-        </p>
-      ) : null}
-
-      <form action={submitAttemptAction} className="grid gap-5">
+      <form
+        action={async (formData) => {
+          await submitAttemptAction(formData);
+          if (isChoiceType) {
+            setAnswer("");
+          }
+        }}
+        className="grid gap-3"
+      >
         <input name="exerciseId" type="hidden" value={exercise.id} />
-        <input name="lessonId" type="hidden" value={exercise.lessonId} />
-
-        {isChoiceType && exercise.choices ? (
+        {exercise.promptVi && (
+          <p className="text-xs text-muted leading-relaxed m-0 text-left">
+            {exercise.promptVi}
+          </p>
+        )}
+        {isChoiceType ? (
           <div className="grid gap-2 mt-2">
-            {exercise.choices.map((choice) => (
+            {exercise.choices?.map((choice, index) => (
               <label
-                className="relative flex items-center gap-2.5 min-h-[42px] border border-border rounded-sm bg-surface p-2.5 px-3 font-semibold transition-all cursor-pointer has-[:checked]:border-accent has-[:checked]:bg-success-light has-[:checked]:ring-3 has-[:checked]:ring-accent-light"
-                key={choice}
+                key={`${exercise.id}-choice-${index}`}
+                className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${
+                  solved && choiceSet.has(choice)
+                    ? "bg-success-light border-success text-success font-semibold"
+                    : "border-border hover:bg-surface-active"
+                }`}
               >
                 <input
-                  aria-describedby={latest ? feedbackId : undefined}
-                  aria-labelledby={promptId}
-                  checked={answer === choice}
+                  disabled={solved}
                   name="answer"
-                  onChange={() => setAnswer(choice)}
+                  required
                   type="radio"
                   value={choice}
-                  required
-                  className="w-auto h-auto p-0 m-0 border-none bg-none shadow-none accent-accent shrink-0 focus:outline-none focus:ring-0"
+                  className="accent-accent disabled:opacity-50"
                 />
                 <span className="text-sm md:text-[15px]">
                   {renderRichText(choice)}
@@ -265,7 +271,6 @@ export function ExerciseCard({
           <label className="grid gap-2 text-left text-sm font-semibold text-text mt-2">
             Câu trả lời của bạn
             <textarea
-              aria-describedby={latest ? feedbackId : undefined}
               name="answer"
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={getPlaceholder(exercise.type, needsRetry)}
@@ -279,121 +284,18 @@ export function ExerciseCard({
       </form>
 
       {latest ? (
-        <div
-          className="grid gap-1.5 border-t border-border pt-4 mt-2"
-          id={feedbackId}
-        >
-          <div className="flex items-center flex-wrap gap-2">
-            <strong className="text-sm font-bold">
-              {latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}
-            </strong>
-            {!latest.isCorrect && metadata?.feedbackDetails?.mistakeType && (
-              <span className="inline-flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-900/30">
-                {metadata.feedbackDetails.mistakeType}
-              </span>
-            )}
-          </div>
-
-          <p className="text-sm text-text leading-relaxed m-0 mt-1">
-            {renderRichText(latest.feedbackVi)}
-          </p>
-
-          {!latest.isCorrect && metadata?.feedbackDetails ? (
-            <div className="grid gap-3 mt-3">
-              <div className="p-3 bg-danger-light border-l-4 border-danger rounded-r-lg text-sm text-text">
-                <strong className="text-xs text-danger font-bold block mb-1">
-                  Lỗi sai phát hiện:
-                </strong>
-                {metadata.feedbackDetails.whatWasWrong}
-              </div>
-
-              <div className="p-3 bg-warning-light border-l-4 border-warning rounded-r-lg text-sm text-text">
-                <strong className="text-xs text-warning font-bold block mb-1">
-                  Lý do nhầm lẫn:
-                </strong>
-                {metadata.feedbackDetails.whyItWasWrong}
-              </div>
-
-              <div className="p-3 bg-success-light border-l-4 border-success rounded-r-lg text-sm text-text">
-                <strong className="text-xs text-success font-bold block mb-1 font-semibold">
-                  Hiểu đúng tự nhiên trong ngữ cảnh:
-                </strong>
-                {metadata.feedbackDetails.correctUnderstanding}
-              </div>
-
-              {metadata.feedbackDetails.nextPracticeItem && (
-                <div className="p-3 bg-accent-light border-l-4 border-accent rounded-r-lg text-sm text-text">
-                  <strong className="text-xs text-accent font-bold block mb-1">
-                    Luyện tập nhanh:
-                  </strong>
-                  {metadata.feedbackDetails.nextPracticeItem}
-                </div>
-              )}
-
-              <div className="border border-border rounded-lg bg-surface/50 overflow-hidden transition-all duration-200 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowExplainMore(!showExplainMore)}
-                  className="w-full flex items-center justify-between p-3 px-4 text-xs font-bold text-muted hover:bg-surface-active cursor-pointer transition-all leading-none"
-                >
-                  <span>Giải thích thêm (Explain more)</span>
-                  {showExplainMore ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )}
-                </button>
-                {showExplainMore && (
-                  <div className="p-4 pt-2 text-sm leading-relaxed text-text border-t border-border/30 bg-surface/30">
-                    {renderRichText(
-                      metadata.feedbackDetails.detailedExplanation
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {metadata?.naturalAnswer && solved && isSubjectiveType && (
-                <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
-                  <strong className="text-xs font-bold text-success block">
-                    Gợi ý
-                  </strong>
-                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
-                    {metadata.naturalAnswer}
-                  </p>
-                </div>
-              )}
-
-              {!latest.isCorrect && metadata?.literalTranslationTrap && (
-                <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger">
-                  <strong className="text-xs font-bold text-danger block">
-                    Bẫy dịch từng từ (Literal Trap)
-                  </strong>
-                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
-                    Tránh dịch:{" "}
-                    <span className="line-through opacity-80">
-                      &quot;{metadata.literalTranslationTrap}&quot;
-                    </span>
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {!latest.isCorrect ? (
-            <p className="text-xs text-muted mt-1.5">
-              Câu trả lời vừa gửi: {latest.answer}
-            </p>
-          ) : null}
-
-          {isRepeated && (
-            <div className="flex items-center gap-2 bg-[#fff5f4] border border-[#f2b8b5] text-danger p-2 px-3 rounded-md text-xs sm:text-sm mt-3">
-              <AlertCircle size={14} aria-hidden="true" />
-              <span>Bạn đã từng gặp lỗi này trước đây.</span>
-            </div>
-          )}
-        </div>
+        <GradingFeedback
+          type="exercise"
+          isCorrect={latest.isCorrect ?? false}
+          feedbackVi={latest.feedbackVi ?? ""}
+          answer={latest.answer ?? ""}
+          feedbackDetails={metadata?.feedbackDetails}
+          naturalAnswer={metadata?.naturalAnswer}
+          literalTranslationTrap={metadata?.literalTranslationTrap}
+          solved={solved}
+          isSubjectiveType={isSubjectiveType}
+          isRepeated={isRepeated}
+        />
       ) : null}
     </article>
   );

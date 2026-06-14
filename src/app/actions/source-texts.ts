@@ -8,16 +8,7 @@ import {
 } from "@/domain/lesson";
 import { getLearnerMemoryEngine } from "@/domain/memory";
 import { requireUser } from "@/lib/auth/guards";
-import { lessonQueue, reviewQueue } from "@/lib/jobs/queue";
-
-async function triggerWorkerBackgroundTick() {
-  try {
-    await lessonQueue.add("process-next-lesson", {});
-    await reviewQueue.add("process-next-review-prompt", {});
-  } catch (err) {
-    console.error(`[WebTrigger] Failed to enqueue trigger to BullMQ:`, err);
-  }
-}
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 
 export type SourceTextActionState = {
   error?: string;
@@ -36,7 +27,7 @@ export async function createSourceTextAction(
     inputMode
   );
   if (!result.ok) return { error: result.message };
-  triggerWorkerBackgroundTick();
+  await notifyJobQueued();
   revalidatePath("/dashboard");
   redirect(`/lessons/${result.lessonId}`);
 }
@@ -54,7 +45,7 @@ export async function regenerateLessonAction(formData: FormData) {
     latestLesson.id
   );
   if (result.ok) {
-    triggerWorkerBackgroundTick();
+    await notifyJobQueued();
     redirect(`/lessons/${result.lessonId}`);
   }
   revalidatePath("/dashboard");
@@ -65,7 +56,7 @@ export async function retryExercisesAction(formData: FormData) {
   const lessonId = String(formData.get("lessonId") ?? "");
   const result = await getLessonGenerationEngine().retry(user.id, lessonId);
   if (result.ok) {
-    triggerWorkerBackgroundTick();
+    await notifyJobQueued();
     revalidatePath(`/lessons/${lessonId}`);
   }
 }
@@ -75,7 +66,7 @@ export async function retryLessonGenerationAction(formData: FormData) {
   const lessonId = String(formData.get("lessonId") ?? "");
   const result = await getLessonGenerationEngine().retry(user.id, lessonId);
   if (result.ok) {
-    triggerWorkerBackgroundTick();
+    await notifyJobQueued();
     revalidatePath(`/lessons/${lessonId}`);
   }
 }
@@ -86,7 +77,7 @@ export async function forceRetryLessonAction(formData: FormData) {
   const repo = getLessonRepository();
 
   await repo.resetStuckJob(user.id, lessonId);
-  triggerWorkerBackgroundTick();
+  await notifyJobQueued();
 
   revalidatePath(`/lessons/${lessonId}`);
 }

@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guards";
-import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
+import { getKeyResolver } from "@/domain/ai";
 import { encryptApiKey } from "@/lib/crypto";
 
 export async function saveUserApiKeyAction(formData: FormData) {
@@ -15,13 +14,7 @@ export async function saveUserApiKeyAction(formData: FormData) {
     encryptedKey = encryptApiKey(rawKey);
   }
 
-  await db
-    .update(schema.users)
-    .set({
-      customGeminiApiKey: encryptedKey,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.users.id, user.id));
+  await getKeyResolver().saveUserApiKey(user.id, encryptedKey);
 
   revalidatePath("/settings");
 }

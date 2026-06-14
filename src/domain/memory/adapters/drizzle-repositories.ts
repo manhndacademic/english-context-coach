@@ -1,5 +1,6 @@
 import { and, eq, sql as drizzleSql, lte, count, desc, asc } from "drizzle-orm";
-import { db, schema, sql as rawSql, notifyJobQueued } from "@/db";
+import { db, schema, sql as rawSql } from "@/db";
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 import type { Exercise } from "@/domain/lesson/ports";
 import type { Attempt, UserError, ReviewAttempt } from "../types";
 import { MistakePattern } from "../mistake-pattern";

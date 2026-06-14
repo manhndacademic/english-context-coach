@@ -11,7 +11,8 @@ import {
   sql as drizzleSql,
   type SQL,
 } from "drizzle-orm";
-import { db, schema, sql as rawSql, notifyJobQueued } from "@/db";
+import { db, schema, sql as rawSql } from "@/db";
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
 import { findMatchingLessonFocus } from "../rules";

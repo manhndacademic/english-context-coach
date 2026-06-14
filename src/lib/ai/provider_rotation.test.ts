@@ -151,6 +151,22 @@ describe("AI Key Rotation & Error Handling", () => {
     }
   });
 
+  it("should save user custom API key using getKeyResolver()", async () => {
+    const { getKeyResolver } = await import("@/domain/ai");
+    const keyResolver = getKeyResolver();
+    const encryptedKey = encryptApiKey("my-new-secret-user-key");
+
+    await keyResolver.saveUserApiKey(testUser.id, encryptedKey);
+
+    const [updatedUser] = await db
+      .select({ customGeminiApiKey: schema.users.customGeminiApiKey })
+      .from(schema.users)
+      .where(eq(schema.users.id, testUser.id))
+      .limit(1);
+
+    expect(updatedUser.customGeminiApiKey).toBe(encryptedKey);
+  });
+
   describe("parseApiKeys", () => {
     it("should handle undefined and empty strings", () => {
       expect(parseApiKeys(undefined)).toEqual([]);
