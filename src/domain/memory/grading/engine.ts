@@ -14,11 +14,26 @@ function normalizeAnswer(value: string) {
     .trim();
 }
 
-function gradeObjectiveExercise(exercise: Exercise, answer: string): GradingResult | null {
-  if (exercise.type === "natural_translation" || exercise.type === "focus_question") return null;
+/** Exercise types that require AI grading (free-text production or subjective). */
+const AI_GRADED_TYPES: ReadonlySet<string> = new Set([
+  "natural_translation",
+  "focus_question",
+  "phrase_production",
+  "dialogue_completion",
+  "register_shift",
+]);
+
+function gradeObjectiveExercise(
+  exercise: Exercise,
+  answer: string
+): GradingResult | null {
+  if (AI_GRADED_TYPES.has(exercise.type)) return null;
 
   const normalizedAnswer = normalizeAnswer(answer);
-  const expected = [exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])]
+  const expected = [
+    exercise.correctAnswer,
+    ...(exercise.acceptableAnswers ?? []),
+  ]
     .filter(Boolean)
     .map((value) => normalizeAnswer(value as string));
 
@@ -29,15 +44,21 @@ function gradeObjectiveExercise(exercise: Exercise, answer: string): GradingResu
     feedbackVi: isCorrect
       ? "Đúng. Bạn đã hiểu cụm này theo đúng ngữ cảnh."
       : "Chưa đúng. Hãy chú ý nghĩa của cụm trong câu, không chỉ dịch từng từ.",
-    naturalAnswer: exercise.correctAnswer ?? undefined,
+    // Only reveal correctAnswer as confirmation when the user got it right.
+    // Showing it on wrong answers would leak the answer and make retry trivial.
+    naturalAnswer: isCorrect
+      ? (exercise.correctAnswer ?? undefined)
+      : undefined,
     error: isCorrect
       ? undefined
       : {
           shouldSave: true,
           confidence: 100,
           errorType: "phrase_misunderstanding",
-          explanationVi: "Câu trả lời chưa khớp với nghĩa tự nhiên trong ngữ cảnh.",
-          targetItem: exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi,
+          explanationVi:
+            "Câu trả lời chưa khớp với nghĩa tự nhiên trong ngữ cảnh.",
+          targetItem:
+            exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi,
         },
   };
 }
@@ -77,13 +98,18 @@ export class DefaultGradingEngine implements GradingEngine {
       return {
         score: 0,
         isCorrect: false,
-        feedbackVi: "Chưa thể chấm câu trả lời này do phản hồi AI không hợp lệ. Hãy thử gửi lại sau.",
+        feedbackVi:
+          "Chưa thể chấm câu trả lời này do phản hồi AI không hợp lệ. Hãy thử gửi lại sau.",
         error: {
           shouldSave: false,
           confidence: 0,
           errorType: "phrase_misunderstanding",
-          explanationVi: "Hệ thống không nhận được phản hồi chấm điểm đúng định dạng.",
-          targetItem: input.exercise.correctAnswer ?? input.exercise.promptEn ?? input.exercise.promptVi,
+          explanationVi:
+            "Hệ thống không nhận được phản hồi chấm điểm đúng định dạng.",
+          targetItem:
+            input.exercise.correctAnswer ??
+            input.exercise.promptEn ??
+            input.exercise.promptVi,
         },
       };
     }

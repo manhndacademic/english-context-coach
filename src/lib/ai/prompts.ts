@@ -276,7 +276,30 @@ export function exercisesPrompt(analysis: AnalysisResult) {
     "Create practice exercises for Vietnamese learners from these validated key phrases and lesson focuses.",
     "Return strict JSON only. No markdown.",
     "Generate between 5 and 10 exercises total.",
-    "Allowed types: meaning_choice, cloze_phrase, natural_translation, focus_question, trap_choice, phrase_production, dialogue_completion, register_shift, trap_detect.",
+
+    // ── Strict exercise type definitions ──
+    `Exercise type definitions — follow strictly:
+- meaning_choice: Multiple-choice quiz asking what a phrase means. MUST include a "choices" array (3-4 items). User picks one choice. Graded locally by exact match.
+- cloze_phrase: Fill in the blank. "promptEn" MUST contain ____ (four underscores) where the missing phrase goes. User types the answer. Graded locally.
+- natural_translation: Translate an English sentence into natural Vietnamese. No choices. AI-graded by contextual meaning.
+- focus_question: Open-ended question about whole-text meaning, tone, structure, or purpose. Targets a lessonFocus. No choices. AI-graded.
+- trap_choice: Choose the natural Vietnamese translation and avoid literal traps. MUST include a "choices" array with 1 natural (correct) + 2-3 literal traps (wrong). Graded locally.
+- phrase_production: Write an English sentence containing the key phrase. No choices. AI-graded — accept any correct sentence using the phrase.
+- dialogue_completion: Complete B's response in an A/B dialogue using the key phrase. "promptEn" must show the dialogue with a placeholder for B. No choices. AI-graded.
+- register_shift: Rewrite an awkward or overly literal English sentence to use the key phrase naturally. No choices. AI-graded.
+- trap_detect: Identify and explain a translation trap. MUST include a "choices" array (3-4 items). User picks the correct explanation. Graded locally.`,
+
+    // ── promptVi quality constraints ──
+    `IMPORTANT constraints for promptVi wording:
+- cloze_phrase: promptVi MUST be "Điền từ/cụm từ phù hợp vào chỗ trống." — do NOT write "Chọn từ phù hợp" (this is NOT multiple choice).
+- meaning_choice: promptVi MUST ask about meaning, e.g. "Cụm \`X\` trong câu trên có nghĩa gần nhất với?"
+- trap_choice: promptVi MUST warn about literal traps, e.g. "Chọn bản dịch tự nhiên nhất, tránh dịch từng từ."
+- phrase_production: promptVi MUST ask user to write an English sentence, e.g. "Viết một câu tiếng Anh sử dụng cụm \`X\` để diễn đạt ý: ..."
+- dialogue_completion: promptVi MUST ask user to write B's English reply, e.g. "Viết câu trả lời của B bằng tiếng Anh, sử dụng cụm \`X\`."
+- register_shift: promptVi MUST ask to rewrite, e.g. "Viết lại câu dưới đây tự nhiên hơn bằng cách sử dụng cụm \`X\`."
+- natural_translation: promptVi MUST ask for Vietnamese translation, e.g. "Dịch câu sau sang tiếng Việt tự nhiên."
+- Do NOT use promptVi wording that reveals the answer or hints at the exact correct response.`,
+
     "Include at least one focus_question that targets a lessonFocus.",
     "Ensure every key phrase has at least 1-2 associated exercises. Mix passive identification exercises (like meaning_choice, cloze_phrase, trap_choice, or trap_detect) with active production exercises (like phrase_production, dialogue_completion, register_shift, or natural_translation).",
     "Natural translation and open-ended production exercises should judge contextual meaning, register, and correctness, not exact word-by-word matches.",

@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, CheckCircle2, Loader2, SendHorizontal, Target } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  SendHorizontal,
+  Target,
+} from "lucide-react";
 import { submitAttemptAction } from "@/app/actions/attempts";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
 import type { Attempt } from "@/domain/memory";
@@ -15,21 +21,21 @@ function formatLabel(value: string) {
 function getExerciseTypeLabel(type: string) {
   switch (type) {
     case "meaning_choice":
-      return "Trắc nghiệm nghĩa";
+      return "Chọn nghĩa đúng";
     case "cloze_phrase":
-      return "Điền cụm từ";
+      return "Điền vào chỗ trống";
     case "natural_translation":
-      return "Dịch Anh-Việt";
+      return "Dịch sang tiếng Việt";
     case "focus_question":
       return "Câu hỏi trọng tâm";
     case "trap_choice":
       return "Tránh bẫy dịch";
     case "phrase_production":
-      return "Tự đặt câu";
+      return "Đặt câu tiếng Anh";
     case "dialogue_completion":
       return "Hoàn thành hội thoại";
     case "register_shift":
-      return "Nâng cấp văn phong";
+      return "Viết lại tự nhiên hơn";
     case "trap_detect":
       return "Phát hiện bẫy dịch";
     default:
@@ -39,9 +45,11 @@ function getExerciseTypeLabel(type: string) {
 
 function getPlaceholder(type: string, needsRetry: boolean) {
   if (needsRetry) {
-    return "Thử lại câu trả lời của bạn...";
+    return "Thử lại...";
   }
   switch (type) {
+    case "cloze_phrase":
+      return "Điền từ hoặc cụm từ phù hợp vào chỗ trống...";
     case "phrase_production":
       return "Viết câu tiếng Anh hoàn chỉnh chứa cụm từ...";
     case "dialogue_completion":
@@ -73,56 +81,103 @@ export function ExerciseCard({
   const latest = attempts[0];
   const solved = Boolean(latest?.isCorrect);
   const needsRetry = Boolean(latest && !latest.isCorrect);
-  const [answer, setAnswer] = useState(latest && !latest.isCorrect ? latest.answer : "");
-  const statusLabel = solved ? "Đã xong" : needsRetry ? "Cần thử lại" : isCurrent ? "Lượt tiếp theo" : "Chưa bắt đầu";
+  const [answer, setAnswer] = useState(
+    latest && !latest.isCorrect ? latest.answer : ""
+  );
+  const statusLabel = solved
+    ? "Đã xong"
+    : needsRetry
+      ? "Cần thử lại"
+      : isCurrent
+        ? "Lượt tiếp theo"
+        : "Chưa bắt đầu";
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
   const feedbackId = `exercise-${exercise.id}-feedback`;
-  const submitLabel = needsRetry ? "Thử lại" : solved ? "Luyện tập lại" : "Gửi câu trả lời";
-  const choiceSet = useMemo(() => new Set([exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])].filter(Boolean)), [exercise]);
-  const isRepeated = latest && !latest.isCorrect ? Boolean(userErrorsByAttemptId?.get(latest.id)?.isRepeated) : false;
-  const metadata = latest?.gradingMetadata as {
-    naturalAnswer?: string;
-    literalTranslationTrap?: string;
-  } | null | undefined;
+  const submitLabel = needsRetry
+    ? "Thử lại"
+    : solved
+      ? "Luyện tập lại"
+      : "Gửi câu trả lời";
+  const choiceSet = useMemo(
+    () =>
+      new Set(
+        [exercise.correctAnswer, ...(exercise.acceptableAnswers ?? [])].filter(
+          Boolean
+        )
+      ),
+    [exercise]
+  );
+  const isRepeated =
+    latest && !latest.isCorrect
+      ? Boolean(userErrorsByAttemptId?.get(latest.id)?.isRepeated)
+      : false;
+  const metadata = latest?.gradingMetadata as
+    | {
+        naturalAnswer?: string;
+        literalTranslationTrap?: string;
+      }
+    | null
+    | undefined;
 
   const typeLabel = getExerciseTypeLabel(exercise.type);
 
-  const isChoiceType = exercise.type === "meaning_choice" || exercise.type === "trap_choice" || exercise.type === "trap_detect";
-  const isObjectiveType = exercise.type === "cloze_phrase" || exercise.type === "meaning_choice" || exercise.type === "trap_choice" || exercise.type === "trap_detect";
+  const isChoiceType =
+    exercise.type === "meaning_choice" ||
+    exercise.type === "trap_choice" ||
+    exercise.type === "trap_detect";
+  const isObjectiveType =
+    exercise.type === "cloze_phrase" ||
+    exercise.type === "meaning_choice" ||
+    exercise.type === "trap_choice" ||
+    exercise.type === "trap_detect";
+  const isSubjectiveType = !isObjectiveType;
   const shouldShowKeyPhrase = keyPhrase && (!isObjectiveType || solved);
 
   return (
-    <article className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
-      solved ? "bg-gradient-to-b from-surface to-surface-strong" : ""
-    } ${
-      isCurrent ? "border-accent ring-3 ring-accent-light" : ""
-    }`}>
+    <article
+      className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
+        solved ? "bg-gradient-to-b from-surface to-surface-strong" : ""
+      } ${isCurrent ? "border-accent ring-3 ring-accent-light" : ""}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold leading-none">
             {typeLabel}
           </span>
-          <span className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${
-            solved 
-              ? "bg-success-light border-success text-success" 
-              : needsRetry 
-              ? "bg-danger-light border-danger text-danger" 
-              : "bg-surface-strong border-border text-muted"
-          }`}>
-            {solved ? <CheckCircle2 size={15} aria-hidden="true" /> : needsRetry ? <AlertCircle size={15} aria-hidden="true" /> : <Target size={15} aria-hidden="true" />}
+          <span
+            className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${
+              solved
+                ? "bg-success-light border-success text-success"
+                : needsRetry
+                  ? "bg-danger-light border-danger text-danger"
+                  : "bg-surface-strong border-border text-muted"
+            }`}
+          >
+            {solved ? (
+              <CheckCircle2 size={15} aria-hidden="true" />
+            ) : needsRetry ? (
+              <AlertCircle size={15} aria-hidden="true" />
+            ) : (
+              <Target size={15} aria-hidden="true" />
+            )}
             {statusLabel}
           </span>
         </div>
         {latest ? (
-          <span className={`text-sm font-semibold leading-none ${latest.isCorrect ? "text-success" : "text-danger"}`}>
+          <span
+            className={`text-sm font-semibold leading-none ${latest.isCorrect ? "text-success" : "text-danger"}`}
+          >
             {latest.score}/100
           </span>
         ) : null}
       </div>
 
       {shouldShowKeyPhrase ? (
-        <a className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors" href={`#keyphrase-${keyPhrase.id}`}>
+        <a
+          className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors"
+          href={`#keyphrase-${keyPhrase.id}`}
+        >
           <span>Luyện tập cụm từ:</span>
           <strong>{keyPhrase.phrase}</strong>
           <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
@@ -135,7 +190,10 @@ export function ExerciseCard({
       ) : null}
 
       {lessonFocus ? (
-        <a className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors" href={`#lessonfocus-${lessonFocus.id}`}>
+        <a
+          className="flex flex-wrap items-center gap-1.5 w-fit mt-3 text-muted text-[13px] font-bold no-underline hover:text-text transition-colors"
+          href={`#lessonfocus-${lessonFocus.id}`}
+        >
           <span>Luyện tập chủ điểm:</span>
           <strong>{lessonFocus.title}</strong>
           <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
@@ -147,21 +205,25 @@ export function ExerciseCard({
         </a>
       ) : null}
 
-      <h3 id={promptId} className="text-lg mt-2 font-semibold text-text m-0">{renderRichText(exercise.promptVi)}</h3>
-      
+      <h3 id={promptId} className="text-lg mt-2 font-semibold text-text m-0">
+        {renderRichText(exercise.promptVi)}
+      </h3>
+
       {exercise.promptEn ? (
-        <p className="font-serif text-sm md:text-base italic text-muted my-1 m-0">{renderRichText(exercise.promptEn)}</p>
+        <p className="font-serif text-sm md:text-base italic text-muted my-1 m-0">
+          {renderRichText(exercise.promptEn)}
+        </p>
       ) : null}
 
       <form action={submitAttemptAction} className="grid gap-5">
         <input name="exerciseId" type="hidden" value={exercise.id} />
         <input name="lessonId" type="hidden" value={exercise.lessonId} />
-        
+
         {isChoiceType && exercise.choices ? (
           <div className="grid gap-2 mt-2">
             {exercise.choices.map((choice) => (
-              <label 
-                className="relative flex items-center gap-2.5 min-h-[42px] border border-border rounded-sm bg-surface p-2.5 px-3 font-semibold transition-all cursor-pointer has-[:checked]:border-accent has-[:checked]:bg-success-light has-[:checked]:ring-3 has-[:checked]:ring-accent-light" 
+              <label
+                className="relative flex items-center gap-2.5 min-h-[42px] border border-border rounded-sm bg-surface p-2.5 px-3 font-semibold transition-all cursor-pointer has-[:checked]:border-accent has-[:checked]:bg-success-light has-[:checked]:ring-3 has-[:checked]:ring-accent-light"
                 key={choice}
               >
                 <input
@@ -175,9 +237,15 @@ export function ExerciseCard({
                   required
                   className="w-auto h-auto p-0 m-0 border-none bg-none shadow-none accent-accent shrink-0 focus:outline-none focus:ring-0"
                 />
-                <span className="text-sm md:text-[15px]">{renderRichText(choice)}</span>
+                <span className="text-sm md:text-[15px]">
+                  {renderRichText(choice)}
+                </span>
                 {solved && choiceSet.has(choice) ? (
-                  <CheckCircle2 className="ml-auto text-success shrink-0" size={15} aria-hidden="true" />
+                  <CheckCircle2
+                    className="ml-auto text-success shrink-0"
+                    size={15}
+                    aria-hidden="true"
+                  />
                 ) : null}
               </label>
             ))}
@@ -200,28 +268,46 @@ export function ExerciseCard({
       </form>
 
       {latest ? (
-        <div className="grid gap-1.5 border-t border-border pt-4 mt-2" id={feedbackId}>
-          <strong className="text-sm font-bold">{latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}</strong>
-          <p className="text-sm text-text leading-relaxed m-0 mt-1">{renderRichText(latest.feedbackVi)}</p>
-          
-          {metadata?.naturalAnswer && (
+        <div
+          className="grid gap-1.5 border-t border-border pt-4 mt-2"
+          id={feedbackId}
+        >
+          <strong className="text-sm font-bold">
+            {latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}
+          </strong>
+          <p className="text-sm text-text leading-relaxed m-0 mt-1">
+            {renderRichText(latest.feedbackVi)}
+          </p>
+
+          {metadata?.naturalAnswer && (solved || isSubjectiveType) && (
             <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
-              <strong className="text-xs font-bold text-success block">Dịch nghĩa tự nhiên gợi ý</strong>
-              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">{metadata.naturalAnswer}</p>
+              <strong className="text-xs font-bold text-success block">
+                Gợi ý
+              </strong>
+              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
+                {metadata.naturalAnswer}
+              </p>
             </div>
           )}
-          
+
           {!latest.isCorrect && metadata?.literalTranslationTrap && (
             <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger">
-              <strong className="text-xs font-bold text-danger block">Bẫy dịch từng từ (Literal Trap)</strong>
+              <strong className="text-xs font-bold text-danger block">
+                Bẫy dịch từng từ (Literal Trap)
+              </strong>
               <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
-                Tránh dịch: <span className="line-through opacity-80">&quot;{metadata.literalTranslationTrap}&quot;</span>
+                Tránh dịch:{" "}
+                <span className="line-through opacity-80">
+                  &quot;{metadata.literalTranslationTrap}&quot;
+                </span>
               </p>
             </div>
           )}
 
           {!latest.isCorrect ? (
-            <p className="text-xs text-muted mt-1.5">Bản dịch vừa gửi: {latest.answer}</p>
+            <p className="text-xs text-muted mt-1.5">
+              Câu trả lời vừa gửi: {latest.answer}
+            </p>
           ) : null}
 
           {isRepeated && (
@@ -236,7 +322,13 @@ export function ExerciseCard({
   );
 }
 
-function SubmitAttemptButton({ disabled, label }: { disabled: boolean; label: string }) {
+function SubmitAttemptButton({
+  disabled,
+  label,
+}: {
+  disabled: boolean;
+  label: string;
+}) {
   const { pending } = useFormStatus();
 
   return (
@@ -245,7 +337,11 @@ function SubmitAttemptButton({ disabled, label }: { disabled: boolean; label: st
       disabled={disabled || pending}
       type="submit"
     >
-      {pending ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <SendHorizontal size={16} aria-hidden="true" />}
+      {pending ? (
+        <Loader2 className="animate-spin" size={16} aria-hidden="true" />
+      ) : (
+        <SendHorizontal size={16} aria-hidden="true" />
+      )}
       {pending ? "Đang chấm..." : label}
     </button>
   );
