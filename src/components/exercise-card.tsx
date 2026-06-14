@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   AlertCircle,
@@ -144,6 +144,38 @@ export function ExerciseCard({
   const isSubjectiveType = !isObjectiveType;
   const shouldShowKeyPhrase = keyPhrase && (!isObjectiveType || solved);
 
+  // Keyboard numeric shortcuts for multiple-choice selections when exercise is current
+  useEffect(() => {
+    if (!isCurrent || solved || !isChoiceType || !exercise.choices) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "TEXTAREA" ||
+          (activeEl.tagName === "INPUT" &&
+            (activeEl as HTMLInputElement).type !== "radio") ||
+          activeEl.hasAttribute("contenteditable"))
+      ) {
+        return;
+      }
+
+      const keyNum = parseInt(event.key, 10);
+      if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= exercise.choices!.length) {
+        event.preventDefault();
+        const selectedChoice = exercise.choices![keyNum - 1];
+        if (selectedChoice) {
+          setAnswer(selectedChoice);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCurrent, solved, isChoiceType, exercise.choices]);
+
   return (
     <article
       className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
@@ -230,11 +262,12 @@ export function ExerciseCard({
         className="grid gap-3"
       >
         <input name="exerciseId" type="hidden" value={exercise.id} />
-        {exercise.promptVi && (
+        <input name="lessonId" type="hidden" value={exercise.lessonId} />
+        {exercise.promptVi ? (
           <p className="text-xs text-muted leading-relaxed m-0 text-left">
             {exercise.promptVi}
           </p>
-        )}
+        ) : null}
         {isChoiceType ? (
           <div className="grid gap-2 mt-2">
             {exercise.choices?.map((choice, index) => (
@@ -243,7 +276,9 @@ export function ExerciseCard({
                 className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${
                   solved && choiceSet.has(choice)
                     ? "bg-success-light border-success text-success font-semibold"
-                    : "border-border hover:bg-surface-active"
+                    : answer === choice
+                      ? "border-accent bg-accent-light/30 ring-2 ring-accent/30 font-medium"
+                      : "border-border hover:bg-surface-active"
                 }`}
               >
                 <input
@@ -252,6 +287,8 @@ export function ExerciseCard({
                   required
                   type="radio"
                   value={choice}
+                  checked={answer === choice}
+                  onChange={(event) => setAnswer(event.target.value)}
                   className="accent-accent disabled:opacity-50"
                 />
                 <span className="text-sm md:text-[15px]">

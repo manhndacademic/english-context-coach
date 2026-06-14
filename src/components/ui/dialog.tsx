@@ -28,6 +28,13 @@ export function ConfirmDialog({
   variant = "default",
 }: ConfirmDialogProps) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
+  const titleId = React.useId();
+  const descId = React.useId();
+
+  const supportsClosedBy = React.useMemo(() => {
+    if (typeof window === "undefined") return true;
+    return "closedBy" in HTMLDialogElement.prototype;
+  }, []);
 
   React.useEffect(() => {
     const dialog = dialogRef.current;
@@ -65,7 +72,10 @@ export function ConfirmDialog({
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      onClick={handleBackdropClick}
+      onClick={supportsClosedBy ? undefined : handleBackdropClick}
+      {...({ closedby: "any" } as any)}
+      aria-labelledby={titleId}
+      aria-describedby={descId}
       className="z-50 m-auto bg-transparent border-none p-0 outline-none backdrop:bg-black/60 dark:backdrop:bg-black/80 backdrop:backdrop-blur-md animate-in fade-in duration-200"
     >
       {/* Dialog card */}
@@ -75,7 +85,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onClose}
           disabled={isPending}
-          className="absolute right-4 top-4 text-muted hover:text-text cursor-pointer rounded-full p-1.5 hover:bg-surface-strong transition-all focus:outline-none focus:ring-2 focus:ring-accent"
+          className="absolute right-4 top-4 text-muted hover:text-text cursor-pointer rounded-full p-1.5 hover:bg-surface-strong transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Đóng"
         >
           <X size={16} />
@@ -83,16 +93,19 @@ export function ConfirmDialog({
 
         {/* Content */}
         <div className="flex gap-4 items-start pr-6 mt-1">
-          {variant === "danger" && (
+          {variant === "danger" ? (
             <div className="bg-danger-light text-danger p-2.5 rounded-full border border-danger/10 shrink-0">
               <AlertTriangle size={20} />
             </div>
-          )}
+          ) : null}
           <div className="grid gap-1.5">
-            <h3 className="text-lg font-bold text-text m-0 leading-snug">
+            <h3
+              id={titleId}
+              className="text-lg font-bold text-text m-0 leading-snug"
+            >
               {title}
             </h3>
-            <p className="text-muted text-sm m-0 leading-relaxed">
+            <p id={descId} className="text-muted text-sm m-0 leading-relaxed">
               {description}
             </p>
           </div>

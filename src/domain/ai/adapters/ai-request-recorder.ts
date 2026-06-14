@@ -23,8 +23,8 @@ export class DrizzleAiRequestRecorder implements AiRequestRecorder {
   }): Promise<void> {
     try {
       await db.insert(schema.aiRequests).values({
-        userId: options.userId ?? null,
-        lessonId: options.lessonId ?? null,
+        userId: options.userId || null,
+        lessonId: options.lessonId || null,
         purpose: options.purpose,
         provider: options.provider,
         model: options.model,

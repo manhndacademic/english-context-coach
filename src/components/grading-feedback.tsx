@@ -72,22 +72,22 @@ export function GradingFeedback({
           >
             {isCorrect ? "Hoàn thành xuất sắc" : "Gợi ý cải thiện"}
           </strong>
-          {!isCorrect && feedbackDetails?.mistakeType && (
+          {!isCorrect && feedbackDetails?.mistakeType ? (
             <span className="inline-flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-900/30">
               {feedbackDetails.mistakeType}
             </span>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="flex items-center flex-wrap gap-2 text-left">
           <strong className="text-sm font-bold">
             {isCorrect ? "Chính xác" : "Gợi ý cải thiện"}
           </strong>
-          {!isCorrect && feedbackDetails?.mistakeType && (
+          {!isCorrect && feedbackDetails?.mistakeType ? (
             <span className="inline-flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-900/30">
               {feedbackDetails.mistakeType}
             </span>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -120,14 +120,14 @@ export function GradingFeedback({
             {feedbackDetails.correctUnderstanding}
           </div>
 
-          {feedbackDetails.nextPracticeItem && (
+          {feedbackDetails.nextPracticeItem ? (
             <div className="p-3 bg-accent-light border-l-4 border-accent rounded-r-lg text-sm text-text">
               <strong className="text-xs text-accent font-bold block mb-1">
                 Luyện tập nhanh:
               </strong>
               {feedbackDetails.nextPracticeItem}
             </div>
-          )}
+          ) : null}
 
           {/* Explain More toggler */}
           <div className="border border-border rounded-lg bg-surface/50 overflow-hidden transition-all duration-200 mt-1">
@@ -143,11 +143,16 @@ export function GradingFeedback({
                 <ChevronDown size={14} />
               )}
             </button>
-            {showExplainMore && (
-              <div className="p-4 pt-2 text-sm leading-relaxed text-text border-t border-border/30 bg-surface/30">
-                {renderRichText(feedbackDetails.detailedExplanation || "")}
+            <div
+              data-state={showExplainMore ? "open" : "closed"}
+              className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-in-out data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100"
+            >
+              <div className="overflow-hidden">
+                <div className="p-4 pt-2 text-sm leading-relaxed text-text border-t border-border/30 bg-surface/30">
+                  {renderRichText(feedbackDetails.detailedExplanation || "")}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       ) : (
@@ -164,7 +169,7 @@ export function GradingFeedback({
             </div>
           ) : (
             <>
-              {naturalAnswer && solved && isSubjectiveType && (
+              {naturalAnswer && solved && isSubjectiveType ? (
                 <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success text-left">
                   <strong className="text-xs font-bold text-success block">
                     Gợi ý
@@ -173,11 +178,11 @@ export function GradingFeedback({
                     {naturalAnswer}
                   </p>
                 </div>
-              )}
+              ) : null}
             </>
           )}
 
-          {!isCorrect && literalTranslationTrap && (
+          {!isCorrect && literalTranslationTrap ? (
             <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger text-left">
               <strong className="text-xs font-bold text-danger block">
                 Bẫy dịch từng từ (Literal Trap)
@@ -189,7 +194,7 @@ export function GradingFeedback({
                 </span>
               </p>
             </div>
-          )}
+          ) : null}
         </>
       )}
 
@@ -216,12 +221,12 @@ export function GradingFeedback({
       ) : null}
 
       {/* Repeated mistake warning */}
-      {!isReview && isRepeated && (
+      {!isReview && isRepeated ? (
         <div className="flex items-center gap-2 bg-[#fff5f4] border border-[#f2b8b5] text-danger p-2 px-3 rounded-md text-xs sm:text-sm mt-3 text-left">
           <AlertCircle size={14} aria-hidden="true" />
           <span>Bạn đã từng gặp lỗi này trước đây.</span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
