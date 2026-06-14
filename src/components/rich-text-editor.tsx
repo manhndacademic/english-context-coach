@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Bold, List, Highlighter } from "lucide-react";
 
 export function RichTextEditor({
@@ -19,8 +19,8 @@ export function RichTextEditor({
   value: string;
   maxLength?: number;
 }) {
-  const editor = useEditor({
-    extensions: [
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         codeBlock: false,
       }),
@@ -32,6 +32,11 @@ export function RichTextEditor({
       }),
       CharacterCount.configure(),
     ],
+    [placeholder]
+  );
+
+  const editor = useEditor({
+    extensions,
     content: "",
     immediatelyRender: false,
     onUpdate: ({ editor }) => {

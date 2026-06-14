@@ -120,8 +120,8 @@ export function ReadableSourceText({ doc, phrases }: ReadableSourceTextProps) {
     }
   }, [doc]);
 
-  const editor = useEditor({
-    extensions: [
+  const extensions = useMemo(
+    () => [
       StarterKit,
       Highlight.configure({ multicolor: false }),
       Underline,
@@ -133,6 +133,11 @@ export function ReadableSourceText({ doc, phrases }: ReadableSourceTextProps) {
       }),
       KeyPhraseHighlight(phrases),
     ],
+    [phrases]
+  );
+
+  const editor = useEditor({
+    extensions,
     content: parsedContent,
     editable: false,
     immediatelyRender: false,
