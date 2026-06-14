@@ -59,6 +59,14 @@ export interface AttemptFormResult {
   feedbackVi: string;
   userErrorCreated: boolean;
   mistakePatternStatus: "new" | "repeated" | "none";
+  feedbackDetails?: {
+    whatWasWrong: string;
+    whyItWasWrong: string;
+    correctUnderstanding: string;
+    mistakeType: string;
+    nextPracticeItem?: string | null;
+    detailedExplanation: string;
+  } | null;
   error?: string;
 }
 
@@ -77,6 +85,14 @@ export interface ReviewFormResult {
   masteryState?: MasteryState;
   nextReviewAt?: Date;
   naturalAnswer?: string;
+  feedbackDetails?: {
+    whatWasWrong: string;
+    whyItWasWrong: string;
+    correctUnderstanding: string;
+    mistakeType: string;
+    nextPracticeItem?: string | null;
+    detailedExplanation: string;
+  } | null;
   error?: string;
 }
 

@@ -230,6 +230,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         isCorrect: grade.isCorrect,
         score: grade.score,
         feedbackVi: grade.feedbackVi,
+        feedbackDetails: grade.feedbackDetails,
         userErrorCreated: !!saveError,
         mistakePatternStatus: saveError
           ? isRepeated
@@ -338,6 +339,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         isCorrect: grade.isCorrect,
         score: grade.score,
         feedbackVi: grade.feedbackVi,
+        feedbackDetails: grade.feedbackDetails,
         masteryStateUpdated: true,
         masteryState: pattern.masteryState,
         nextReviewAt: pattern.dueAt,

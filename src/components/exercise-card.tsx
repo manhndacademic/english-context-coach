@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   SendHorizontal,
   Target,
@@ -112,10 +114,19 @@ export function ExerciseCard({
     latest && !latest.isCorrect
       ? Boolean(userErrorsByAttemptId?.get(latest.id)?.isRepeated)
       : false;
+  const [showExplainMore, setShowExplainMore] = useState(false);
   const metadata = latest?.gradingMetadata as
     | {
         naturalAnswer?: string;
         literalTranslationTrap?: string;
+        feedbackDetails?: {
+          whatWasWrong: string;
+          whyItWasWrong: string;
+          correctUnderstanding: string;
+          mistakeType: string;
+          nextPracticeItem?: string | null;
+          detailedExplanation: string;
+        } | null;
       }
     | null
     | undefined;
@@ -272,36 +283,102 @@ export function ExerciseCard({
           className="grid gap-1.5 border-t border-border pt-4 mt-2"
           id={feedbackId}
         >
-          <strong className="text-sm font-bold">
-            {latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}
-          </strong>
+          <div className="flex items-center flex-wrap gap-2">
+            <strong className="text-sm font-bold">
+              {latest.isCorrect ? "Chính xác" : "Gợi ý cải thiện"}
+            </strong>
+            {!latest.isCorrect && metadata?.feedbackDetails?.mistakeType && (
+              <span className="inline-flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-900/30">
+                {metadata.feedbackDetails.mistakeType}
+              </span>
+            )}
+          </div>
+
           <p className="text-sm text-text leading-relaxed m-0 mt-1">
             {renderRichText(latest.feedbackVi)}
           </p>
 
-          {metadata?.naturalAnswer && solved && isSubjectiveType && (
-            <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
-              <strong className="text-xs font-bold text-success block">
-                Gợi ý
-              </strong>
-              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
-                {metadata.naturalAnswer}
-              </p>
-            </div>
-          )}
+          {!latest.isCorrect && metadata?.feedbackDetails ? (
+            <div className="grid gap-3 mt-3">
+              <div className="p-3 bg-danger-light border-l-4 border-danger rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-danger font-bold block mb-1">
+                  Lỗi sai phát hiện:
+                </strong>
+                {metadata.feedbackDetails.whatWasWrong}
+              </div>
 
-          {!latest.isCorrect && metadata?.literalTranslationTrap && (
-            <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger">
-              <strong className="text-xs font-bold text-danger block">
-                Bẫy dịch từng từ (Literal Trap)
-              </strong>
-              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
-                Tránh dịch:{" "}
-                <span className="line-through opacity-80">
-                  &quot;{metadata.literalTranslationTrap}&quot;
-                </span>
-              </p>
+              <div className="p-3 bg-warning-light border-l-4 border-warning rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-warning font-bold block mb-1">
+                  Lý do nhầm lẫn:
+                </strong>
+                {metadata.feedbackDetails.whyItWasWrong}
+              </div>
+
+              <div className="p-3 bg-success-light border-l-4 border-success rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-success font-bold block mb-1 font-semibold">
+                  Hiểu đúng tự nhiên trong ngữ cảnh:
+                </strong>
+                {metadata.feedbackDetails.correctUnderstanding}
+              </div>
+
+              {metadata.feedbackDetails.nextPracticeItem && (
+                <div className="p-3 bg-accent-light border-l-4 border-accent rounded-r-lg text-sm text-text">
+                  <strong className="text-xs text-accent font-bold block mb-1">
+                    Luyện tập nhanh:
+                  </strong>
+                  {metadata.feedbackDetails.nextPracticeItem}
+                </div>
+              )}
+
+              <div className="border border-border rounded-lg bg-surface/50 overflow-hidden transition-all duration-200 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExplainMore(!showExplainMore)}
+                  className="w-full flex items-center justify-between p-3 px-4 text-xs font-bold text-muted hover:bg-surface-active cursor-pointer transition-all leading-none"
+                >
+                  <span>Giải thích thêm (Explain more)</span>
+                  {showExplainMore ? (
+                    <ChevronUp size={14} />
+                  ) : (
+                    <ChevronDown size={14} />
+                  )}
+                </button>
+                {showExplainMore && (
+                  <div className="p-4 pt-2 text-sm leading-relaxed text-text border-t border-border/30 bg-surface/30">
+                    {renderRichText(
+                      metadata.feedbackDetails.detailedExplanation
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+          ) : (
+            <>
+              {metadata?.naturalAnswer && solved && isSubjectiveType && (
+                <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
+                  <strong className="text-xs font-bold text-success block">
+                    Gợi ý
+                  </strong>
+                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
+                    {metadata.naturalAnswer}
+                  </p>
+                </div>
+              )}
+
+              {!latest.isCorrect && metadata?.literalTranslationTrap && (
+                <div className="mt-3 p-3 px-4 rounded-md bg-danger-light border-l-4 border-danger">
+                  <strong className="text-xs font-bold text-danger block">
+                    Bẫy dịch từng từ (Literal Trap)
+                  </strong>
+                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
+                    Tránh dịch:{" "}
+                    <span className="line-through opacity-80">
+                      &quot;{metadata.literalTranslationTrap}&quot;
+                    </span>
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {!latest.isCorrect ? (

@@ -38,28 +38,16 @@ function gradeObjectiveExercise(
     .map((value) => normalizeAnswer(value as string));
 
   const isCorrect = expected.includes(normalizedAnswer);
+  if (!isCorrect) {
+    // Return null to fall back to calling the LLM grader for incorrect answers.
+    return null;
+  }
+
   return {
-    score: isCorrect ? 100 : 0,
-    isCorrect,
-    feedbackVi: isCorrect
-      ? "Đúng. Bạn đã hiểu cụm này theo đúng ngữ cảnh."
-      : "Chưa đúng. Hãy chú ý nghĩa của cụm trong câu, không chỉ dịch từng từ.",
-    // Only reveal correctAnswer as confirmation when the user got it right.
-    // Showing it on wrong answers would leak the answer and make retry trivial.
-    naturalAnswer: isCorrect
-      ? (exercise.correctAnswer ?? undefined)
-      : undefined,
-    error: isCorrect
-      ? undefined
-      : {
-          shouldSave: true,
-          confidence: 100,
-          errorType: "phrase_misunderstanding",
-          explanationVi:
-            "Câu trả lời chưa khớp với nghĩa tự nhiên trong ngữ cảnh.",
-          targetItem:
-            exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi,
-        },
+    score: 100,
+    isCorrect: true,
+    feedbackVi: "Đúng. Bạn đã hiểu cụm này theo đúng ngữ cảnh.",
+    naturalAnswer: exercise.correctAnswer ?? undefined,
   };
 }
 
@@ -87,6 +75,7 @@ export class DefaultGradingEngine implements GradingEngine {
           promptVi: input.exercise.promptVi,
           answer: input.answer,
           rubricVi: input.exercise.rubricVi,
+          correctAnswer: input.exercise.correctAnswer,
         }),
         promptVersion: PROMPT_VERSIONS.grading,
         schemaVersion: "grading",

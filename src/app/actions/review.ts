@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guards";
-import { getLearnerMemoryEngine, getMistakePatternRepository } from "@/domain/memory";
+import {
+  getLearnerMemoryEngine,
+  getMistakePatternRepository,
+} from "@/domain/memory";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -12,6 +15,14 @@ export type ReviewResultState = {
   masteryState?: "active" | "mastered";
   nextReviewAt?: string;
   naturalAnswer?: string;
+  feedbackDetails?: {
+    whatWasWrong: string;
+    whyItWasWrong: string;
+    correctUnderstanding: string;
+    mistakeType: string;
+    nextPracticeItem?: string | null;
+    detailedExplanation: string;
+  } | null;
   error?: string;
 };
 
@@ -47,14 +58,22 @@ export async function submitReviewAttemptAction(
       masteryState: result.masteryState,
       nextReviewAt: result.nextReviewAt?.toISOString(),
       naturalAnswer: result.naturalAnswer,
+      feedbackDetails: result.feedbackDetails,
     };
   } catch (error) {
     console.error(error);
-    return { error: error instanceof Error ? error.message : "Đã xảy ra lỗi hệ thống khi chấm điểm ôn tập." };
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Đã xảy ra lỗi hệ thống khi chấm điểm ôn tập.",
+    };
   }
 }
 
-export async function retryReviewPromptGenerationAction(formData: FormData): Promise<void> {
+export async function retryReviewPromptGenerationAction(
+  formData: FormData
+): Promise<void> {
   try {
     const user = await requireUser();
     const patternId = String(formData.get("patternId") ?? "");
@@ -75,4 +94,3 @@ export async function retryReviewPromptGenerationAction(formData: FormData): Pro
     console.error("Failed to retry review prompt generation:", error);
   }
 }
-

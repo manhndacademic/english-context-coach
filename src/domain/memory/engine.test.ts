@@ -431,6 +431,15 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         score: 0,
         isCorrect: false,
         feedbackVi: "Chưa đúng, 'push this back' nghĩa là dời lại.",
+        feedbackDetails: {
+          whatWasWrong: "Bạn đã dịch thành đẩy nó về sau.",
+          whyItWasWrong:
+            "Cụm 'push back' nghĩa là dời lại chứ không phải đẩy về phía sau vật lý.",
+          correctUnderstanding: "Dời lịch, hoãn lại.",
+          mistakeType: "Lỗi cụm động từ",
+          nextPracticeItem: "Dịch câu: Let's push back the meeting.",
+          detailedExplanation: "Chi tiết...",
+        },
         error: {
           shouldSave: true,
           confidence: 90,
@@ -449,6 +458,10 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
       expect(result.success).toBe(true);
       expect(result.isCorrect).toBe(false);
+      expect(result.feedbackDetails?.mistakeType).toBe("Lỗi cụm động từ");
+      expect(result.feedbackDetails?.whatWasWrong).toBe(
+        "Bạn đã dịch thành đẩy nó về sau."
+      );
       expect(repo.attempts.length).toBe(1);
       expect(repo.userErrors.length).toBe(1);
       expect(repo.userErrors[0].isRepeated).toBe(false);
@@ -689,6 +702,14 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         score: 0,
         isCorrect: false,
         feedbackVi: "Sai rồi.",
+        feedbackDetails: {
+          whatWasWrong: "Bạn đã dịch thành đẩy về.",
+          whyItWasWrong: "Cụm 'push back' nghĩa là dời lại.",
+          correctUnderstanding: "Dời lịch, hoãn lại.",
+          mistakeType: "Lỗi cụm động từ",
+          nextPracticeItem: "Dịch câu: Let's push back the meeting.",
+          detailedExplanation: "Chi tiết...",
+        },
       };
 
       const result = await engine.submitReviewAttempt({
@@ -699,6 +720,10 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
 
       expect(result.success).toBe(true);
       expect(result.isCorrect).toBe(false);
+      expect(result.feedbackDetails?.mistakeType).toBe("Lỗi cụm động từ");
+      expect(result.feedbackDetails?.whatWasWrong).toBe(
+        "Bạn đã dịch thành đẩy về."
+      );
       expect(repo.reviewAttempts.length).toBe(1);
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);

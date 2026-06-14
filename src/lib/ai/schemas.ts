@@ -30,7 +30,12 @@ export const categorySchema = z.enum([
   "business_phrase",
   "general_phrase",
 ]);
-export const lessonFocusCategorySchema = z.enum(["tone", "structure", "purpose", "context"]);
+export const lessonFocusCategorySchema = z.enum([
+  "tone",
+  "structure",
+  "purpose",
+  "context",
+]);
 
 export const errorTypeSchema = z.enum([
   "literal_translation",
@@ -53,10 +58,14 @@ export const keyPhraseSchema = z.object({
   meaningInContextVi: z.string().min(1),
   exampleEn: z.string().min(1),
   exampleVi: z.string().min(1),
-  examples: z.array(z.object({
-    exampleEn: z.string().min(1),
-    exampleVi: z.string().min(1),
-  })).optional(),
+  examples: z
+    .array(
+      z.object({
+        exampleEn: z.string().min(1),
+        exampleVi: z.string().min(1),
+      })
+    )
+    .optional(),
   literalTranslationVi: z.string().optional(),
   naturalTranslationVi: z.string().optional(),
   whyConfusingVi: z.string().optional(),
@@ -181,13 +190,27 @@ export const gradingSchema = z.object({
   feedbackVi: z.string().min(1),
   naturalAnswer: z.string().nullable().optional(),
   literalTranslationTrap: z.string().nullable().optional(),
-  error: z.object({
-    shouldSave: z.boolean(),
-    confidence: z.number().int().min(0).max(100),
-    errorType: errorTypeSchema.nullable().optional(),
-    explanationVi: z.string().nullable().optional(),
-    targetItem: z.string().nullable().optional(),
-  }).nullable().optional(),
+  feedbackDetails: z
+    .object({
+      whatWasWrong: z.string().min(1),
+      whyItWasWrong: z.string().min(1),
+      correctUnderstanding: z.string().min(1),
+      mistakeType: z.string().min(1),
+      nextPracticeItem: z.string().nullable().optional(),
+      detailedExplanation: z.string().min(1),
+    })
+    .nullable()
+    .optional(),
+  error: z
+    .object({
+      shouldSave: z.boolean(),
+      confidence: z.number().int().min(0).max(100),
+      errorType: errorTypeSchema.nullable().optional(),
+      explanationVi: z.string().nullable().optional(),
+      targetItem: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const reviewPromptSchema = z.object({

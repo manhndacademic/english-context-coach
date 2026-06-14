@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   SendHorizontal,
   HelpCircle,
@@ -35,6 +37,7 @@ export function ReviewCard({
   onComplete: () => void;
 }) {
   const [answer, setAnswer] = useState("");
+  const [showExplainMore, setShowExplainMore] = useState(false);
 
   const [state, formAction, isPending] = useActionState<
     ReviewResultState,
@@ -193,11 +196,11 @@ export function ReviewCard({
         <div
           className={`grid gap-2 border-t border-border pt-4 mt-2 animate-in fade-in slide-in-from-top-3 duration-200 rounded-xl p-5 border ${
             state.isCorrect
-              ? "bg-success-light/40 border-success/15"
-              : "bg-warning-light/40 border-warning/15"
+              ? "bg-success-light/45 border-success/20"
+              : "bg-warning-light/45 border-warning/20"
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap gap-2">
             <span
               className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                 state.isCorrect
@@ -212,18 +215,80 @@ export function ReviewCard({
             >
               {state.isCorrect ? "Hoàn thành xuất sắc" : "Gợi ý cải thiện"}
             </strong>
+            {!state.isCorrect && state.feedbackDetails?.mistakeType && (
+              <span className="inline-flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-900/30">
+                {state.feedbackDetails.mistakeType}
+              </span>
+            )}
           </div>
+
           <p className="text-sm leading-relaxed m-0 text-text font-medium">
             {renderRichText(state.feedbackVi)}
           </p>
-          <div className="grid gap-1.5 bg-surface border border-border rounded-lg p-3 mt-1">
-            <strong className="text-xs font-bold uppercase tracking-wider text-muted">
-              Đáp án tự nhiên
-            </strong>
-            <p className="text-sm leading-relaxed m-0 text-text font-semibold">
-              {renderRichText(naturalAnswer)}
-            </p>
-          </div>
+
+          {!state.isCorrect && state.feedbackDetails ? (
+            <div className="grid gap-3 mt-3 text-left">
+              <div className="p-3 bg-danger-light border-l-4 border-danger rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-danger font-bold block mb-1">
+                  Lỗi sai phát hiện:
+                </strong>
+                {state.feedbackDetails.whatWasWrong}
+              </div>
+
+              <div className="p-3 bg-warning-light border-l-4 border-warning rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-warning font-bold block mb-1">
+                  Lý do nhầm lẫn:
+                </strong>
+                {state.feedbackDetails.whyItWasWrong}
+              </div>
+
+              <div className="p-3 bg-success-light border-l-4 border-success rounded-r-lg text-sm text-text">
+                <strong className="text-xs text-success font-bold block mb-1 font-semibold">
+                  Hiểu đúng tự nhiên trong ngữ cảnh:
+                </strong>
+                {state.feedbackDetails.correctUnderstanding}
+              </div>
+
+              {state.feedbackDetails.nextPracticeItem && (
+                <div className="p-3 bg-accent-light border-l-4 border-accent rounded-r-lg text-sm text-text">
+                  <strong className="text-xs text-accent font-bold block mb-1">
+                    Luyện tập nhanh:
+                  </strong>
+                  {state.feedbackDetails.nextPracticeItem}
+                </div>
+              )}
+
+              <div className="border border-border rounded-lg bg-surface/50 overflow-hidden transition-all duration-200 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExplainMore(!showExplainMore)}
+                  className="w-full flex items-center justify-between p-3 px-4 text-xs font-bold text-muted hover:bg-surface-active cursor-pointer transition-all leading-none"
+                >
+                  <span>Giải thích thêm (Explain more)</span>
+                  {showExplainMore ? (
+                    <ChevronUp size={14} />
+                  ) : (
+                    <ChevronDown size={14} />
+                  )}
+                </button>
+                {showExplainMore && (
+                  <div className="p-4 pt-2 text-sm leading-relaxed text-text border-t border-border/30 bg-surface/30">
+                    {renderRichText(state.feedbackDetails.detailedExplanation)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-1.5 bg-surface border border-border rounded-lg p-3 mt-1">
+              <strong className="text-xs font-bold uppercase tracking-wider text-muted">
+                Đáp án tự nhiên
+              </strong>
+              <p className="text-sm leading-relaxed m-0 text-text font-semibold">
+                {renderRichText(naturalAnswer)}
+              </p>
+            </div>
+          )}
+
           {nextReviewDate ? (
             <p className="text-xs text-muted m-0">
               {state.masteryState === "mastered"

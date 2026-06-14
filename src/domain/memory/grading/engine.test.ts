@@ -55,13 +55,35 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(llm.calls.length).toBe(0);
   });
 
-  it("grades incorrect objective answers, returns structured error data, and does not call LLM", async () => {
+  it("grades incorrect objective answers by falling back to calling the LLM for detailed feedback", async () => {
     const exercise = {
       type: "meaning_choice",
       correctAnswer: "Ổn rồi",
       promptVi: "Hỏi",
       promptEn: "Prompt",
     } as any;
+
+    llm.result = {
+      score: 0,
+      isCorrect: false,
+      feedbackVi: "AI: Giải thích tại sao chọn 'Nhìn đẹp' là sai...",
+      naturalAnswer: "Ổn rồi",
+      feedbackDetails: {
+        whatWasWrong: "Bạn đã chọn 'Nhìn đẹp'.",
+        whyItWasWrong:
+          "Cụm từ này không đồng nghĩa với 'Ổn rồi' trong ngữ cảnh.",
+        correctUnderstanding: "Nghĩa đúng của cụm từ là 'Ổn rồi'.",
+        mistakeType: "Sai đáp án trắc nghiệm",
+        detailedExplanation: "Chi tiết...",
+      },
+      error: {
+        shouldSave: true,
+        confidence: 100,
+        errorType: "phrase_misunderstanding",
+        explanationVi: "Lỗi dịch nghĩa.",
+        targetItem: "Ổn rồi",
+      },
+    };
 
     const result = await grader.grade({
       userId: "user-1",
@@ -71,11 +93,11 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
 
     expect(result.isCorrect).toBe(false);
     expect(result.score).toBe(0);
-    expect(result.error?.shouldSave).toBe(true);
-    expect(result.error?.confidence).toBe(100);
-    expect(result.error?.errorType).toBe("phrase_misunderstanding");
-    expect(result.error?.targetItem).toBe("Ổn rồi");
-    expect(llm.calls.length).toBe(0);
+    expect(result.feedbackVi).toBe(
+      "AI: Giải thích tại sao chọn 'Nhìn đẹp' là sai..."
+    );
+    expect(result.feedbackDetails?.mistakeType).toBe("Sai đáp án trắc nghiệm");
+    expect(llm.calls.length).toBe(1);
   });
 
   // ─── Objective grading: cloze_phrase ───
@@ -99,7 +121,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(llm.calls.length).toBe(0);
   });
 
-  it("grades wrong cloze_phrase and does NOT expose correctAnswer in naturalAnswer", async () => {
+  it("grades wrong cloze_phrase and does NOT expose correctAnswer in naturalAnswer but calls LLM", async () => {
     const exercise = {
       type: "cloze_phrase",
       correctAnswer: "propose",
@@ -107,6 +129,21 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
       promptVi: "Điền vào chỗ trống.",
       promptEn: "Can you ____ some solutions for this issue?",
     } as any;
+
+    llm.result = {
+      score: 0,
+      isCorrect: false,
+      feedbackVi: "AI: Sai rồi.",
+      feedbackDetails: {
+        whatWasWrong: "Bạn đã điền 'review'.",
+        whyItWasWrong:
+          "'review' nghĩa là xem xét lại, không phù hợp để đề xuất giải pháp.",
+        correctUnderstanding:
+          "Động từ đề xuất thích hợp là 'propose' hoặc 'suggest'.",
+        mistakeType: "Lỗi từ vựng / Sai ngữ cảnh",
+        detailedExplanation: "Chi tiết...",
+      },
+    };
 
     const result = await grader.grade({
       userId: "user-1",
@@ -117,7 +154,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(result.score).toBe(0);
     // naturalAnswer must NOT leak the correct answer for wrong objective exercises
     expect(result.naturalAnswer).toBeUndefined();
-    expect(llm.calls.length).toBe(0);
+    expect(llm.calls.length).toBe(1);
   });
 
   it("shows naturalAnswer for correct objective exercises (confirmation)", async () => {
@@ -292,6 +329,53 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(llm.calls[0].purpose).toBe("grading");
     expect(llm.calls[0].userId).toBe("user-1");
     expect(llm.calls[0].lessonId).toBe("lesson-1");
+  });
+
+  it("calls LLM and returns feedbackDetails on incorrect subjective attempt", async () => {
+    const exercise = {
+      type: "natural_translation",
+      promptVi: "Dịch sang tiếng Việt tự nhiên",
+      promptEn: "Could you take a look when you get a chance?",
+      rubricVi: "Hiểu đúng nghĩa polite work request",
+    } as any;
+
+    llm.result = {
+      score: 30,
+      isCorrect: false,
+      feedbackVi: "Bạn dịch cụm 'take a look' chưa chính xác.",
+      naturalAnswer: "Bạn có thể xem giúp tôi khi có cơ hội không?",
+      literalTranslationTrap: "lấy một cái nhìn",
+      feedbackDetails: {
+        whatWasWrong: "Dịch 'take a look' thành nghĩa đen là lấy một cái nhìn.",
+        whyItWasWrong:
+          "Cụm từ này mang nghĩa tự nhiên là 'xem giúp' chứ không dịch từng từ.",
+        correctUnderstanding: "Xem giúp / kiểm tra giúp trong công việc.",
+        mistakeType: "Dịch thô/nghĩa đen",
+        nextPracticeItem: "Dịch câu: Can you take a look?",
+        detailedExplanation: "Chi tiết về 'take a look'...",
+      },
+      error: {
+        shouldSave: true,
+        confidence: 90,
+        errorType: "literal_translation",
+        explanationVi: "Lỗi dịch nghĩa đen.",
+        targetItem: "take a look",
+      },
+    };
+
+    const result = await grader.grade({
+      userId: "user-1",
+      lessonId: "lesson-1",
+      exercise,
+      answer: "bạn có thể lấy một cái nhìn khi bạn có cơ hội",
+    });
+
+    expect(result.isCorrect).toBe(false);
+    expect(result.feedbackDetails).toBeDefined();
+    expect(result.feedbackDetails?.whatWasWrong).toBe(
+      "Dịch 'take a look' thành nghĩa đen là lấy một cái nhìn."
+    );
+    expect(result.feedbackDetails?.mistakeType).toBe("Dịch thô/nghĩa đen");
   });
 
   // ─── Error handling ───

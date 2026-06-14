@@ -183,11 +183,26 @@ const exercisesJsonShape = {
 const gradingJsonShape = {
   score: "integer 0-100",
   isCorrect: "boolean",
-  feedbackVi: "concise, actionable Vietnamese learner-friendly feedback",
+  feedbackVi:
+    "concise, actionable Vietnamese learner-friendly feedback (keep it as a brief 1-2 sentence summary)",
   naturalAnswer:
     "optional natural translation/answer in Vietnamese, showing the correct/natural way to translate/understand in context",
   literalTranslationTrap:
     "optional literal/word-by-word Vietnamese translation trap if the user fell into it (e.g. 'lấy một cái nhìn' for 'take a look')",
+  feedbackDetails: {
+    whatWasWrong:
+      "Clear Vietnamese description of what was wrong in the learner's answer (1 sentence)",
+    whyItWasWrong:
+      "Vietnamese explanation of why the answer was wrong (e.g. literal translation trap, wrong context/register) (1-2 sentences)",
+    correctUnderstanding:
+      "Vietnamese description of the natural, context-appropriate meaning or translation (1-2 sentences)",
+    mistakeType:
+      "User-friendly name of the mistake type in Vietnamese (e.g. Dịch thô/nghĩa đen, Sai ngữ cảnh, Thiếu sắc thái, Lỗi cụm động từ, v.v.)",
+    nextPracticeItem:
+      "optional small next practice suggestion in Vietnamese (e.g., a simple sentence to translate or a phrase to review, or null/omitted)",
+    detailedExplanation:
+      "A longer, detailed Vietnamese explanation for the 'Explain more' ('Giải thích thêm') section, covering grammar/nuance/subtlety details if helpful (2-4 sentences)",
+  },
   error: {
     shouldSave:
       "boolean: true if this is a high-value structured error that should be saved to the learner's error memory for later review (e.g., a real misunderstanding of a phrasal verb, collocation, literal trap, context or tone, etc. - false if it is just a minor typo, layout/formatting issue, or random noise)",
@@ -316,6 +331,7 @@ export function gradingPrompt(input: {
   promptVi: string;
   answer: string;
   rubricVi?: string | null;
+  correctAnswer?: string | null;
 }) {
   return [
     "Grade this Vietnamese learner answer.",
@@ -327,6 +343,7 @@ export function gradingPrompt(input: {
     "  - Set 'isCorrect' to false.",
     "  - Provide the 'naturalAnswer' in Vietnamese.",
     "  - If they fell into a literal/word-by-word translation trap, specify it in 'literalTranslationTrap'.",
+    "  - Populate the 'feedbackDetails' object with the 6 structured fields: whatWasWrong, whyItWasWrong, correctUnderstanding, mistakeType, nextPracticeItem (optional), and detailedExplanation. Keep feedbackDetails.detailedExplanation highly informative (grammar patterns, context clues). Keep the top-level 'feedbackVi' as a concise 1-2 sentence high-level summary.",
     "  - Populate the 'error' object with structured details for memory if it is a real misunderstanding (not a minor spelling typo). Set 'shouldSave' to true and 'confidence' to your confidence score (0-100). Keep the Vietnamese feedback and error explanation concise.",
     "Return strict JSON only. No markdown.",
     "JSON shape:",
@@ -334,8 +351,13 @@ export function gradingPrompt(input: {
     `Prompt VI: ${input.promptVi}`,
     `Prompt EN: ${input.promptEn}`,
     `Rubric VI: ${input.rubricVi ?? ""}`,
+    input.correctAnswer
+      ? `Correct/Expected Answer: ${input.correctAnswer}`
+      : "",
     `Learner answer: ${input.answer}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function repairPrompt(rawJson: string, schemaName: string) {

@@ -15,7 +15,8 @@ describe("AI schemas", () => {
         {
           sentence: "Thanks, looks good.",
           naturalMeaningVi: "Người viết cảm ơn và xác nhận mọi thứ ổn.",
-          structureNotesVi: "Looks good là cách nói ngắn để chấp thuận hoặc xác nhận.",
+          structureNotesVi:
+            "Looks good là cách nói ngắn để chấp thuận hoặc xác nhận.",
         },
       ],
       keyPhrases: [
@@ -56,7 +57,8 @@ describe("AI schemas", () => {
           focus: "Lời nhờ vả lịch sự",
           promptVi: "Câu này lịch sự ở điểm nào?",
           promptEn: "Could you take a look when you get a chance?",
-          rubricVi: "Câu trả lời cần nêu được sắc thái nhờ vả mềm và không gây áp lực.",
+          rubricVi:
+            "Câu trả lời cần nêu được sắc thái nhờ vả mềm và không gây áp lực.",
         },
         {
           type: "meaning_choice",
@@ -138,7 +140,8 @@ describe("AI schemas", () => {
         shouldSave: true,
         confidence: 90,
         errorType: "literal_translation",
-        explanationVi: "Dịch word-by-word cụm 'take a look' là 'lấy một cái nhìn' thay vì 'xem giúp / kiểm tra giúp'.",
+        explanationVi:
+          "Dịch word-by-word cụm 'take a look' là 'lấy một cái nhìn' thay vì 'xem giúp / kiểm tra giúp'.",
         targetItem: "take a look",
       },
     });
@@ -155,5 +158,46 @@ describe("AI schemas", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("accepts gradingSchema with feedbackDetails", () => {
+    const result = gradingSchema.safeParse({
+      score: 30,
+      isCorrect: false,
+      feedbackVi: "Bạn dịch cụm 'take a look' chưa chính xác.",
+      naturalAnswer: "Bạn có thể xem giúp tôi khi có cơ hội không?",
+      literalTranslationTrap: "lấy một cái nhìn",
+      feedbackDetails: {
+        whatWasWrong: "Dịch 'take a look' thành nghĩa đen là lấy một cái nhìn.",
+        whyItWasWrong:
+          "Cụm từ này mang nghĩa tự nhiên là 'xem giúp' chứ không dịch từng từ.",
+        correctUnderstanding: "Xem giúp / kiểm tra giúp trong công việc.",
+        mistakeType: "Dịch thô/nghĩa đen",
+        nextPracticeItem: "Dịch câu: Can you take a look at the code?",
+        detailedExplanation: "Chi tiết ngữ pháp về 'take a look'...",
+      },
+      error: {
+        shouldSave: true,
+        confidence: 95,
+        errorType: "literal_translation",
+        explanationVi: "Lỗi dịch nghĩa đen.",
+        targetItem: "take a look",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects gradingSchema with invalid feedbackDetails structure", () => {
+    const result = gradingSchema.safeParse({
+      score: 30,
+      isCorrect: false,
+      feedbackVi: "Bạn dịch cụm 'take a look' chưa chính xác.",
+      feedbackDetails: {
+        whatWasWrong: "Chỉ có một trường, thiếu các trường bắt buộc khác.",
+      },
+    });
+
+    expect(result.success).toBe(false);
   });
 });
