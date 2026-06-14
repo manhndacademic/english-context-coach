@@ -1,4 +1,12 @@
-import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
+import {
+  beforeAll,
+  afterAll,
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+} from "vitest";
 vi.unmock("@/db");
 import { db, schema } from "@/db";
 import { encryptApiKey } from "@/lib/crypto";
@@ -6,12 +14,17 @@ import {
   GeminiLLMProvider,
   parseApiKeys,
 } from "@/domain/ai/adapters/gemini-provider";
+import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 describe("AI Key Rotation & Error Handling", () => {
   let testUser: any;
   let provider: GeminiLLMProvider;
+
+  beforeEach(() => {
+    DrizzleKeyResolver.resetEnvKeysForTest();
+  });
 
   beforeAll(async () => {
     // Set up test encryption key

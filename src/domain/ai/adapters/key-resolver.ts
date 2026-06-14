@@ -21,6 +21,14 @@ export function parseApiKeys(envKeysStr: string | undefined): string[] {
 }
 
 export class DrizzleKeyResolver implements KeyResolver {
+  private static readonly envKeyCooldowns = new Map<string, number>(); // keyId -> cooldownUntil epoch ms
+  private static readonly envKeyInvalid = new Set<string>(); // keyId
+
+  static resetEnvKeysForTest(): void {
+    DrizzleKeyResolver.envKeyCooldowns.clear();
+    DrizzleKeyResolver.envKeyInvalid.clear();
+  }
+
   async resolveApiKeyWithExclusions(
     userId?: string,
     excludedKeyIds?: Set<string>
@@ -86,9 +94,17 @@ export class DrizzleKeyResolver implements KeyResolver {
     }
 
     if (envKeys.length > 0) {
+      const now = Date.now();
       const activeEnvKeys = envKeys
         .map((key, index) => ({ key, id: `env-key-${index}` }))
-        .filter((k) => !excludedKeyIds || !excludedKeyIds.has(k.id));
+        .filter((k) => {
+          if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
+          if (DrizzleKeyResolver.envKeyInvalid.has(k.id)) return false;
+          const cooldownUntil =
+            DrizzleKeyResolver.envKeyCooldowns.get(k.id) ?? 0;
+          if (now < cooldownUntil) return false;
+          return true;
+        });
 
       if (activeEnvKeys.length > 0) {
         const picked =
@@ -101,6 +117,14 @@ export class DrizzleKeyResolver implements KeyResolver {
   }
 
   async markKeyRateLimited(keyId: string, errorMsg: string): Promise<void> {
+    if (keyId.startsWith("env-key-")) {
+      const cooldownUntil = Date.now() + 60 * 1000; // 1 minute
+      DrizzleKeyResolver.envKeyCooldowns.set(keyId, cooldownUntil);
+      logger.warn(
+        `API key marked rate_limited (in-memory): ${keyId}. Error: ${errorMsg}`
+      );
+      return;
+    }
     try {
       await db
         .update(schema.aiApiKeys)
@@ -118,6 +142,13 @@ export class DrizzleKeyResolver implements KeyResolver {
   }
 
   async markKeyInvalid(keyId: string, errorMsg: string): Promise<void> {
+    if (keyId.startsWith("env-key-")) {
+      DrizzleKeyResolver.envKeyInvalid.add(keyId);
+      logger.error(
+        `API key marked invalid (in-memory): ${keyId}. Error: ${errorMsg}`
+      );
+      return;
+    }
     try {
       await db
         .update(schema.aiApiKeys)
@@ -134,6 +165,11 @@ export class DrizzleKeyResolver implements KeyResolver {
   }
 
   async restoreKeyToActive(keyId: string): Promise<void> {
+    if (keyId.startsWith("env-key-")) {
+      DrizzleKeyResolver.envKeyCooldowns.delete(keyId);
+      logger.info(`Environment API key reset to active (in-memory): ${keyId}`);
+      return;
+    }
     try {
       await db
         .update(schema.aiApiKeys)

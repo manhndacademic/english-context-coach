@@ -58,6 +58,11 @@ export class GeminiLLMProvider implements LLMProvider {
 
       const { key, id: keyId, isUserKey } = resolved;
 
+      logger.info(
+        `[AI Provider] Calling Gemini API (model: ${model}, key: ${keyId || "env/user"}, attempt: ${attempts}/3)...`
+      );
+      const callStartTime = Date.now();
+
       try {
         const ai = new GoogleGenAI({ apiKey: key });
         const config = {
@@ -113,9 +118,13 @@ export class GeminiLLMProvider implements LLMProvider {
         }
 
         // If key was rate-limited or had errors but succeeded now, restore it
-        if (keyId && !isUserKey && !keyId.startsWith("env-key-")) {
+        if (keyId && !isUserKey) {
           await this.keyResolver.restoreKeyToActive(keyId);
         }
+
+        logger.info(
+          `[AI Provider] Gemini API Success (model: ${model}, key: ${keyId || "env/user"}, attempt: ${attempts}/3) in ${Date.now() - callStartTime}ms. Tokens: in=${inputTokens}, out=${outputTokens}`
+        );
 
         return { text, inputTokens, outputTokens };
       } catch (err: any) {
@@ -132,18 +141,16 @@ export class GeminiLLMProvider implements LLMProvider {
 
         if (keyId) {
           excludedKeyIds.add(keyId);
-          if (!keyId.startsWith("env-key-")) {
-            if (isRateLimitError(err)) {
-              await this.keyResolver.markKeyRateLimited(
-                keyId,
-                err.message || "Rate limit exceeded"
-              );
-            } else if (isInvalidKeyError(err)) {
-              await this.keyResolver.markKeyInvalid(
-                keyId,
-                err.message || "Invalid API key"
-              );
-            }
+          if (isRateLimitError(err)) {
+            await this.keyResolver.markKeyRateLimited(
+              keyId,
+              err.message || "Rate limit exceeded"
+            );
+          } else if (isInvalidKeyError(err)) {
+            await this.keyResolver.markKeyInvalid(
+              keyId,
+              err.message || "Invalid API key"
+            );
           }
         } else {
           // env fallback key failed — re-throw directly, no more keys to try
@@ -214,7 +221,7 @@ export class GeminiLLMProvider implements LLMProvider {
         if (isRateLimit) {
           providerRotationPool.markRateLimited(model);
           logger.warn(
-            `Model "${model}" rate-limited or keys exhausted. Rotating to next model (${modelIdx + 1}/${models.length} tried).`
+            `[AI Provider] Model "${model}" rate-limited or keys exhausted. Rotating to next model (${modelIdx + 1}/${models.length} tried).`
           );
           // Try next model
           continue;
@@ -287,6 +294,10 @@ export class GeminiLLMProvider implements LLMProvider {
       throw error;
     } finally {
       // Record AI request
+      const latencyMs = Date.now() - startedAt;
+      logger.info(
+        `[AI Provider] [${options.purpose}] Request completed. Model: ${resolvedModel}, Status: ${status}, Latency: ${latencyMs}ms, Total Tokens: in=${totalInputTokens || 0}, out=${totalOutputTokens || 0}`
+      );
       await this.requestRecorder.recordRequest({
         userId: options.userId,
         lessonId: options.lessonId,
@@ -300,7 +311,7 @@ export class GeminiLLMProvider implements LLMProvider {
           ],
         payloadHash,
         status,
-        latencyMs: Date.now() - startedAt,
+        latencyMs,
         inputTokens: totalInputTokens || null,
         outputTokens: totalOutputTokens || null,
         costMicros: estimateCost(
