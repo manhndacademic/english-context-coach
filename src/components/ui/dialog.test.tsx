@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, expect, it } from "vitest";
 import { ConfirmDialog } from "./dialog";
 import { renderToStaticMarkup } from "react-dom/server";

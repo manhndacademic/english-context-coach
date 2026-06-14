@@ -233,7 +233,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
       rubricVi: "Dùng đúng push back trong ngữ cảnh",
     } as any;
 
-    const result = await grader.grade({
+    await grader.grade({
       userId: "user-1",
       lessonId: "lesson-1",
       exercise,
@@ -253,7 +253,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
       rubricVi: "Dùng push back tự nhiên trong hội thoại",
     } as any;
 
-    const result = await grader.grade({
+    await grader.grade({
       userId: "user-1",
       lessonId: "lesson-1",
       exercise,
@@ -273,7 +273,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
       rubricVi: "Dùng circle back tự nhiên",
     } as any;
 
-    const result = await grader.grade({
+    await grader.grade({
       userId: "user-1",
       lessonId: "lesson-1",
       exercise,
@@ -397,6 +397,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
 
     expect(result.isCorrect).toBe(false);
     expect(result.score).toBe(0);
+    expect(result.systemFailure).toBe(true);
     expect(result.feedbackVi).toContain("Chưa thể chấm câu trả lời này");
     expect(result.error?.shouldSave).toBe(false);
   });

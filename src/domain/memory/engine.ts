@@ -1,10 +1,9 @@
-import crypto from "crypto";
 import type { TextProcessor } from "@/domain/text";
 import { getLogger, parseDbDate } from "@/lib/logger";
 
 const log = getLogger("d.m.engine.LearnerMemoryEngine");
 import type { LessonRepository } from "@/domain/lesson/ports";
-import { MistakePattern } from "./mistake-pattern";
+import { AttemptMemoryTransition } from "./attempt-memory-transition";
 import type {
   ExerciseRepository,
   AttemptRepository,
@@ -22,25 +21,21 @@ import type {
   ReviewFormResult,
 } from "./types";
 
-function categoryForLessonFocus(
-  category: "tone" | "structure" | "purpose" | "context"
-) {
-  if (category === "structure") return "grammar_pattern" as const;
-  if (category === "tone") return "business_phrase" as const;
-  return "general_phrase" as const;
-}
-
 export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface {
   constructor(
     private exerciseRepo: ExerciseRepository,
-    private attemptRepo: AttemptRepository,
+    _attemptRepo: AttemptRepository,
     private mistakePatternRepo: MistakePatternRepository,
     private txCoordinator: TransactionCoordinator,
-    private lessonRepo: LessonRepository,
+    _lessonRepo: LessonRepository,
     private grader: GradingEngine,
     private dispatcher: JobDispatcher,
     private reviewGenerator: ReviewPromptGenerator,
-    private textProcessor: TextProcessor
+    _textProcessor: TextProcessor,
+    private attemptTransition = new AttemptMemoryTransition(
+      _lessonRepo,
+      _textProcessor
+    )
   ) {}
 
   async submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult> {
@@ -69,155 +64,39 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         answer: input.answer,
       });
 
-      const saveError =
-        !grade.isCorrect &&
-        grade.error &&
-        grade.error.shouldSave &&
-        grade.error.confidence >= 70;
-
-      let keyPhrase = null;
-      let lessonFocus = null;
-
-      let targetItem = "";
-      let normalizedPhrase = "";
-      let senseKey = "";
-      let category:
-        | "idiom"
-        | "phrasal_verb"
-        | "technical_term"
-        | "collocation"
-        | "grammar_pattern"
-        | "business_phrase"
-        | "general_phrase" = "general_phrase";
-      let meaningVi = "";
-      let explanationVi = "";
-      let conceptKey = "";
-      let conceptPhrase = "";
-      let conceptMeaningVi = "";
-
-      if (saveError) {
-        const errorData = grade.error!;
-
-        if (exercise.keyPhraseId) {
-          keyPhrase = await this.lessonRepo.findKeyPhrase(exercise.keyPhraseId);
-        }
-        if (exercise.lessonFocusId) {
-          lessonFocus = await this.lessonRepo.findLessonFocus(
-            exercise.lessonFocusId
-          );
-        }
-
-        const fallbackTarget =
-          exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi;
-        targetItem = errorData.targetItem || fallbackTarget;
-
-        normalizedPhrase =
-          keyPhrase?.normalizedPhrase ??
-          this.textProcessor.normalizePhrase(lessonFocus?.title ?? targetItem);
-        senseKey =
-          keyPhrase?.senseKey ??
-          this.textProcessor.normalizePhrase(
-            `${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? targetItem}`
-          );
-        category =
-          keyPhrase?.category ??
-          (lessonFocus
-            ? categoryForLessonFocus(lessonFocus.category)
-            : "general_phrase");
-        meaningVi =
-          keyPhrase?.meaningVi ??
-          lessonFocus?.explanationVi ??
-          errorData.explanationVi ??
-          "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
-        explanationVi = errorData.explanationVi ?? grade.feedbackVi;
-
-        conceptKey =
-          keyPhrase?.conceptKey ??
-          lessonFocus?.conceptKey ??
-          this.textProcessor.normalizePhrase(targetItem);
-        conceptPhrase =
-          keyPhrase?.conceptPhrase ??
-          lessonFocus?.conceptPhrase ??
-          normalizedPhrase;
-        conceptMeaningVi =
-          keyPhrase?.conceptMeaningVi ??
-          lessonFocus?.conceptMeaningVi ??
-          meaningVi;
+      if (grade.systemFailure) {
+        return {
+          success: false,
+          isCorrect: false,
+          score: grade.score,
+          feedbackVi: grade.feedbackVi,
+          feedbackDetails: grade.feedbackDetails,
+          userErrorCreated: false,
+          mistakePatternStatus: "none",
+          error: "Grading failed.",
+        };
       }
 
-      const { insertedPattern, isRepeated } =
-        await this.txCoordinator.runInTransaction(async (repos) => {
-          let isRepeated = false;
-          let insertedPattern: MistakePattern | null = null;
-
-          const attempt = await repos.attempts.createAttempt({
-            exerciseId: input.exerciseId,
-            lessonId: input.lessonId,
-            userId: input.userId,
-            answer: input.answer,
-            score: grade.score,
-            isCorrect: grade.isCorrect,
-            feedbackVi: grade.feedbackVi,
-            gradingMetadata: grade,
-          });
-
-          if (saveError) {
-            const errorData = grade.error!;
-            const existingPattern =
-              await repos.mistakePatterns.findPatternByConcept(
-                input.userId,
-                conceptKey,
-                errorData.errorType as any
-              );
-
-            isRepeated = !!existingPattern;
-
-            await repos.attempts.createUserError({
+      const transitionResult = await this.txCoordinator.runInTransaction(
+        async (repos) => {
+          return await this.attemptTransition.apply(
+            {
               userId: input.userId,
-              attemptId: attempt.id,
               lessonId: input.lessonId,
-              keyPhraseId: keyPhrase?.id ?? null,
-              lessonFocusId: lessonFocus?.id ?? null,
-              errorType: errorData.errorType!,
-              conceptKey,
-              normalizedPhrase: conceptPhrase,
-              senseKey,
-              explanationVi,
-              isSourceSensitive: keyPhrase?.isSensitive ?? false,
-              isRepeated,
-            });
+              exercise,
+              answer: input.answer,
+              grade,
+            },
+            repos
+          );
+        }
+      );
 
-            if (existingPattern) {
-              existingPattern.incrementOccurrence();
-              insertedPattern =
-                await repos.mistakePatterns.upsertMistakePattern(
-                  existingPattern
-                );
-            } else {
-              const newPattern = MistakePattern.createNew({
-                id: crypto.randomUUID(),
-                userId: input.userId,
-                conceptKey,
-                normalizedPhrase: conceptPhrase,
-                senseKey: keyPhrase?.senseKey ?? null,
-                category,
-                errorType: errorData.errorType as any,
-                meaningVi: conceptMeaningVi,
-                safeReviewPromptVi: `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`,
-                isSensitive: keyPhrase?.isSensitive ?? false,
-              });
-              insertedPattern =
-                await repos.mistakePatterns.upsertMistakePattern(newPattern);
-            }
-          }
-
-          return { insertedPattern, isRepeated };
-        });
-
-      // 3. Dispatch background prompt generation outside transaction
-      if (insertedPattern && (!isRepeated || !insertedPattern.reviewPromptEn)) {
+      if (transitionResult.reviewPromptJob) {
         this.dispatcher
-          .triggerReviewPromptGeneration(insertedPattern.id)
+          .triggerReviewPromptGeneration(
+            transitionResult.reviewPromptJob.patternId
+          )
           .catch((err) =>
             console.error(
               `[Engine] Failed to trigger review prompt generation: ${err}`
@@ -231,12 +110,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         score: grade.score,
         feedbackVi: grade.feedbackVi,
         feedbackDetails: grade.feedbackDetails,
-        userErrorCreated: !!saveError,
-        mistakePatternStatus: saveError
-          ? isRepeated
-            ? "repeated"
-            : "new"
-          : "none",
+        userErrorCreated: transitionResult.userErrorCreated,
+        mistakePatternStatus: transitionResult.mistakePatternStatus,
       };
     } catch (error) {
       console.error("[LearnerMemoryEngine] Error in submitAttempt:", error);

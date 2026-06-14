@@ -74,25 +74,19 @@ describe("AI Key Rotation & Error Handling", () => {
       .where(eq(schema.users.id, testUser.id));
 
     // Insert two invalid system keys
-    const [key1] = await db
-      .insert(schema.aiApiKeys)
-      .values({
-        name: "System Key 1",
-        provider: "gemini",
-        encryptedKey: encryptApiKey("AIzaSySystemKey1"),
-        status: "active",
-      })
-      .returning();
+    await db.insert(schema.aiApiKeys).values({
+      name: "System Key 1",
+      provider: "gemini",
+      encryptedKey: encryptApiKey("AIzaSySystemKey1"),
+      status: "active",
+    });
 
-    const [key2] = await db
-      .insert(schema.aiApiKeys)
-      .values({
-        name: "System Key 2",
-        provider: "gemini",
-        encryptedKey: encryptApiKey("AIzaSySystemKey2"),
-        status: "active",
-      })
-      .returning();
+    await db.insert(schema.aiApiKeys).values({
+      name: "System Key 2",
+      provider: "gemini",
+      encryptedKey: encryptApiKey("AIzaSySystemKey2"),
+      status: "active",
+    });
 
     const options = {
       userId: testUser.id,

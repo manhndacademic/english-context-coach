@@ -7,7 +7,6 @@ import {
   count,
   or,
   gt,
-  lte,
   sql as drizzleSql,
   type SQL,
 } from "drizzle-orm";
@@ -37,8 +36,6 @@ import type {
   SourceText,
   GenerationMilestone,
   GenerationThought,
-  TextType,
-  DetectedLevel,
 } from "../ports";
 import type {
   KeyPhrase as DbKeyPhrase,

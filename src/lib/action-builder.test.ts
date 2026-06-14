@@ -14,7 +14,6 @@ vi.mock("next/dist/client/components/redirect-error", () => ({
 }));
 
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 describe("validatedAction", () => {
   beforeEach(() => {

@@ -1,5 +1,3 @@
-import React from "react";
-import Link from "next/link";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { SourceTextForm } from "@/components/source-text-form";
@@ -32,7 +30,7 @@ export default async function DashboardPage() {
   const lessonRepo = getLessonRepository();
   const memoryEngine = getLearnerMemoryEngine();
 
-  const [recentLessons, sourceCount, dashboardMetrics] = await Promise.all([
+  const [recentLessons, _, dashboardMetrics] = await Promise.all([
     lessonRepo.getRecentLessons(user.id, 6),
     lessonRepo.getSourceTextsCount(user.id),
     memoryEngine.getDashboardMetrics(user.id, now),
