@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file: .env.local
+    env_file: .env
     environment:
       POSTGRES_DB: english_context_coach
       POSTGRES_USER: postgres

@@ -27,45 +27,49 @@ export function ConfirmDialog({
   isPending = false,
   variant = "default",
 }: ConfirmDialogProps) {
-  // Listen for Escape key
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+
   React.useEffect(() => {
-    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // Prevent background scroll when open
-  React.useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      if (!dialog.open) {
+        dialog.showModal();
+      }
     } else {
-      document.body.style.overflow = "";
+      if (dialog.open) {
+        dialog.close();
+      }
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // Handle backdrop click (light-dismiss fallback)
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (event.target !== dialog) return;
+
+    const rect = dialog.getBoundingClientRect();
+    const isInside =
+      rect.top <= event.clientY &&
+      event.clientY <= rect.bottom &&
+      rect.left <= event.clientX &&
+      event.clientX <= rect.right;
+
+    if (!isInside && !isPending) {
+      onClose();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop with backdrop-blur */}
-      <div 
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
-        onClick={onClose}
-      />
-      
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleBackdropClick}
+      className="z-50 bg-transparent border-none p-0 outline-none backdrop:bg-black/60 dark:backdrop:bg-black/80 backdrop:backdrop-blur-md animate-in fade-in duration-200"
+    >
       {/* Dialog card */}
-      <div className="relative w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl p-6 overflow-hidden flex flex-col gap-4 z-10 transition-all duration-300 scale-100 animate-in zoom-in-95">
-        
+      <div className="relative w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl p-6 overflow-hidden flex flex-col gap-4 scale-100 animate-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
           type="button"
@@ -114,6 +118,6 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

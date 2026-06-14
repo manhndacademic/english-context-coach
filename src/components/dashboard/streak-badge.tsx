@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 interface StreakBadgeProps {
   days: number;
 }
@@ -16,22 +18,18 @@ export function StreakBadge({ days }: StreakBadgeProps) {
 
   return (
     <div
-      className="flex items-center gap-2 px-3.5 py-2.5 rounded-md border text-sm font-semibold"
-      style={{
-        background: "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)",
-        borderColor: "#f97316",
-        color: "#c2410c",
-        boxShadow: "0 0 0 2px rgba(249,115,22,0.12)",
-      }}
+      className={cn(
+        "flex items-center gap-2 px-3.5 py-2.5 rounded-md border text-sm font-semibold",
+        "bg-gradient-to-br from-warning-light to-warning-light/60 dark:from-warning/15 dark:to-warning/5",
+        "border-warning/30 text-warning dark:text-warning-strong ring-2 ring-warning/5"
+      )}
     >
-      <span
-        className="text-xl leading-none"
-        style={{ filter: "drop-shadow(0 0 4px rgba(249,115,22,0.5))" }}
-      >
+      <span className="text-xl leading-none drop-shadow-[0_0_4px_rgba(249,115,22,0.5)]">
         🔥
       </span>
       <span>
-        <strong style={{ fontSize: "1.05rem" }}>{days}</strong> ngày liên tục
+        <strong className="text-[1.05rem] font-bold">{days}</strong> ngày liên
+        tục
       </span>
     </div>
   );

@@ -1,12 +1,12 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { db, schema } from "@/db";
 import { sql, desc, and, eq, gt, inArray } from "drizzle-orm";
-import { MetricsChart } from "@/components/admin/metrics-chart";
-import { 
-  Cpu, 
-  Coins, 
-  Percent, 
-  Clock, 
+import dynamic from "next/dynamic";
+import {
+  Cpu,
+  Coins,
+  Percent,
+  Clock,
   Activity,
   Layers,
   KeyRound,
@@ -19,8 +19,21 @@ import {
   XCircle,
   Clock3,
   Loader2,
-  Server
+  Server,
 } from "lucide-react";
+
+const MetricsChart = dynamic(
+  () =>
+    import("@/components/admin/metrics-chart").then((mod) => mod.MetricsChart),
+  {
+    loading: () => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-layout-gap">
+        <div className="bg-surface border border-border rounded-lg p-5 shadow-sm min-w-0 h-70 animate-pulse" />
+        <div className="bg-surface border border-border rounded-lg p-5 shadow-sm min-w-0 h-70 animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
@@ -47,8 +60,12 @@ export default async function AdminDashboardPage() {
   const fail = total - success;
   const successRate = total > 0 ? Math.round((success / total) * 100) : 100;
   const avgLatency = statsResult?.avgLatency ?? 0;
-  const totalTokens = (statsResult?.totalInputTokens ?? 0) + (statsResult?.totalOutputTokens ?? 0);
-  const totalCostUsd = parseFloat(((statsResult?.totalCostMicros ?? 0) / 1000000).toFixed(4));
+  const totalTokens =
+    (statsResult?.totalInputTokens ?? 0) +
+    (statsResult?.totalOutputTokens ?? 0);
+  const totalCostUsd = parseFloat(
+    ((statsResult?.totalCostMicros ?? 0) / 1000000).toFixed(4)
+  );
 
   // 2. Daily metrics (last 30 days)
   const dailyStats = await db
@@ -163,7 +180,8 @@ export default async function AdminDashboardPage() {
 
   const total24h = errorStats24h?.total ?? 0;
   const failed24h = errorStats24h?.failed ?? 0;
-  const successRate24h = total24h > 0 ? Math.round(((total24h - failed24h) / total24h) * 100) : 100;
+  const successRate24h =
+    total24h > 0 ? Math.round(((total24h - failed24h) / total24h) * 100) : 100;
 
   // 5c. Top 10 Users by Resource Usage
   const topUsers = await db
@@ -177,7 +195,11 @@ export default async function AdminDashboardPage() {
     })
     .from(schema.aiRequests)
     .leftJoin(schema.users, eq(schema.aiRequests.userId, schema.users.id))
-    .groupBy(schema.aiRequests.userId, schema.users.email, schema.users.customGeminiApiKey)
+    .groupBy(
+      schema.aiRequests.userId,
+      schema.users.email,
+      schema.users.customGeminiApiKey
+    )
     .orderBy(desc(sql`sum(coalesce(${schema.aiRequests.costMicros}, 0))`))
     .limit(10);
 
@@ -191,15 +213,16 @@ export default async function AdminDashboardPage() {
     .groupBy(schema.generationJobs.status);
 
   const jobStats = {
-    queued: jobStatsRaw.find(j => j.status === "queued")?.count ?? 0,
-    running: jobStatsRaw.find(j => j.status === "running")?.count ?? 0,
-    failed: jobStatsRaw.find(j => j.status === "failed")?.count ?? 0,
-    succeeded: jobStatsRaw.find(j => j.status === "succeeded")?.count ?? 0,
+    queued: jobStatsRaw.find((j) => j.status === "queued")?.count ?? 0,
+    running: jobStatsRaw.find((j) => j.status === "running")?.count ?? 0,
+    failed: jobStatsRaw.find((j) => j.status === "failed")?.count ?? 0,
+    succeeded: jobStatsRaw.find((j) => j.status === "succeeded")?.count ?? 0,
   };
 
   const activeJobs = await db
     .select({
       id: schema.generationJobs.id,
+      userId: schema.generationJobs.userId,
       email: schema.users.email,
       status: schema.generationJobs.status,
       stage: schema.generationJobs.stage,
@@ -209,7 +232,9 @@ export default async function AdminDashboardPage() {
     })
     .from(schema.generationJobs)
     .leftJoin(schema.users, eq(schema.generationJobs.userId, schema.users.id))
-    .where(inArray(schema.generationJobs.status, ["queued", "running", "failed"]))
+    .where(
+      inArray(schema.generationJobs.status, ["queued", "running", "failed"])
+    )
     .orderBy(desc(schema.generationJobs.createdAt))
     .limit(10);
 
@@ -217,86 +242,123 @@ export default async function AdminDashboardPage() {
     <>
       <div className="flex justify-between items-center border-b border-border pb-4 mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-text m-0">Tổng quan số liệu AI</h1>
-          <p className="text-muted text-sm m-0">Thống kê lưu lượng request, số lượng tokens sử dụng và chi phí ước tính.</p>
+          <h1 className="text-2xl font-bold text-text m-0">
+            Tổng quan số liệu AI
+          </h1>
+          <p className="text-muted text-sm m-0">
+            Thống kê lưu lượng request, số lượng tokens sử dụng và chi phí ước
+            tính.
+          </p>
         </div>
       </div>
 
       {/* Row 1: KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-layout-gap">
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Tổng Requests</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Tổng Requests
+            </span>
             <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
               <Activity size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block">{total}</strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Thất bại: {fail}</span>
+            <strong className="text-2xl font-bold leading-none tracking-tight block">
+              {total}
+            </strong>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Thất bại: {fail}
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Tỷ lệ thành công</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Tỷ lệ thành công
+            </span>
             <span className="text-warning bg-warning-light p-1.5 rounded-md shrink-0">
               <Percent size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent">{successRate}%</strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Mục tiêu: &gt;95%</span>
+            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent">
+              {successRate}%
+            </strong>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Mục tiêu: &gt;95%
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Tổng Tokens</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Tổng Tokens
+            </span>
             <span className="text-success bg-success-light p-1.5 rounded-md shrink-0">
               <Cpu size={16} />
             </span>
           </div>
           <div className="mt-2">
             <strong className="text-2xl font-bold leading-none tracking-tight block">
-              {totalTokens >= 1000000 ? `${(totalTokens / 1000000).toFixed(2)}M` : totalTokens.toLocaleString()}
+              {totalTokens >= 1000000
+                ? `${(totalTokens / 1000000).toFixed(2)}M`
+                : totalTokens.toLocaleString()}
             </strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Input + Output tokens</span>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Input + Output tokens
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Ước tính chi phí</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Ước tính chi phí
+            </span>
             <span className="text-danger bg-danger-light p-1.5 rounded-md shrink-0">
               <Coins size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block text-danger">${totalCostUsd}</strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Chưa bao gồm miễn phí</span>
+            <strong className="text-2xl font-bold leading-none tracking-tight block text-danger">
+              ${totalCostUsd}
+            </strong>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Chưa bao gồm miễn phí
+            </span>
           </div>
         </div>
       </div>
 
       {/* Row 2: Active Users, Response Latency, Queue Stats, Keys Status */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-layout-gap">
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Người dùng active</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Người dùng active
+            </span>
             <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
               <Users size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block">{dau} DAU</strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">7 ngày (WAU): {wau}</span>
+            <strong className="text-2xl font-bold leading-none tracking-tight block">
+              {dau} DAU
+            </strong>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              7 ngày (WAU): {wau}
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Phản hồi TB</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Phản hồi TB
+            </span>
             <span className="text-warning bg-warning-light p-1.5 rounded-md shrink-0">
               <Clock size={16} />
             </span>
@@ -305,13 +367,17 @@ export default async function AdminDashboardPage() {
             <strong className="text-2xl font-bold leading-none tracking-tight block">
               {avgLatency > 0 ? `${(avgLatency / 1000).toFixed(2)}s` : "—"}
             </strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Tỷ lệ 24h: {successRate24h}%</span>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Tỷ lệ 24h: {successRate24h}%
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Hàng đợi dịch bài</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Hàng đợi dịch bài
+            </span>
             <span className="text-success bg-success-light p-1.5 rounded-md shrink-0">
               <ListTodo size={16} />
             </span>
@@ -320,23 +386,32 @@ export default async function AdminDashboardPage() {
             <strong className="text-2xl font-bold leading-none tracking-tight block text-accent">
               {jobStats.running + jobStats.queued} Active
             </strong>
-            <span className="text-[10px] text-muted block mt-1.5 truncate">Chờ: {jobStats.queued} · Lỗi: {jobStats.failed}</span>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Chờ: {jobStats.queued} · Lỗi: {jobStats.failed}
+            </span>
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Hệ thống Keys</span>
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Hệ thống Keys
+            </span>
             <span className="text-danger bg-danger-light p-1.5 rounded-md shrink-0">
               <KeyRound size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block">{totalKeys} Keys</strong>
+            <strong className="text-2xl font-bold leading-none tracking-tight block">
+              {totalKeys} Keys
+            </strong>
             <span className="text-[10px] text-muted block mt-1.5 truncate">
-              Active: <span className="text-success font-bold">{activeKeys}</span> · 
-              Limited: <span className="text-warning font-bold">{rateLimitedKeys}</span> · 
-              Bad: <span className="text-danger font-bold">{invalidKeys}</span>
+              Active:{" "}
+              <span className="text-success font-bold">{activeKeys}</span> ·
+              Limited:{" "}
+              <span className="text-warning font-bold">{rateLimitedKeys}</span>{" "}
+              · Bad:{" "}
+              <span className="text-danger font-bold">{invalidKeys}</span>
             </span>
           </div>
         </div>
@@ -366,9 +441,15 @@ export default async function AdminDashboardPage() {
                 {modelStats.length ? (
                   modelStats.map((item) => (
                     <tr key={item.model} className="hover:bg-background/40">
-                      <td className="py-3 pr-4 font-mono text-xs text-text">{item.model}</td>
-                      <td className="py-3 px-4 text-right font-medium">{item.requests}</td>
-                      <td className="py-3 px-4 text-right text-muted">{item.tokens.toLocaleString()}</td>
+                      <td className="py-3 pr-4 font-mono text-xs text-text">
+                        {item.model}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium">
+                        {item.requests}
+                      </td>
+                      <td className="py-3 px-4 text-right text-muted">
+                        {item.tokens.toLocaleString()}
+                      </td>
                       <td className="py-3 pl-4 text-right font-semibold text-danger">
                         ${(item.costMicros / 1000000).toFixed(4)}
                       </td>
@@ -376,7 +457,9 @@ export default async function AdminDashboardPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-4 text-center text-muted">Chưa thực hiện request nào</td>
+                    <td colSpan={4} className="py-4 text-center text-muted">
+                      Chưa thực hiện request nào
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -402,16 +485,24 @@ export default async function AdminDashboardPage() {
                 {purposeStats.length ? (
                   purposeStats.map((item) => (
                     <tr key={item.purpose} className="hover:bg-background/40">
-                      <td className="py-3 pr-4 font-semibold text-text capitalize">{item.purpose.replaceAll("_", " ")}</td>
-                      <td className="py-3 px-4 text-right font-medium">{item.requests}</td>
+                      <td className="py-3 pr-4 font-semibold text-text capitalize">
+                        {item.purpose.replaceAll("_", " ")}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium">
+                        {item.requests}
+                      </td>
                       <td className="py-3 pl-4 text-right text-muted">
-                        {Math.round(item.tokens / item.requests).toLocaleString()}
+                        {Math.round(
+                          item.tokens / item.requests
+                        ).toLocaleString()}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="py-4 text-center text-muted">Chưa thực hiện request nào</td>
+                    <td colSpan={3} className="py-4 text-center text-muted">
+                      Chưa thực hiện request nào
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -441,9 +532,18 @@ export default async function AdminDashboardPage() {
               <tbody className="divide-y divide-border">
                 {topUsers.length ? (
                   topUsers.map((u, index) => (
-                    <tr key={u.userId || index} className="hover:bg-background/40">
-                      <td className="py-3 pr-4 truncate max-w-[150px] font-semibold text-text" title={u.email || "Guest"}>
-                        {u.email || "Guest User"}
+                    <tr
+                      key={u.userId || index}
+                      className="hover:bg-background/40"
+                    >
+                      <td
+                        className="py-3 pr-4 truncate max-w-37.5 font-semibold text-text"
+                        title={u.email || u.userId || "Anonymous"}
+                      >
+                        {u.email ||
+                          (u.userId
+                            ? `Guest (${u.userId.slice(0, 8)})`
+                            : "System / Anon")}
                       </td>
                       <td className="py-3 px-4">
                         {u.customKeyConfigured ? (
@@ -456,14 +556,22 @@ export default async function AdminDashboardPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium">{u.totalRequests}</td>
-                      <td className="py-3 px-4 text-right text-muted">{u.totalTokens.toLocaleString()}</td>
-                      <td className="py-3 pl-4 text-right font-semibold text-danger">${u.totalCostUsd.toFixed(4)}</td>
+                      <td className="py-3 px-4 text-right font-medium">
+                        {u.totalRequests}
+                      </td>
+                      <td className="py-3 px-4 text-right text-muted">
+                        {u.totalTokens.toLocaleString()}
+                      </td>
+                      <td className="py-3 pl-4 text-right font-semibold text-danger">
+                        ${u.totalCostUsd.toFixed(4)}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-4 text-center text-muted">Chưa có dữ liệu người dùng</td>
+                    <td colSpan={5} className="py-4 text-center text-muted">
+                      Chưa có dữ liệu người dùng
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -491,8 +599,14 @@ export default async function AdminDashboardPage() {
                 {activeJobs.length ? (
                   activeJobs.map((j) => (
                     <tr key={j.id} className="hover:bg-background/40">
-                      <td className="py-2.5 pr-4 truncate max-w-[120px] font-semibold text-text" title={j.email || "Unknown"}>
-                        {j.email || "Guest"}
+                      <td
+                        className="py-2.5 pr-4 truncate max-w-30 font-semibold text-text"
+                        title={j.email || j.userId || "Unknown"}
+                      >
+                        {j.email ||
+                          (j.userId
+                            ? `Guest (${j.userId.slice(0, 8)})`
+                            : "System / Anon")}
                       </td>
                       <td className="py-2.5 px-4">
                         {j.status === "queued" && (
@@ -502,7 +616,8 @@ export default async function AdminDashboardPage() {
                         )}
                         {j.status === "running" && (
                           <span className="inline-flex items-center gap-1 bg-accent-light border border-accent/15 text-accent px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            <Loader2 size={10} className="animate-spin" /> Running
+                            <Loader2 size={10} className="animate-spin" />{" "}
+                            Running
                           </span>
                         )}
                         {j.status === "failed" && (
@@ -511,16 +626,25 @@ export default async function AdminDashboardPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2.5 px-4 font-mono text-[10px] uppercase text-muted">{j.stage}</td>
-                      <td className="py-2.5 px-4 text-center font-medium">{j.attempts}</td>
-                      <td className="py-2.5 pl-4 text-danger font-medium truncate max-w-[150px]" title={j.errorMessage || ""}>
+                      <td className="py-2.5 px-4 font-mono text-[10px] uppercase text-muted">
+                        {j.stage}
+                      </td>
+                      <td className="py-2.5 px-4 text-center font-medium">
+                        {j.attempts}
+                      </td>
+                      <td
+                        className="py-2.5 pl-4 text-danger font-medium truncate max-w-37.5"
+                        title={j.errorMessage || ""}
+                      >
                         {j.errorMessage || "—"}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-4 text-center text-muted">Hàng đợi đang trống (không có job chạy/lỗi)</td>
+                    <td colSpan={5} className="py-4 text-center text-muted">
+                      Hàng đợi đang trống (không có job chạy/lỗi)
+                    </td>
                   </tr>
                 )}
               </tbody>
