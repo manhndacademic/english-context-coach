@@ -1,6 +1,9 @@
-import type { Attempt, UserError, MistakePattern } from "@/domain/memory/types";
+import type { Attempt, UserError } from "@/domain/memory/types";
+import type { MistakePattern } from "@/domain/memory/mistake-pattern";
 import type { GenerationMilestoneCode, GenerationStage } from "@/domain/generation-progress";
-import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
+
+export type TextType = "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown";
+export type DetectedLevel = "A2" | "B1" | "B2" | "C1";
 
 export interface SourceText {
   id: string;
@@ -20,9 +23,9 @@ export interface Lesson {
   title: string;
   analysisStatus: "pending" | "running" | "succeeded" | "failed";
   exerciseStatus: "pending" | "running" | "succeeded" | "failed";
-  textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown" | null;
+  textType: TextType | "unknown" | null;
   inputMode: string;
-  detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
+  detectedLevel: DetectedLevel | null;
   summaryVi: string | null;
   naturalTranslationVi: string | null;
   contextExplanationVi: string | null;
@@ -50,7 +53,7 @@ export interface KeyPhrase {
   naturalTranslationVi: string | null;
   whyConfusingVi: string | null;
   category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
-  difficulty: "A2" | "B1" | "B2" | "C1";
+  difficulty: DetectedLevel;
   isSensitive: boolean;
   createdAt: Date;
 }
@@ -78,7 +81,7 @@ export interface LessonFocus {
   conceptMeaningVi: string;
   category: "tone" | "structure" | "purpose" | "context";
   explanationVi: string;
-  difficulty: "A2" | "B1" | "B2" | "C1";
+  difficulty: DetectedLevel;
   createdAt: Date;
 }
 
@@ -163,43 +166,82 @@ export interface LessonAggregate {
   } | null;
 }
 
+export interface SaveAnalysisInput {
+  title: string;
+  textType: TextType;
+  inputMode: string;
+  detectedLevel: DetectedLevel;
+  summaryVi: string;
+  naturalTranslationVi: string;
+  contextExplanationVi: string;
+  keyPhrases: Array<{
+    phrase: string;
+    conceptKey: string;
+    conceptPhrase: string;
+    conceptMeaningVi: string;
+    meaningVi: string;
+    meaningInContextVi: string;
+    exampleEn: string;
+    exampleVi: string;
+    examples?: { exampleEn: string; exampleVi: string }[];
+    literalTranslationVi?: string;
+    naturalTranslationVi?: string;
+    whyConfusingVi?: string;
+    category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
+    difficulty: DetectedLevel;
+  }>;
+  sentenceBreakdowns: Array<{
+    sentence: string;
+    correctedSentenceEn?: string;
+    naturalMeaningVi: string;
+    structureNotesVi: string;
+    toneOrContextVi?: string;
+  }>;
+  lessonFocuses: Array<{
+    title: string;
+    conceptKey: string;
+    conceptPhrase: string;
+    conceptMeaningVi: string;
+    category: "tone" | "structure" | "purpose" | "context";
+    explanationVi: string;
+    difficulty: DetectedLevel;
+  }>;
+}
+
+export interface SaveExercisesInput {
+  exercises: Array<{
+    phrase?: string;
+    focus?: string;
+    type:
+      | "meaning_choice"
+      | "cloze_phrase"
+      | "natural_translation"
+      | "focus_question"
+      | "trap_choice"
+      | "phrase_production"
+      | "dialogue_completion"
+      | "register_shift"
+      | "trap_detect";
+    promptVi: string;
+    promptEn?: string;
+    choices?: string[];
+    correctAnswer?: string;
+    acceptableAnswers?: string[];
+    rubricVi?: string;
+  }>;
+}
+
+export interface SourceTextRepository {
+  findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null>;
+  deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
+  getSourceTextsCount(userId: string): Promise<number>;
+}
+
 export interface LessonRepository {
   findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
-  findSourceText(sourceTextId: string, userId: string): Promise<SourceText | null>;
   findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
   findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
   findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null>;
-
-  createSourceTextAndLessonAndJob(
-    userId: string,
-    content: string,
-    title: string,
-    contentHash: string,
-    requestedMode?: string
-  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
-
-  createLessonAndJob(
-    userId: string,
-    sourceTextId: string,
-    version: number,
-    stage: "analysis" | "exercises"
-  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
-
-  createJob(
-    userId: string,
-    sourceTextId: string,
-    lessonId: string,
-    stage: "analysis" | "exercises"
-  ): Promise<GenerationJob>;
-
-  claimJob(workerId: string): Promise<GenerationJob | null>;
-  updateJobStatus(
-    jobId: string,
-    status: "queued" | "running" | "succeeded" | "failed",
-    extra?: Partial<GenerationJob>
-  ): Promise<void>;
-
-  assertQueueCapacity(userId: string): Promise<string | null>;
 
   updateLessonStatus(
     lessonId: string,
@@ -211,23 +253,45 @@ export interface LessonRepository {
   saveAnalysis(
     lessonId: string,
     userId: string,
-    analysis: AnalysisResult,
+    analysis: SaveAnalysisInput,
     model: string
   ): Promise<void>;
 
   saveExercises(
     lessonId: string,
     userId: string,
-    exercises: ExercisesResult,
+    exercises: SaveExercisesInput,
     model: string
   ): Promise<void>;
 
-  buildAnalysisFromLesson(lessonId: string): Promise<AnalysisResult>;
+  buildAnalysisFromLesson(lessonId: string): Promise<SaveAnalysisInput>;
 
-  deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
+  getLessonAggregate(lessonId: string, userId: string): Promise<LessonAggregate | null>;
+  getRecentLessons(userId: string, limit: number): Promise<Array<{
+    id: string;
+    title: string | null;
+    version: number;
+    analysisStatus: "pending" | "running" | "succeeded" | "failed";
+    exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+    textType: TextType | "unknown";
+    inputMode: string;
+    detectedLevel: DetectedLevel | null;
+    createdAt: Date;
+  }>>;
+}
 
+export interface GenerationJobRepository {
+  claimJob(workerId: string): Promise<GenerationJob | null>;
+  updateJobStatus(
+    jobId: string,
+    status: "queued" | "running" | "succeeded" | "failed",
+    extra?: Partial<GenerationJob>
+  ): Promise<void>;
+  assertQueueCapacity(userId: string): Promise<string | null>;
   resetStuckJob(userId: string, lessonId: string): Promise<void>;
+}
 
+export interface GenerationProgressRepository {
   recordMilestone(input: {
     lessonId: string;
     generationJobId: string;
@@ -257,21 +321,39 @@ export interface LessonRepository {
     milestones: GenerationMilestone[];
     thoughts: GenerationThought[];
   } | null>;
+}
 
-  getLessonAggregate(lessonId: string, userId: string): Promise<LessonAggregate | null>;
-  getRecentLessons(userId: string, limit: number): Promise<Array<{
-    id: string;
-    title: string | null;
-    version: number;
-    analysisStatus: "pending" | "running" | "succeeded" | "failed";
-    exerciseStatus: "pending" | "running" | "succeeded" | "failed";
-    textType: "work_message" | "technical_doc" | "email" | "article" | "academic" | "general" | "unknown";
-    inputMode: string;
-    detectedLevel: "A2" | "B1" | "B2" | "C1" | null;
-    createdAt: Date;
-  }>>;
-  getSourceTextsCount(userId: string): Promise<number>;
-  runInTransaction<T>(operation: (tx: LessonRepository) => Promise<T>): Promise<T>;
+export interface LessonTransactionCoordinator {
+  runInTransaction<T>(
+    operation: (repos: {
+      sourceTexts: SourceTextRepository;
+      lessons: LessonRepository;
+      generationJobs: GenerationJobRepository;
+      generationProgress: GenerationProgressRepository;
+    }) => Promise<T>
+  ): Promise<T>;
+
+  createSourceTextAndLessonAndJob(
+    userId: string,
+    content: string,
+    title: string,
+    contentHash: string,
+    requestedMode?: string
+  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
+
+  createLessonAndJob(
+    userId: string,
+    sourceTextId: string,
+    version: number,
+    stage: "analysis" | "exercises"
+  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
+
+  createJob(
+    userId: string,
+    sourceTextId: string,
+    lessonId: string,
+    stage: "analysis" | "exercises"
+  ): Promise<GenerationJob>;
 }
 
 export interface GenerationEngine {
@@ -280,12 +362,12 @@ export interface GenerationEngine {
     onThought?: (text: string) => Promise<void>,
     requestedMode?: string,
     userHighlights?: string[]
-  ): Promise<AnalysisResult>;
+  ): Promise<SaveAnalysisInput>;
 
   generateExercises(
-    analysis: AnalysisResult,
+    analysis: SaveAnalysisInput,
     onThought?: (text: string) => Promise<void>
-  ): Promise<ExercisesResult>;
+  ): Promise<SaveExercisesInput>;
 }
 
 export type LessonGenerationResult =

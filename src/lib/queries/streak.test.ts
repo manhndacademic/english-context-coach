@@ -8,7 +8,7 @@ const mockSelectDistinct = vi.fn(() => ({ from: mockFrom }));
 vi.mock("@/db", () => {
   return {
     db: {
-      selectDistinct: (...args: any[]) => mockSelectDistinct(...args),
+      selectDistinct: (...args: any[]) => (mockSelectDistinct as any)(...args),
     },
   };
 });

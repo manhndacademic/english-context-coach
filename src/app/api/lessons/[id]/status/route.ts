@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/guards";
-import { getLessonRepository } from "@/domain/lesson";
+import { getGenerationProgressRepository } from "@/domain/lesson";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  const progress = await getLessonRepository().getLessonProgress({ lessonId: id, userId: user.id });
+  const progress = await getGenerationProgressRepository().getLessonProgress({ lessonId: id, userId: user.id });
 
 
   if (!progress) return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -3,7 +3,7 @@ import { dedupeKeyPhrases, exerciseCompletenessIssues, findMatchingLessonFocus }
 import { getTextProcessor } from "@/domain/text";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
-const basePhrase = {
+const basePhrase: any = {
   conceptKey: "push_back",
   conceptPhrase: "push back",
   conceptMeaningVi: "hoãn lại / trì hoãn",
@@ -15,7 +15,7 @@ const basePhrase = {
   difficulty: "B1",
 } as const;
 
-const baseAnalysis: AnalysisResult = {
+const baseAnalysis: any = {
   title: "Tin nhắn công việc",
   textType: "work_message",
   detectedLevel: "B1",
@@ -146,7 +146,7 @@ describe("lesson product rules", () => {
   });
 
   it("requires at least one focus question for a complete lesson", () => {
-    const result: ExercisesResult = {
+    const result: any = {
       exercises: [
         {
           type: "meaning_choice",

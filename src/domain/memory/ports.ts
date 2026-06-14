@@ -1,14 +1,13 @@
-import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson/ports";
-import type { Attempt, UserError, MistakePattern, ReviewAttempt, MasteryState } from "./types";
+import type { Exercise } from "@/domain/lesson/ports";
+import type { Attempt, UserError, ReviewAttempt, MasteryState } from "./types";
 import type { GradingResult } from "@/lib/ai/schemas";
+import { MistakePattern } from "./mistake-pattern";
 
-export interface LearnerMemoryRepository {
+export interface ExerciseRepository {
   findExercise(exerciseId: string, userId: string): Promise<Exercise | null>;
-  findMistakePattern(patternId: string, userId: string): Promise<MistakePattern | null>;
-  findPatternByConcept(userId: string, conceptKey: string, errorType: string): Promise<MistakePattern | null>;
+}
 
-  runInTransaction<T>(operation: (tx: LearnerMemoryRepository) => Promise<T>): Promise<T>;
-
+export interface AttemptRepository {
   createAttempt(attempt: {
     exerciseId: string;
     lessonId: string;
@@ -19,6 +18,15 @@ export interface LearnerMemoryRepository {
     feedbackVi: string;
     gradingMetadata: any;
   }): Promise<Attempt>;
+
+  createReviewAttempt(attempt: {
+    userId: string;
+    mistakePatternId: string;
+    answer: string;
+    score: number;
+    isCorrect: boolean;
+    feedbackVi: string;
+  }): Promise<ReviewAttempt>;
 
   createUserError(error: {
     userId: string;
@@ -34,63 +42,31 @@ export interface LearnerMemoryRepository {
     isSourceSensitive: boolean;
     isRepeated: boolean;
   }): Promise<UserError>;
+}
 
-  upsertMistakePattern(input: {
-    userId: string;
-    conceptKey: string;
-    normalizedPhrase: string;
-    senseKey: string | null;
-    category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
-    errorType: "literal_translation" | "phrase_misunderstanding" | "technical_term_misunderstanding" | "phrasal_verb_error" | "collocation_error" | "grammar_structure_misread" | "pronoun_reference_misread" | "tone_register_misread" | "missing_context";
-    meaningVi: string;
-    safeReviewPromptVi: string;
-    isSensitive: boolean;
-  }): Promise<MistakePattern>;
-
-  updateMistakePatternSchedule(
-    patternId: string,
-    updates: {
-      intervalDays: number;
-      dueAt: Date;
-      lastReviewedAt?: Date;
-      masteryState: MasteryState;
-    }
-  ): Promise<void>;
-
+export interface MistakePatternRepository {
+  findMistakePattern(patternId: string, userId: string): Promise<MistakePattern | null>;
+  findMistakePatternById(patternId: string): Promise<MistakePattern | null>;
+  findPatternByConcept(userId: string, conceptKey: string, errorType: string): Promise<MistakePattern | null>;
+  upsertMistakePattern(pattern: MistakePattern): Promise<MistakePattern>;
+  saveMistakePattern(pattern: MistakePattern): Promise<void>;
   claimReviewPromptJob(workerId: string): Promise<MistakePattern | null>;
-  updateReviewPromptJobStatus(
-    patternId: string,
-    status: "queued" | "running" | "succeeded" | "failed",
-    extra?: Partial<MistakePattern>
-  ): Promise<void>;
-
-  createReviewAttempt(attempt: {
-    userId: string;
-    mistakePatternId: string;
-    answer: string;
-    score: number;
-    isCorrect: boolean;
-    feedbackVi: string;
-  }): Promise<ReviewAttempt>;
-
   findDueMistakePatterns(userId: string, dueAt: Date, limit: number): Promise<MistakePattern[]>;
   getDashboardMetrics(userId: string, dueAt: Date): Promise<{
     dueCount: number;
     patternCount: number;
     repeatedMistakes: MistakePattern[];
   }>;
+}
 
-  findMistakePatternById(patternId: string): Promise<MistakePattern | null>;
-  updateMistakePatternReviewPrompt(
-    patternId: string,
-    prompts: {
-      reviewPromptEn: string;
-      reviewPromptVi: string;
-      reviewRubricVi: string;
-      reviewCorrectAnswer: string;
-      reviewAcceptableAnswers: string[];
-    }
-  ): Promise<void>;
+export interface TransactionCoordinator {
+  runInTransaction<T>(
+    operation: (repos: {
+      exercises: ExerciseRepository;
+      attempts: AttemptRepository;
+      mistakePatterns: MistakePatternRepository;
+    }) => Promise<T>
+  ): Promise<T>;
 }
 
 export interface GradingEngine {

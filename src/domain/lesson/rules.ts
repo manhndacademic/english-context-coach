@@ -1,4 +1,4 @@
-import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
+import type { SaveAnalysisInput, SaveExercisesInput } from "./ports";
 import type { TextProcessor } from "@/domain/text";
 
 function includesPhrase(sourceText: string, phrase: string) {
@@ -28,7 +28,7 @@ function isOverlappingDuplicate(a: string, b: string, textProcessor: TextProcess
   );
 }
 
-function choosePhrase(current: AnalysisResult["keyPhrases"][number], candidate: AnalysisResult["keyPhrases"][number], sourceText: string) {
+function choosePhrase(current: SaveAnalysisInput["keyPhrases"][number], candidate: SaveAnalysisInput["keyPhrases"][number], sourceText: string) {
   const currentInSource = includesPhrase(sourceText, current.phrase);
   const candidateInSource = includesPhrase(sourceText, candidate.phrase);
   if (candidateInSource !== currentInSource) return candidateInSource ? candidate : current;
@@ -39,11 +39,11 @@ function choosePhrase(current: AnalysisResult["keyPhrases"][number], candidate: 
 }
 
 export function dedupeKeyPhrases(
-  phrases: AnalysisResult["keyPhrases"],
+  phrases: SaveAnalysisInput["keyPhrases"],
   sourceText: string,
   textProcessor: TextProcessor
 ) {
-  const deduped: AnalysisResult["keyPhrases"] = [];
+  const deduped: SaveAnalysisInput["keyPhrases"] = [];
 
   for (const phrase of phrases) {
     const existingIndex = deduped.findIndex(
@@ -64,10 +64,10 @@ export function dedupeKeyPhrases(
 }
 
 export function prepareAnalysisForSave(
-  analysis: AnalysisResult,
+  analysis: SaveAnalysisInput,
   sourceText: string,
   textProcessor: TextProcessor
-): AnalysisResult {
+): SaveAnalysisInput {
   return {
     ...analysis,
     keyPhrases: dedupeKeyPhrases(analysis.keyPhrases, sourceText, textProcessor),
@@ -125,8 +125,8 @@ export function findMatchingLessonFocus<T extends {
 }
 
 export function exerciseCompletenessIssues(
-  result: ExercisesResult,
-  analysis: AnalysisResult,
+  result: SaveExercisesInput,
+  analysis: SaveAnalysisInput,
   textProcessor: TextProcessor
 ) {
   const issues: string[] = [];
@@ -136,7 +136,7 @@ export function exerciseCompletenessIssues(
   }
   if (
     analysis.keyPhrases.length > 0 &&
-    !result.exercises.some((exercise) => "phrase" in exercise && exercise.phrase.trim().length > 0)
+    !result.exercises.some((exercise) => exercise.phrase !== undefined && exercise.phrase.trim().length > 0)
   ) {
     issues.push("A complete Lesson with KeyPhrases needs at least one KeyPhrase Exercise.");
   }
@@ -144,6 +144,7 @@ export function exerciseCompletenessIssues(
   const invalidFocus = result.exercises.find(
     (exercise) =>
       exercise.type === "focus_question" &&
+      exercise.focus &&
       !findMatchingLessonFocus(exercise.focus, analysis.lessonFocuses, textProcessor),
   );
   const invalidFocusTitle = invalidFocus?.type === "focus_question" ? invalidFocus.focus : null;
@@ -153,8 +154,8 @@ export function exerciseCompletenessIssues(
 }
 
 export function assertCompleteExercises(
-  result: ExercisesResult,
-  analysis: AnalysisResult,
+  result: SaveExercisesInput,
+  analysis: SaveAnalysisInput,
   textProcessor: TextProcessor
 ) {
   const issues = exerciseCompletenessIssues(result, analysis, textProcessor);

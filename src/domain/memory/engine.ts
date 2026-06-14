@@ -1,11 +1,19 @@
+import crypto from "crypto";
 import type { TextProcessor } from "@/domain/text";
 import { getLogger, parseDbDate } from "@/lib/logger";
 
 const log = getLogger("d.m.engine.LearnerMemoryEngine");
-import { nextDueDate, nextReviewAfterSuccess, resetDueAfterFailure } from "@/domain/review";
-import { masteryStateAfterReview } from "./mastery";
 import type { LessonRepository } from "@/domain/lesson/ports";
-import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
+import { MistakePattern } from "./mistake-pattern";
+import type {
+  ExerciseRepository,
+  AttemptRepository,
+  MistakePatternRepository,
+  TransactionCoordinator,
+  GradingEngine,
+  JobDispatcher,
+  ReviewPromptGenerator,
+} from "./ports";
 import type {
   LearnerMemoryEngine as LearnerMemoryEngineInterface,
   SubmitAttemptInput,
@@ -22,7 +30,10 @@ function categoryForLessonFocus(category: "tone" | "structure" | "purpose" | "co
 
 export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface {
   constructor(
-    private repo: LearnerMemoryRepository,
+    private exerciseRepo: ExerciseRepository,
+    private attemptRepo: AttemptRepository,
+    private mistakePatternRepo: MistakePatternRepository,
+    private txCoordinator: TransactionCoordinator,
     private lessonRepo: LessonRepository,
     private grader: GradingEngine,
     private dispatcher: JobDispatcher,
@@ -32,7 +43,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult> {
     try {
-      const exercise = await this.repo.findExercise(input.exerciseId, input.userId);
+      const exercise = await this.exerciseRepo.findExercise(input.exerciseId, input.userId);
       if (!exercise) {
         return {
           success: false,
@@ -95,12 +106,11 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         conceptMeaningVi = keyPhrase?.conceptMeaningVi ?? lessonFocus?.conceptMeaningVi ?? meaningVi;
       }
 
-      let isRepeated = false;
-      let insertedPattern: any = null;
+      const { insertedPattern, isRepeated } = await this.txCoordinator.runInTransaction(async (repos) => {
+        let isRepeated = false;
+        let insertedPattern: MistakePattern | null = null;
 
-      // 2. Perform persistence within transaction context
-      await this.repo.runInTransaction(async (tx) => {
-        const attempt = await tx.createAttempt({
+        const attempt = await repos.attempts.createAttempt({
           exerciseId: input.exerciseId,
           lessonId: input.lessonId,
           userId: input.userId,
@@ -113,7 +123,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
         if (saveError) {
           const errorData = grade.error!;
-          const existingPattern = await tx.findPatternByConcept(
+          const existingPattern = await repos.mistakePatterns.findPatternByConcept(
             input.userId,
             conceptKey,
             errorData.errorType as any
@@ -121,7 +131,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
           isRepeated = !!existingPattern;
 
-          await tx.createUserError({
+          await repos.attempts.createUserError({
             userId: input.userId,
             attemptId: attempt.id,
             lessonId: input.lessonId,
@@ -136,18 +146,27 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
             isRepeated,
           });
 
-          insertedPattern = await tx.upsertMistakePattern({
-            userId: input.userId,
-            conceptKey,
-            normalizedPhrase: conceptPhrase,
-            senseKey: keyPhrase?.senseKey ?? null,
-            category,
-            errorType: errorData.errorType as any,
-            meaningVi: conceptMeaningVi,
-            safeReviewPromptVi: `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`,
-            isSensitive: keyPhrase?.isSensitive ?? false,
-          });
+          if (existingPattern) {
+            existingPattern.incrementOccurrence();
+            insertedPattern = await repos.mistakePatterns.upsertMistakePattern(existingPattern);
+          } else {
+            const newPattern = MistakePattern.createNew({
+              id: crypto.randomUUID(),
+              userId: input.userId,
+              conceptKey,
+              normalizedPhrase: conceptPhrase,
+              senseKey: keyPhrase?.senseKey ?? null,
+              category,
+              errorType: errorData.errorType as any,
+              meaningVi: conceptMeaningVi,
+              safeReviewPromptVi: `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`,
+              isSensitive: keyPhrase?.isSensitive ?? false,
+            });
+            insertedPattern = await repos.mistakePatterns.upsertMistakePattern(newPattern);
+          }
         }
+
+        return { insertedPattern, isRepeated };
       });
 
       // 3. Dispatch background prompt generation outside transaction
@@ -181,7 +200,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async submitReviewAttempt(input: SubmitReviewAttemptInput): Promise<ReviewFormResult> {
     try {
-      const pattern = await this.repo.findMistakePattern(input.patternId, input.userId);
+      const pattern = await this.mistakePatternRepo.findMistakePattern(input.patternId, input.userId);
       if (!pattern) {
         return {
           success: false,
@@ -224,18 +243,11 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         answer: input.answer,
       });
 
-      const intervalDays = grade.isCorrect
-        ? nextReviewAfterSuccess(pattern.intervalDays)
-        : 0;
-
-      const dueAt = grade.isCorrect
-        ? nextDueDate(intervalDays)
-        : resetDueAfterFailure();
-      const masteryState = masteryStateAfterReview(grade.isCorrect, intervalDays);
+      pattern.recordReviewAttempt(grade.isCorrect);
 
       // 2. Perform persistence within transaction context
-      await this.repo.runInTransaction(async (tx) => {
-        await tx.createReviewAttempt({
+      await this.txCoordinator.runInTransaction(async (repos) => {
+        await repos.attempts.createReviewAttempt({
           userId: input.userId,
           mistakePatternId: pattern.id,
           answer: input.answer,
@@ -244,12 +256,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           feedbackVi: grade.feedbackVi,
         });
 
-        await tx.updateMistakePatternSchedule(pattern.id, {
-          intervalDays,
-          dueAt,
-          lastReviewedAt: new Date(),
-          masteryState,
-        });
+        await repos.mistakePatterns.saveMistakePattern(pattern);
       });
 
       // 3. Trigger review prompt regeneration on success (outside transaction)
@@ -265,8 +272,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         score: grade.score,
         feedbackVi: grade.feedbackVi,
         masteryStateUpdated: true,
-        masteryState,
-        nextReviewAt: dueAt,
+        masteryState: pattern.masteryState,
+        nextReviewAt: pattern.dueAt,
         naturalAnswer: grade.naturalAnswer ?? correctAnswer,
       };
     } catch (error) {
@@ -284,7 +291,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async generateReviewPrompt(patternId: string): Promise<void> {
     try {
-      const pattern = await this.repo.findMistakePatternById(patternId);
+      const pattern = await this.mistakePatternRepo.findMistakePatternById(patternId);
       if (!pattern) return;
 
       log.info(`Generating review prompt directly for pattern ${patternId}...`);
@@ -297,7 +304,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         errorType: pattern.errorType,
       });
 
-      await this.repo.updateMistakePatternReviewPrompt(patternId, generated);
+      pattern.updateReviewPrompt(generated);
+      await this.mistakePatternRepo.saveMistakePattern(pattern);
       log.info(`Review prompt generated directly for pattern ${patternId} in ${Date.now() - startTime}ms.`);
     } catch (error) {
       log.error(`generateReviewPrompt failed for pattern ${patternId}`, error);
@@ -312,7 +320,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     | { status: "failed"; error: string }
   > {
     try {
-      const pattern = await this.repo.claimReviewPromptJob(workerId);
+      const pattern = await this.mistakePatternRepo.claimReviewPromptJob(workerId);
       if (!pattern) {
         return { status: "idle" };
       }
@@ -333,12 +341,8 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           errorType: pattern.errorType,
         });
 
-        await this.repo.updateReviewPromptJobStatus(pattern.id, "succeeded", {
-          ...generated,
-          reviewPromptError: null,
-          reviewPromptLockedAt: null,
-          reviewPromptLockedBy: null,
-        });
+        pattern.updateReviewPrompt(generated);
+        await this.mistakePatternRepo.saveMistakePattern(pattern);
 
         log.info(`Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`, workerId);
 
@@ -354,18 +358,19 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         log.warn(`Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`, workerId);
 
         if (attempts < 3) {
-          await this.repo.updateReviewPromptJobStatus(pattern.id, "queued", {
+          pattern.setJobStatus("queued", {
             reviewPromptError: message,
             reviewPromptLockedAt: null,
             reviewPromptLockedBy: null,
           });
         } else {
-          await this.repo.updateReviewPromptJobStatus(pattern.id, "failed", {
+          pattern.setJobStatus("failed", {
             reviewPromptError: message,
             reviewPromptLockedAt: null,
             reviewPromptLockedBy: null,
           });
         }
+        await this.mistakePatternRepo.saveMistakePattern(pattern);
 
         return {
           status: "processed",

@@ -5,13 +5,18 @@ import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import type {
   LessonGenerationEngine as LessonGenerationEngineInterface,
+  SourceTextRepository,
   LessonRepository,
+  GenerationJobRepository,
+  GenerationProgressRepository,
+  LessonTransactionCoordinator,
   GenerationEngine,
   LessonGenerationResult,
   JobProcessResult,
   GenerationProgress,
+  SaveExercisesInput,
 } from "./ports";
-import type { ExercisesResult } from "@/lib/ai/schemas";
+
 
 import { getLogger, parseDbDate } from "@/lib/logger";
 
@@ -43,7 +48,11 @@ function logSpringStyle(level: "INFO" | "WARN" | "ERROR", workerId: string, mess
 
 export class DefaultLessonGenerationEngine implements LessonGenerationEngineInterface {
   constructor(
-    private repo: LessonRepository,
+    private sourceTexts: SourceTextRepository,
+    private lessons: LessonRepository,
+    private generationJobs: GenerationJobRepository,
+    private generationProgress: GenerationProgressRepository,
+    private txCoordinator: LessonTransactionCoordinator,
     private genEngine: GenerationEngine,
     private textProcessor: TextProcessor
   ) {}
@@ -66,7 +75,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.repo.assertQueueCapacity(userId);
+    const capacityError = await this.generationJobs.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -75,7 +84,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const result = await this.repo.createSourceTextAndLessonAndJob(
+    const result = await this.txCoordinator.createSourceTextAndLessonAndJob(
       userId,
       normalized,
       "Untitled source",
@@ -83,7 +92,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       requestedMode
     );
 
-    await this.repo.recordMilestone({
+    await this.generationProgress.recordMilestone({
       lessonId: result.lesson.id,
       generationJobId: result.job.id,
       code: "queued",
@@ -98,7 +107,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
   }
 
   async retry(userId: string, lessonId: string): Promise<LessonGenerationResult> {
-    const lesson = await this.repo.findLesson(lessonId, userId);
+    const lesson = await this.lessons.findLesson(lessonId, userId);
     if (!lesson) {
       return {
         ok: false,
@@ -115,7 +124,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.repo.assertQueueCapacity(userId);
+    const capacityError = await this.generationJobs.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -127,14 +136,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     // 1. If both are succeeded, it's a regeneration (create a new version)
     if (lesson.analysisStatus === "succeeded" && lesson.exerciseStatus === "succeeded") {
       const nextVersion = lesson.version + 1;
-      const result = await this.repo.createLessonAndJob(
+      const result = await this.txCoordinator.createLessonAndJob(
         userId,
         lesson.sourceTextId,
         nextVersion,
         "analysis"
       );
 
-      await this.repo.recordMilestone({
+      await this.generationProgress.recordMilestone({
         lessonId: result.lesson.id,
         generationJobId: result.job.id,
         code: "queued",
@@ -158,9 +167,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const job = await this.repo.createJob(userId, lesson.sourceTextId, lesson.id, stage);
+    const job = await this.txCoordinator.createJob(userId, lesson.sourceTextId, lesson.id, stage);
 
-    await this.repo.recordMilestone({
+    await this.generationProgress.recordMilestone({
       lessonId: lesson.id,
       generationJobId: job.id,
       code: "queued",
@@ -175,7 +184,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
   }
 
   async processNext(workerId: string): Promise<JobProcessResult> {
-    const job = await this.repo.claimJob(workerId);
+    const job = await this.generationJobs.claimJob(workerId);
     if (!job) {
       return { status: "idle" };
     }
@@ -185,7 +194,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     const queueLatency = parsedCreatedVal ? (jobClaimTime - parsedCreatedVal.getTime()) : 0;
     logSpringStyle("INFO", workerId, `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`);
 
-    await this.repo.recordMilestone({
+    await this.generationProgress.recordMilestone({
       lessonId: job.lessonId,
       generationJobId: job.id,
       code: "claimed",
@@ -195,12 +204,12 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     let currentStage = job.stage as "analysis" | "exercises";
 
     try {
-      const sourceText = await this.repo.findSourceText(job.sourceTextId, job.userId);
+      const sourceText = await this.sourceTexts.findSourceText(job.sourceTextId, job.userId);
       if (!sourceText) {
         throw new Error("Source text is unavailable.");
       }
 
-      const lesson = await this.repo.findLesson(job.lessonId, job.userId);
+      const lesson = await this.lessons.findLesson(job.lessonId, job.userId);
       if (!lesson) {
         throw new Error("Lesson is unavailable.");
       }
@@ -208,8 +217,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       if (currentStage === "analysis") {
         logSpringStyle("INFO", workerId, `Starting stage "analysis" for Lesson ${job.lessonId}...`);
         const analysisStart = Date.now();
-        await this.repo.updateLessonStatus(job.lessonId, "analysis", "running");
-        await this.repo.recordMilestone({
+        await this.lessons.updateLessonStatus(job.lessonId, "analysis", "running");
+        await this.generationProgress.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_started",
@@ -233,7 +242,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           async (text) => {
             const sanitized = sanitizeGenerationThought(text, this.textProcessor);
             if (sanitized) {
-              await this.repo.recordThought({
+              await this.generationProgress.recordThought({
                 lessonId: job.lessonId,
                 generationJobId: job.id,
                 stage: "analysis",
@@ -245,14 +254,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           userHighlights
         );
 
-        await this.repo.saveAnalysis(
+        await this.lessons.saveAnalysis(
           job.lessonId,
           job.userId,
           result,
           process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-flash-lite"
         );
 
-        await this.repo.recordMilestone({
+        await this.generationProgress.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_saved",
@@ -262,28 +271,28 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         const analysisDuration = Date.now() - analysisStart;
         logSpringStyle("INFO", workerId, `Stage "analysis" succeeded in ${analysisDuration}ms.`);
 
-        await this.repo.updateJobStatus(job.id, "running", { stage: "exercises" });
+        await this.generationJobs.updateJobStatus(job.id, "running", { stage: "exercises" });
         currentStage = "exercises";
       }
 
       logSpringStyle("INFO", workerId, `Starting stage "exercises" for Lesson ${job.lessonId}...`);
       const exercisesStart = Date.now();
-      await this.repo.updateLessonStatus(job.lessonId, "exercise", "running");
-      await this.repo.recordMilestone({
+      await this.lessons.updateLessonStatus(job.lessonId, "exercise", "running");
+      await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_started",
         stage: "exercises",
       });
 
-      const analysis = await this.repo.buildAnalysisFromLesson(job.lessonId);
-      let exercises: ExercisesResult | null = null;
+      const analysis = await this.lessons.buildAnalysisFromLesson(job.lessonId);
+      let exercises: SaveExercisesInput | null = null;
 
       for (let attempt = 1; attempt <= 2; attempt += 1) {
         const candidate = await this.genEngine.generateExercises(analysis, async (text) => {
           const sanitized = sanitizeGenerationThought(text, this.textProcessor);
           if (sanitized) {
-            await this.repo.recordThought({
+            await this.generationProgress.recordThought({
               lessonId: job.lessonId,
               generationJobId: job.id,
               stage: "exercises",
@@ -307,14 +316,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         throw new Error("Exercise generation did not return a complete Lesson.");
       }
 
-      await this.repo.saveExercises(
+      await this.lessons.saveExercises(
         job.lessonId,
         job.userId,
         exercises,
         process.env.GEMINI_FAST_MODEL ?? "gemini-3.1-flash-lite"
       );
 
-      await this.repo.recordMilestone({
+      await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_saved",
@@ -324,9 +333,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       const exercisesDuration = Date.now() - exercisesStart;
       logSpringStyle("INFO", workerId, `Stage "exercises" succeeded in ${exercisesDuration}ms.`);
 
-      await this.repo.updateJobStatus(job.id, "succeeded", { errorMessage: null });
+      await this.generationJobs.updateJobStatus(job.id, "succeeded", { errorMessage: null });
 
-      await this.repo.recordMilestone({
+      await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "completed",
@@ -351,9 +360,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
       if (transient && job.attempts < 3) {
         const field = currentStage === "analysis" ? "analysis" : "exercise";
-        await this.repo.updateLessonStatus(job.lessonId, field as any, "pending");
+        await this.lessons.updateLessonStatus(job.lessonId, field as any, "pending");
 
-        await this.repo.updateJobStatus(job.id, "queued", {
+        await this.generationJobs.updateJobStatus(job.id, "queued", {
           stage: currentStage,
           errorMessage: message,
           lockedAt: null,
@@ -364,14 +373,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       }
 
       const field = currentStage === "analysis" ? "analysis" : "exercise";
-      await this.repo.updateLessonStatus(job.lessonId, field as any, "failed");
+      await this.lessons.updateLessonStatus(job.lessonId, field as any, "failed");
 
-      await this.repo.updateJobStatus(job.id, "failed", {
+      await this.generationJobs.updateJobStatus(job.id, "failed", {
         stage: currentStage,
         errorMessage: message,
       });
 
-      await this.repo.recordMilestone({
+      await this.generationProgress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "failed",
@@ -388,7 +397,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
   }
 
   async getProgress(lessonId: string, userId: string): Promise<GenerationProgress | null> {
-    const progress = await this.repo.getLessonProgress({ lessonId, userId });
+    const progress = await this.generationProgress.getLessonProgress({ lessonId, userId });
     if (!progress) {
       return null;
     }

@@ -30,35 +30,7 @@ export interface UserError {
   createdAt: Date;
 }
 
-export interface MistakePattern {
-  id: string;
-  userId: string;
-  conceptKey: string;
-  normalizedPhrase: string;
-  senseKey: string | null;
-  category: "idiom" | "phrasal_verb" | "technical_term" | "collocation" | "grammar_pattern" | "business_phrase" | "general_phrase";
-  errorType: "literal_translation" | "phrase_misunderstanding" | "technical_term_misunderstanding" | "phrasal_verb_error" | "collocation_error" | "grammar_structure_misread" | "pronoun_reference_misread" | "tone_register_misread" | "missing_context";
-  meaningVi: string;
-  safeReviewPromptVi: string;
-  isSensitive: boolean;
-  occurrenceCount: number;
-  intervalDays: number;
-  masteryState: MasteryState;
-  dueAt: Date;
-  lastReviewedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  reviewPromptEn: string | null;
-  reviewPromptVi: string | null;
-  reviewRubricVi: string | null;
-  reviewCorrectAnswer: string | null;
-  reviewAcceptableAnswers: string[] | null;
-  reviewPromptStatus?: "queued" | "running" | "succeeded" | "failed";
-  reviewPromptAttempts?: number;
-  reviewPromptError?: string | null;
-  reviewPromptLockedAt?: Date | null;
-  reviewPromptLockedBy?: string | null;
-}
+// MistakePattern is now a rich aggregate class defined in mistake-pattern.ts
 
 export interface ReviewAttempt {
   id: string;

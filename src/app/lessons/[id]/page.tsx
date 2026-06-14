@@ -291,6 +291,8 @@ function renderReadableSourceText(source: string, phrases: KeyPhrase[]) {
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   const lessonData = await getLessonRepository().getLessonAggregate(id, user.id);
   if (!lessonData) notFound();
@@ -413,7 +415,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
             ) : null}
 
             {(lesson.analysisStatus === "running" || lesson.analysisStatus === "pending" || lesson.exerciseStatus === "running") &&
-            (Date.now() - lesson.updatedAt.getTime() > 45_000) ? (
+             (now - lesson.updatedAt.getTime() > 45_000) ? (
               <form action={forceRetryLessonAction}>
                 <input name="lessonId" type="hidden" value={lesson.id} />
                 <button 

@@ -32,7 +32,7 @@ const mockKeyPhrase: KeyPhrase = {
   exampleVi: "Cô ấy xuất sắc trong giải quyết vấn đề.",
   category: "general_phrase",
   difficulty: "B2",
-};
+} as any;
 
 describe("ExerciseCard Conditional Key Phrase Visibility", () => {
   it("hides the target phrase link for an unsolved cloze_phrase exercise", () => {
@@ -45,7 +45,7 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
       promptEn: "Gemma models can be tuned to ______ specific tasks.",
       correctAnswer: "excel at",
       acceptableAnswers: ["excel at"],
-    };
+    } as any;
 
     const attempts: Attempt[] = [];
 
@@ -72,7 +72,7 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
       promptEn: "Gemma models can be tuned to ______ specific tasks.",
       correctAnswer: "excel at",
       acceptableAnswers: ["excel at"],
-    };
+    } as any;
 
     // Solved attempt
     const attempts: Attempt[] = [
@@ -85,8 +85,8 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
         score: 100,
         isCorrect: true,
         feedbackVi: "Chính xác!",
-        createdAt: "2026-06-13T00:00:00.000Z",
-      },
+        createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      } as any,
     ];
 
     const html = renderToStaticMarkup(
@@ -113,7 +113,7 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
       correctAnswer: "She excels at it.",
       acceptableAnswers: ["She excels at it."],
       rubricVi: "Phải dùng cụm từ đúng.",
-    };
+    } as any;
 
     const attempts: Attempt[] = [];
 

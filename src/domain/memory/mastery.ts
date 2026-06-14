@@ -1,4 +1,5 @@
-import type { MasteryState, MistakePattern } from "./types";
+import type { MasteryState } from "./types";
+import type { MistakePattern } from "./mistake-pattern";
 
 export const MASTERED_INTERVAL_DAYS = 14;
 

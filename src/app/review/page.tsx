@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { ReviewSession } from "./session";
-import { getLearnerMemoryRepository } from "@/domain/memory";
+import { getMistakePatternRepository } from "@/domain/memory";
 
 export default async function ReviewPage() {
   const user = await requireUser();
-  const repo = getLearnerMemoryRepository();
+  const repo = getMistakePatternRepository();
   const patterns = await repo.findDueMistakePatterns(user.id, new Date(), 20);
 
   return (

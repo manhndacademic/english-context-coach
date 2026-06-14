@@ -3,8 +3,8 @@ import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { retryReviewPromptGenerationAction } from "@/app/actions/review";
 import { SourceTextForm } from "@/components/source-text-form";
-import { getLessonRepository } from "@/domain/lesson";
-import { getLearnerMemoryRepository } from "@/domain/memory";
+import { getLessonRepository, getSourceTextRepository } from "@/domain/lesson";
+import { getMistakePatternRepository } from "@/domain/memory";
 import { getLearningStreak } from "@/lib/queries/streak";
 import { getMasteredCount, getReviewSuccessRate, getMasteredTrend } from "@/lib/queries/dashboard-stats";
 import { StreakBadge } from "@/components/dashboard/streak-badge";
@@ -32,12 +32,13 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
 
-  const memoryRepo = getLearnerMemoryRepository();
+  const memoryRepo = getMistakePatternRepository();
   const lessonRepo = getLessonRepository();
+  const sourceTextRepo = getSourceTextRepository();
 
   const [recentLessons, sourceCount, metrics, streakDays, masteredCount, reviewSuccessRate, masteredTrend] = await Promise.all([
     lessonRepo.getRecentLessons(user.id, 6),
-    lessonRepo.getSourceTextsCount(user.id),
+    sourceTextRepo.getSourceTextsCount(user.id),
     memoryRepo.getDashboardMetrics(user.id, now),
     getLearningStreak(user.id),
     getMasteredCount(user.id),

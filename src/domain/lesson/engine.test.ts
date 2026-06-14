@@ -1,10 +1,22 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLessonGenerationEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
-import type { LessonRepository, GenerationEngine, LessonGenerationEngine } from "./ports";
-import type { SourceText, Lesson, GenerationJob, GenerationMilestone, GenerationThought } from "./ports";
+import type {
+  SourceTextRepository,
+  LessonRepository,
+  GenerationJobRepository,
+  GenerationProgressRepository,
+  LessonTransactionCoordinator,
+  GenerationEngine,
+  LessonGenerationEngine,
+  SourceText,
+  Lesson,
+  GenerationJob,
+  GenerationMilestone,
+  GenerationThought,
+} from "./ports";
 
-class MockLessonRepository implements LessonRepository {
+class MockLessonRepository implements SourceTextRepository, LessonRepository, GenerationJobRepository, GenerationProgressRepository, LessonTransactionCoordinator {
   lessons = new Map<string, any>();
   sourceTexts = new Map<string, any>();
   generationJobs = new Map<string, any>();
@@ -32,6 +44,14 @@ class MockLessonRepository implements LessonRepository {
       }
     }
     return latest as unknown as Lesson | null;
+  }
+
+  async findKeyPhrase(keyPhraseId: string) {
+    return null;
+  }
+
+  async findLessonFocus(lessonFocusId: string) {
+    return null;
   }
 
   async createSourceTextAndLessonAndJob(userId: string, content: string, title: string, contentHash: string) {
@@ -188,8 +208,20 @@ class MockLessonRepository implements LessonRepository {
     return 0;
   }
 
-  async runInTransaction<T>(operation: (tx: LessonRepository) => Promise<T>): Promise<T> {
-    return await operation(this);
+  async runInTransaction<T>(
+    operation: (repos: {
+      sourceTexts: SourceTextRepository;
+      lessons: LessonRepository;
+      generationJobs: GenerationJobRepository;
+      generationProgress: GenerationProgressRepository;
+    }) => Promise<T>
+  ): Promise<T> {
+    return await operation({
+      sourceTexts: this,
+      lessons: this,
+      generationJobs: this,
+      generationProgress: this,
+    });
   }
 }
 
@@ -275,7 +307,7 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
   beforeEach(() => {
     repo = new MockLessonRepository();
     genEngine = new MockGenerationEngine();
-    engine = new DefaultLessonGenerationEngine(repo, genEngine, getTextProcessor());
+    engine = new DefaultLessonGenerationEngine(repo, repo, repo, repo, repo, genEngine, getTextProcessor());
 
     repo.sourceTexts.set("st-1", {
       id: "st-1",

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guards";
-import { getLearnerMemoryEngine, getLearnerMemoryRepository } from "@/domain/memory";
+import { getLearnerMemoryEngine, getMistakePatternRepository } from "@/domain/memory";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -60,14 +60,15 @@ export async function retryReviewPromptGenerationAction(formData: FormData): Pro
     const patternId = String(formData.get("patternId") ?? "");
     if (!patternId) return;
 
-    const repo = getLearnerMemoryRepository();
+    const repo = getMistakePatternRepository();
     const pattern = await repo.findMistakePatternById(patternId);
     if (!pattern || pattern.userId !== user.id) return;
 
-    await repo.updateReviewPromptJobStatus(patternId, "queued", {
+    pattern.setJobStatus("queued", {
       reviewPromptAttempts: 0,
       reviewPromptError: null,
     });
+    await repo.saveMistakePattern(pattern);
 
     revalidatePath("/dashboard");
   } catch (error) {

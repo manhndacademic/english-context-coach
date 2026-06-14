@@ -1,4 +1,9 @@
-import { DrizzleLearnerMemoryRepository } from "./adapters/drizzle-repository";
+import {
+  DrizzleExerciseRepository,
+  DrizzleAttemptRepository,
+  DrizzleMistakePatternRepository,
+  DrizzleTransactionCoordinator,
+} from "./adapters/drizzle-repositories";
 import { DefaultGradingEngine } from "./grading/engine";
 import { QueueJobDispatcherAdapter } from "./adapters/job-dispatcher";
 import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator";
@@ -7,28 +12,63 @@ import { getLLMProvider } from "@/domain/ai";
 import { getTextProcessor } from "@/domain/text";
 import { getLessonRepository } from "@/domain/lesson";
 import type { LearnerMemoryEngine } from "./types";
-import type { LearnerMemoryRepository } from "./ports";
+import type {
+  ExerciseRepository,
+  AttemptRepository,
+  MistakePatternRepository,
+  TransactionCoordinator,
+} from "./ports";
 
 let cachedEngine: LearnerMemoryEngine | null = null;
-let cachedRepository: LearnerMemoryRepository | null = null;
+let cachedExerciseRepo: ExerciseRepository | null = null;
+let cachedAttemptRepo: AttemptRepository | null = null;
+let cachedMistakePatternRepo: MistakePatternRepository | null = null;
+let cachedTxCoordinator: TransactionCoordinator | null = null;
 
-export function getLearnerMemoryRepository(): LearnerMemoryRepository {
-  if (!cachedRepository) {
-    cachedRepository = new DrizzleLearnerMemoryRepository();
+export function getExerciseRepository(): ExerciseRepository {
+  if (!cachedExerciseRepo) {
+    cachedExerciseRepo = new DrizzleExerciseRepository();
   }
-  return cachedRepository;
+  return cachedExerciseRepo;
+}
+
+export function getAttemptRepository(): AttemptRepository {
+  if (!cachedAttemptRepo) {
+    cachedAttemptRepo = new DrizzleAttemptRepository();
+  }
+  return cachedAttemptRepo;
+}
+
+export function getMistakePatternRepository(): MistakePatternRepository {
+  if (!cachedMistakePatternRepo) {
+    cachedMistakePatternRepo = new DrizzleMistakePatternRepository();
+  }
+  return cachedMistakePatternRepo;
+}
+
+export function getTransactionCoordinator(): TransactionCoordinator {
+  if (!cachedTxCoordinator) {
+    cachedTxCoordinator = new DrizzleTransactionCoordinator();
+  }
+  return cachedTxCoordinator;
 }
 
 export function getLearnerMemoryEngine(): LearnerMemoryEngine {
   if (!cachedEngine) {
-    const repo = getLearnerMemoryRepository();
+    const exerciseRepo = getExerciseRepository();
+    const attemptRepo = getAttemptRepository();
+    const mistakePatternRepo = getMistakePatternRepository();
+    const txCoordinator = getTransactionCoordinator();
     const lessonRepo = getLessonRepository();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
-    const dispatcher = new QueueJobDispatcherAdapter(() => getLearnerMemoryRepository());
+    const dispatcher = new QueueJobDispatcherAdapter(() => getMistakePatternRepository());
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
     cachedEngine = new DefaultLearnerMemoryEngine(
-      repo,
+      exerciseRepo,
+      attemptRepo,
+      mistakePatternRepo,
+      txCoordinator,
       lessonRepo,
       grader,
       dispatcher,
@@ -48,9 +88,16 @@ export type {
   MasteryState,
   Attempt,
   UserError,
-  MistakePattern,
   ReviewAttempt,
 } from "./types";
-export type { LearnerMemoryRepository, GradingEngine, JobDispatcher } from "./ports";
+export { MistakePattern } from "./mistake-pattern";
+export type {
+  ExerciseRepository,
+  AttemptRepository,
+  MistakePatternRepository,
+  TransactionCoordinator,
+  GradingEngine,
+  JobDispatcher,
+} from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
 export { isDueMistakePattern, masteryStateAfterReview } from "./mastery";

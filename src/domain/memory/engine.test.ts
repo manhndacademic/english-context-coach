@@ -2,30 +2,104 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
 import type { LessonRepository } from "@/domain/lesson/ports";
-import type { LearnerMemoryRepository, GradingEngine, JobDispatcher, ReviewPromptGenerator } from "./ports";
+import { MistakePattern } from "./mistake-pattern";
+import type {
+  ExerciseRepository,
+  AttemptRepository,
+  MistakePatternRepository,
+  TransactionCoordinator,
+  GradingEngine,
+  JobDispatcher,
+  ReviewPromptGenerator,
+} from "./ports";
 
-class MockLearnerMemoryRepository implements LearnerMemoryRepository {
+class MockDatabaseState {
   exercises = new Map<string, any>();
   mistakePatterns = new Map<string, any>();
-
   attempts: any[] = [];
   userErrors: any[] = [];
   reviewAttempts: any[] = [];
 
+  async upsertMistakePattern(input: any) {
+    const existing = Array.from(this.mistakePatterns.values()).find(
+      (p) => p.userId === input.userId && p.conceptKey === input.conceptKey && p.errorType === input.errorType
+    );
+    if (existing) {
+      existing.incrementOccurrence();
+      return existing;
+    }
+    const created = MistakePattern.createNew({
+      id: input.id ?? `pattern-${this.mistakePatterns.size + 1}`,
+      userId: input.userId,
+      conceptKey: input.conceptKey,
+      normalizedPhrase: input.normalizedPhrase,
+      senseKey: input.senseKey ?? null,
+      category: input.category,
+      errorType: input.errorType,
+      meaningVi: input.meaningVi,
+      safeReviewPromptVi: input.safeReviewPromptVi,
+      isSensitive: input.isSensitive ?? false,
+    });
+    if (input.reviewPromptStatus || input.intervalDays || input.masteryState || input.reviewPromptEn) {
+      const reconstituted = MistakePattern.reconstitute({
+        ...created.toDbRow(),
+        ...input,
+      });
+      this.mistakePatterns.set(reconstituted.id, reconstituted);
+      return reconstituted;
+    }
+    this.mistakePatterns.set(created.id, created);
+    return created;
+  }
+}
+
+class MockExerciseRepository implements ExerciseRepository {
+  constructor(private state: MockDatabaseState) {}
+
   async findExercise(exerciseId: string, userId: string) {
-    const exercise = this.exercises.get(exerciseId);
+    const exercise = this.state.exercises.get(exerciseId);
     if (exercise && exercise.userId === userId) return exercise;
     return null;
   }
+}
+
+class MockAttemptRepository implements AttemptRepository {
+  constructor(private state: MockDatabaseState) {}
+
+  async createAttempt(attempt: any) {
+    const created = { id: `attempt-${this.state.attempts.length + 1}`, createdAt: new Date(), ...attempt };
+    this.state.attempts.push(created);
+    return created;
+  }
+
+  async createReviewAttempt(attempt: any) {
+    const created = { id: `review-attempt-${this.state.reviewAttempts.length + 1}`, createdAt: new Date(), ...attempt };
+    this.state.reviewAttempts.push(created);
+    return created;
+  }
+
+  async createUserError(error: any) {
+    const created = { id: `user-error-${this.state.userErrors.length + 1}`, createdAt: new Date(), ...error };
+    this.state.userErrors.push(created);
+    return created;
+  }
+}
+
+class MockMistakePatternRepository implements MistakePatternRepository {
+  constructor(private state: MockDatabaseState) {}
 
   async findMistakePattern(patternId: string, userId: string) {
-    const pattern = this.mistakePatterns.get(patternId);
+    const pattern = this.state.mistakePatterns.get(patternId);
     if (pattern && pattern.userId === userId) return pattern;
     return null;
   }
 
+  async findMistakePatternById(patternId: string) {
+    return this.state.mistakePatterns.get(patternId) ?? null;
+  }
+
   async findPatternByConcept(userId: string, conceptKey: string, errorType: string) {
-    for (const pattern of this.mistakePatterns.values()) {
+    for (const pattern of this.state.mistakePatterns.values()) {
       if (
         pattern.userId === userId &&
         pattern.conceptKey === conceptKey &&
@@ -37,76 +111,27 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
     return null;
   }
 
-  async runInTransaction<T>(operation: (tx: LearnerMemoryRepository) => Promise<T>): Promise<T> {
-    return await operation(this);
+  async upsertMistakePattern(pattern: MistakePattern) {
+    this.state.mistakePatterns.set(pattern.id, pattern);
+    return pattern;
   }
 
-  async createAttempt(attempt: any) {
-    const created = { id: `attempt-${this.attempts.length + 1}`, createdAt: new Date(), ...attempt };
-    this.attempts.push(created);
-    return created;
+  async saveMistakePattern(pattern: MistakePattern) {
+    this.state.mistakePatterns.set(pattern.id, pattern);
   }
 
-  async createUserError(error: any) {
-    const created = { id: `user-error-${this.userErrors.length + 1}`, createdAt: new Date(), ...error };
-    this.userErrors.push(created);
-    return created;
-  }
-
-  async upsertMistakePattern(input: any) {
-    const existing = await this.findPatternByConcept(input.userId, input.conceptKey, input.errorType);
-    if (existing) {
-      existing.occurrenceCount += 1;
-      existing.intervalDays = 0;
-      existing.masteryState = "active";
-      existing.dueAt = new Date();
-      existing.updatedAt = new Date();
-      return existing;
+  async claimReviewPromptJob(workerId: string) {
+    for (const pattern of this.state.mistakePatterns.values()) {
+      if (pattern.reviewPromptStatus === "queued") {
+        pattern.claimJob(workerId);
+        return pattern;
+      }
     }
-    const created = {
-      id: `pattern-${this.mistakePatterns.size + 1}`,
-      occurrenceCount: 1,
-      intervalDays: 0,
-      masteryState: "active",
-      dueAt: new Date(),
-      lastReviewedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      reviewPromptEn: null,
-      reviewPromptVi: null,
-      reviewRubricVi: null,
-      reviewCorrectAnswer: null,
-      reviewAcceptableAnswers: null,
-      reviewPromptStatus: "queued",
-      reviewPromptAttempts: 0,
-      reviewPromptError: null,
-      reviewPromptLockedAt: null,
-      reviewPromptLockedBy: null,
-      ...input,
-    };
-    this.mistakePatterns.set(created.id, created);
-    return created;
+    return null;
   }
 
-  async updateMistakePatternSchedule(patternId: string, updates: any) {
-    const pattern = this.mistakePatterns.get(patternId);
-    if (pattern) {
-      pattern.intervalDays = updates.intervalDays;
-      pattern.dueAt = updates.dueAt;
-      pattern.lastReviewedAt = updates.lastReviewedAt ?? pattern.lastReviewedAt;
-      pattern.masteryState = updates.masteryState;
-      pattern.updatedAt = new Date();
-    }
-  }
-
-  async createReviewAttempt(attempt: any) {
-    const created = { id: `review-attempt-${this.reviewAttempts.length + 1}`, createdAt: new Date(), ...attempt };
-    this.reviewAttempts.push(created);
-    return created;
-  }
-
-  async findDueMistakePatterns(userId: string, dueAt: Date, limit: number): Promise<any[]> {
-    return Array.from(this.mistakePatterns.values())
+  async findDueMistakePatterns(userId: string, dueAt: Date, limit: number) {
+    return Array.from(this.state.mistakePatterns.values())
       .filter(
         (pattern) =>
           pattern.userId === userId &&
@@ -117,56 +142,34 @@ class MockLearnerMemoryRepository implements LearnerMemoryRepository {
       .slice(0, limit);
   }
 
-  async getDashboardMetrics(userId: string, dueAt: Date): Promise<any> {
+  async getDashboardMetrics(userId: string, dueAt: Date) {
     return {
       dueCount: 0,
       patternCount: 0,
       repeatedMistakes: [],
     };
   }
+}
 
-  async findMistakePatternById(patternId: string): Promise<any> {
-    return this.mistakePatterns.get(patternId) ?? null;
-  }
+class MockTransactionCoordinator implements TransactionCoordinator {
+  constructor(
+    private exerciseRepo: ExerciseRepository,
+    private attemptRepo: AttemptRepository,
+    private mistakePatternRepo: MistakePatternRepository
+  ) {}
 
-  async updateMistakePatternReviewPrompt(patternId: string, prompts: any): Promise<void> {
-    const pattern = this.mistakePatterns.get(patternId);
-    if (pattern) {
-      Object.assign(pattern, prompts);
-      pattern.reviewPromptStatus = "succeeded";
-      pattern.reviewPromptError = null;
-      pattern.reviewPromptLockedAt = null;
-      pattern.reviewPromptLockedBy = null;
-    }
-  }
-
-  async claimReviewPromptJob(workerId: string): Promise<any> {
-    for (const pattern of this.mistakePatterns.values()) {
-      if (pattern.reviewPromptStatus === "queued") {
-        pattern.reviewPromptStatus = "running";
-        pattern.reviewPromptAttempts = (pattern.reviewPromptAttempts ?? 0) + 1;
-        pattern.reviewPromptLockedAt = new Date();
-        pattern.reviewPromptLockedBy = workerId;
-        pattern.updatedAt = new Date();
-        return pattern;
-      }
-    }
-    return null;
-  }
-
-  async updateReviewPromptJobStatus(
-    patternId: string,
-    status: any,
-    extra?: any
-  ): Promise<void> {
-    const pattern = this.mistakePatterns.get(patternId);
-    if (pattern) {
-      pattern.reviewPromptStatus = status;
-      pattern.updatedAt = new Date();
-      if (extra) {
-        Object.assign(pattern, extra);
-      }
-    }
+  async runInTransaction<T>(
+    operation: (repos: {
+      exercises: ExerciseRepository;
+      attempts: AttemptRepository;
+      mistakePatterns: MistakePatternRepository;
+    }) => Promise<T>
+  ): Promise<T> {
+    return await operation({
+      exercises: this.exerciseRepo,
+      attempts: this.attemptRepo,
+      mistakePatterns: this.mistakePatternRepo,
+    });
   }
 }
 
@@ -242,7 +245,11 @@ class MockLessonRepository implements LessonRepository {
 }
 
 describe("LearnerMemoryEngine Domain Orchestrator", () => {
-  let repo: MockLearnerMemoryRepository;
+  let repo: MockDatabaseState;
+  let exerciseRepo: MockExerciseRepository;
+  let attemptRepo: MockAttemptRepository;
+  let mistakePatternRepo: MockMistakePatternRepository;
+  let txCoordinator: MockTransactionCoordinator;
   let lessonRepo: MockLessonRepository;
   let grader: MockGradingEngine;
   let dispatcher: MockJobDispatcher;
@@ -250,12 +257,26 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
   let engine: DefaultLearnerMemoryEngine;
 
   beforeEach(() => {
-    repo = new MockLearnerMemoryRepository();
+    repo = new MockDatabaseState();
+    exerciseRepo = new MockExerciseRepository(repo);
+    attemptRepo = new MockAttemptRepository(repo);
+    mistakePatternRepo = new MockMistakePatternRepository(repo);
+    txCoordinator = new MockTransactionCoordinator(exerciseRepo, attemptRepo, mistakePatternRepo);
     lessonRepo = new MockLessonRepository();
     grader = new MockGradingEngine();
     dispatcher = new MockJobDispatcher();
     reviewGenerator = new MockReviewPromptGenerator();
-    engine = new DefaultLearnerMemoryEngine(repo, lessonRepo, grader, dispatcher, reviewGenerator, getTextProcessor());
+    engine = new DefaultLearnerMemoryEngine(
+      exerciseRepo,
+      attemptRepo,
+      mistakePatternRepo,
+      txCoordinator,
+      lessonRepo,
+      grader,
+      dispatcher,
+      reviewGenerator,
+      getTextProcessor()
+    );
   });
 
   describe("submitAttempt", () => {
@@ -438,9 +459,9 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         meaningVi: "dời lại / trì hoãn",
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
+        masteryState: "mastered",
+        intervalDays: 14,
       });
-      masteredPattern.masteryState = "mastered";
-      masteredPattern.intervalDays = 14;
 
       grader.result = {
         score: 0,
@@ -495,8 +516,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         meaningVi: "dời lại / trì hoãn",
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
+        intervalDays: 1,
       });
-      pattern.intervalDays = 1;
 
       grader.result = {
         score: 100,
@@ -533,8 +554,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         meaningVi: "dời lại / trì hoãn",
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
+        intervalDays: 7,
       });
-      pattern.intervalDays = 7;
 
       grader.result = {
         score: 100,
@@ -568,8 +589,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         meaningVi: "dời lại / trì hoãn",
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
+        intervalDays: 7,
       });
-      pattern.intervalDays = 7;
 
       grader.result = {
         score: 0,
@@ -644,11 +665,9 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         isSensitive: false,
       });
 
-      pattern.reviewPromptStatus = "queued";
-
       const res = await engine.processNextReviewPromptJob("worker-1");
       expect(res.status).toBe("processed");
-      expect(res.success).toBe(true);
+      expect((res as any).success).toBe(true);
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);
       expect(updatedPattern.reviewPromptStatus).toBe("succeeded");
@@ -668,14 +687,11 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         isSensitive: false,
       });
 
-      pattern.reviewPromptStatus = "queued";
-      pattern.reviewPromptAttempts = 0;
-
       reviewGenerator.error = new Error("Quota exceeded");
 
       const res = await engine.processNextReviewPromptJob("worker-1");
       expect(res.status).toBe("processed");
-      expect(res.success).toBe(false);
+      expect((res as any).success).toBe(false);
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);
       expect(updatedPattern.reviewPromptStatus).toBe("queued");
