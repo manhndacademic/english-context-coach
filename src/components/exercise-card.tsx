@@ -279,7 +279,7 @@ export function ExerciseCard({
             {renderRichText(latest.feedbackVi)}
           </p>
 
-          {metadata?.naturalAnswer && (solved || isSubjectiveType) && (
+          {metadata?.naturalAnswer && solved && isSubjectiveType && (
             <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success">
               <strong className="text-xs font-bold text-success block">
                 Gợi ý
