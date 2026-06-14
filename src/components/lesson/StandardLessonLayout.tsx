@@ -103,80 +103,81 @@ export function StandardLessonLayout({
     lesson.exerciseStatus === "running";
 
   return (
-    <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 flex flex-col gap-6">
+    <>
       <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
+        <LessonHeader lesson={lesson} progress={progress} now={now} />
 
-      <LessonHeader lesson={lesson} progress={progress} now={now} />
+        <div
+          className={`grid grid-cols-1 ${
+            hasSideColumn ? "min-[860px]:grid-cols-[1fr_0.72fr]" : ""
+          } gap-layout-gap items-start`}
+        >
+          <div className="grid gap-item-gap">
+            {isDeveloperError ? (
+              <DeveloperErrorView
+                sourceContent={sourceContent ?? null}
+                lesson={lesson}
+              />
+            ) : isGrammarCorrection ? (
+              <GrammarCorrectionView
+                lesson={lesson}
+                sentenceBreakdowns={sentenceBreakdowns}
+                lessonFocuses={lessonFocuses}
+              />
+            ) : (
+              <>
+                {sourceContent ? (
+                  <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
+                    <div className="flex flex-col min-[860px]:flex-row min-[860px]:items-baseline gap-2">
+                      <h2 className="text-2xl font-bold text-text m-0">
+                        Văn bản gốc (Source)
+                      </h2>
+                      <span className="text-xs text-muted">
+                        Nhấp vào từ/cụm từ tô màu để xem giải nghĩa bên phải.
+                      </span>
+                    </div>
+                    <div className="border border-border rounded-md p-6 bg-surface font-serif text-[17px] md:text-lg leading-relaxed overflow-y-auto max-h-[340px] min-[860px]:max-h-[500px] shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] text-text space-y-3 [&_h3]:text-lg [&_h3]:font-bold [&_blockquote]:border-l-3 [&_blockquote]:border-accent [&_blockquote]:pl-3.5 [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_pre]:overflow-auto [&_pre]:border [&_pre]:border-border [&_pre]:rounded-md [&_pre]:bg-surface-strong [&_pre]:p-3 [&_pre]:whitespace-pre-wrap">
+                      <ReadableSourceText
+                        key={`${lesson.id}-${phrases.map((p) => p.id).join(",")}`}
+                        doc={sourceContent}
+                        phrases={phrases}
+                      />
+                    </div>
+                  </section>
+                ) : null}
 
-      <div
-        className={`grid grid-cols-1 ${
-          hasSideColumn ? "min-[860px]:grid-cols-[1fr_0.72fr]" : ""
-        } gap-layout-gap items-start`}
-      >
-        <div className="grid gap-item-gap">
-          {isDeveloperError ? (
-            <DeveloperErrorView
-              sourceContent={sourceContent ?? null}
-              lesson={lesson}
-            />
-          ) : isGrammarCorrection ? (
-            <GrammarCorrectionView
-              lesson={lesson}
-              sentenceBreakdowns={sentenceBreakdowns}
-              lessonFocuses={lessonFocuses}
-            />
-          ) : (
-            <>
-              {sourceContent ? (
+                <SourceMeaningPanel
+                  mode="standard"
+                  lesson={lesson}
+                  lessonFocuses={lessonFocuses}
+                />
+              </>
+            )}
+          </div>
+
+          {hasSideColumn ? (
+            <div className="grid gap-4">
+              {phrases.length ? (
                 <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
-                  <div className="flex flex-col min-[860px]:flex-row min-[860px]:items-baseline gap-2">
-                    <h2 className="text-2xl font-bold text-text m-0">
-                      Văn bản gốc (Source)
-                    </h2>
-                    <span className="text-xs text-muted">
-                      Nhấp vào từ/cụm từ tô màu để xem giải nghĩa bên phải.
-                    </span>
-                  </div>
-                  <div className="border border-border rounded-md p-6 bg-surface font-serif text-[17px] md:text-lg leading-relaxed overflow-y-auto max-h-[340px] min-[860px]:max-h-[500px] shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] text-text space-y-3 [&_h3]:text-lg [&_h3]:font-bold [&_blockquote]:border-l-3 [&_blockquote]:border-accent [&_blockquote]:pl-3.5 [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_pre]:overflow-auto [&_pre]:border [&_pre]:border-border [&_pre]:rounded-md [&_pre]:bg-surface-strong [&_pre]:p-3 [&_pre]:whitespace-pre-wrap">
-                    <ReadableSourceText
-                      key={`${lesson.id}-${phrases.map((p) => p.id).join(",")}`}
-                      doc={sourceContent}
-                      phrases={phrases}
-                    />
-                  </div>
+                  <h2 className="text-2xl font-bold text-text m-0">
+                    Cụm từ then chốt
+                  </h2>
+                  <KeyPhraseList phrases={phrases} />
                 </section>
               ) : null}
 
-              <SourceMeaningPanel
-                mode="standard"
+              <ExercisePanel
                 lesson={lesson}
-                lessonFocuses={lessonFocuses}
+                exercises={exercises}
+                stepperItems={stepperItems}
+                serializedMistakePatterns={serializedMistakePatterns}
+                serializedUserErrors={serializedUserErrors}
               />
-            </>
-          )}
+            </div>
+          ) : null}
         </div>
-
-        {hasSideColumn ? (
-          <div className="grid gap-4">
-            {phrases.length ? (
-              <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
-                <h2 className="text-2xl font-bold text-text m-0">
-                  Cụm từ then chốt
-                </h2>
-                <KeyPhraseList phrases={phrases} />
-              </section>
-            ) : null}
-
-            <ExercisePanel
-              lesson={lesson}
-              exercises={exercises}
-              stepperItems={stepperItems}
-              serializedMistakePatterns={serializedMistakePatterns}
-              serializedUserErrors={serializedUserErrors}
-            />
-          </div>
-        ) : null}
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
