@@ -2,11 +2,24 @@
 
 import { useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { Sun, Moon, Monitor, Settings, ShieldAlert, LogOut } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Settings,
+  ShieldAlert,
+  LogOut,
+} from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { ConfirmDialog } from "@/components/ui/dialog";
 
-export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?: boolean }) {
+export function AppHeader({
+  email,
+  isAdmin,
+}: {
+  email?: string | null;
+  isAdmin?: boolean;
+}) {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -15,13 +28,22 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
+      const stored = localStorage.getItem("theme") as
+        | "light"
+        | "dark"
+        | "system"
+        | null;
       const activeTheme = stored || "system";
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTheme(activeTheme);
       if (activeTheme === "system") {
-        const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+        const isDark = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        document.documentElement.setAttribute(
+          "data-theme",
+          isDark ? "dark" : "light"
+        );
       } else {
         document.documentElement.setAttribute("data-theme", activeTheme);
       }
@@ -30,7 +52,10 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     }
@@ -43,8 +68,13 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
     try {
       localStorage.setItem("theme", newTheme);
       if (newTheme === "system") {
-        const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+        const isDark = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        document.documentElement.setAttribute(
+          "data-theme",
+          isDark ? "dark" : "light"
+        );
       } else {
         document.documentElement.setAttribute("data-theme", newTheme);
       }
@@ -52,25 +82,28 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
   };
 
   return (
-    <header className="flex items-center justify-between border-b border-border pb-4 mb-6 relative">
-      <Link 
-        className="font-serif text-base min-[385px]:text-lg sm:text-[22px] font-extrabold tracking-tight text-accent hover:text-accent-hover transition-colors m-0 shrink-0" 
+    <header className="glass-header flex items-center justify-between pb-4 mb-6 relative">
+      <Link
+        className="font-serif text-base min-[385px]:text-lg sm:text-[22px] font-extrabold tracking-tight text-accent hover:text-accent-hover transition-colors m-0 shrink-0"
         href="/dashboard"
       >
         English Context Coach
       </Link>
-      
+
       <div className="flex items-center gap-1.5 sm:gap-3">
         {/* Main Navigation Links */}
-        <nav className="flex items-center gap-0.5 sm:gap-1.5" aria-label="Điều hướng chính">
-          <Link 
-            href="/dashboard" 
+        <nav
+          className="flex items-center gap-0.5 sm:gap-1.5"
+          aria-label="Điều hướng chính"
+        >
+          <Link
+            href="/dashboard"
             className="border-0 bg-transparent text-muted text-xs sm:text-sm font-semibold p-1.5 px-2.5 sm:p-2 sm:px-3 rounded-md transition-all hover:text-text hover:bg-surface-strong cursor-pointer"
           >
             Bảng điều khiển
           </Link>
-          <Link 
-            href="/review" 
+          <Link
+            href="/review"
             className="border-0 bg-transparent text-muted text-xs sm:text-sm font-semibold p-1.5 px-2.5 sm:p-2 sm:px-3 rounded-md transition-all hover:text-text hover:bg-surface-strong cursor-pointer"
           >
             Ôn tập
@@ -80,7 +113,11 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
         {/* Theme select controls */}
-        <div className="hidden min-[480px]:flex items-center gap-0.5 bg-surface-strong border border-border p-[3px] rounded-full" role="group" aria-label="Chọn giao diện">
+        <div
+          className="hidden min-[480px]:flex items-center gap-0.5 bg-surface-strong border border-border p-[3px] rounded-full"
+          role="group"
+          aria-label="Chọn giao diện"
+        >
           <button
             type="button"
             className={`flex items-center justify-center w-7 h-7 rounded-full text-muted transition-all border-none bg-transparent cursor-pointer hover:text-text hover:bg-border ${
@@ -130,12 +167,17 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-surface border border-border z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-2.5 bg-surface-strong/50 border-b border-border">
-                  <span className="text-xs text-muted block leading-none">Tài khoản</span>
-                  <span className="text-xs font-semibold text-text block truncate mt-1.5 leading-none" title={email}>
+                  <span className="text-xs text-muted block leading-none">
+                    Tài khoản
+                  </span>
+                  <span
+                    className="text-xs font-semibold text-text block truncate mt-1.5 leading-none"
+                    title={email}
+                  >
                     {email}
                   </span>
                 </div>
-                
+
                 <Link
                   href="/settings"
                   onClick={() => setDropdownOpen(false)}
@@ -156,7 +198,7 @@ export function AppHeader({ email, isAdmin }: { email?: string | null; isAdmin?:
 
                 <div className="border-t border-border my-1" />
 
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowLogoutDialog(true)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors border-0 bg-transparent text-left cursor-pointer font-semibold"

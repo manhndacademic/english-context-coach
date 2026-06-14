@@ -11,6 +11,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  real,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
@@ -68,8 +69,18 @@ export const errorTypeEnum = pgEnum("error_type", [
 ]);
 
 export const masteryStateEnum = pgEnum("mastery_state", ["active", "mastered"]);
-export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
-export const stageStatusEnum = pgEnum("stage_status", ["pending", "running", "succeeded", "failed"]);
+export const jobStatusEnum = pgEnum("job_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+]);
+export const stageStatusEnum = pgEnum("stage_status", [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+]);
 export const generationMilestoneCodeEnum = pgEnum("generation_milestone_code", [
   "queued",
   "claimed",
@@ -80,7 +91,12 @@ export const generationMilestoneCodeEnum = pgEnum("generation_milestone_code", [
   "completed",
   "failed",
 ]);
-export const aiPurposeEnum = pgEnum("ai_purpose", ["analysis", "exercise_generation", "grading", "repair"]);
+export const aiPurposeEnum = pgEnum("ai_purpose", [
+  "analysis",
+  "exercise_generation",
+  "grading",
+  "repair",
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -94,7 +110,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
-
 
 export const accounts = pgTable(
   "accounts",
@@ -114,8 +129,10 @@ export const accounts = pgTable(
     session_state: text("session_state"),
   },
   (account) => ({
-    compoundKey: primaryKey({ columns: [account.provider, account.providerAccountId] }),
-  }),
+    compoundKey: primaryKey({
+      columns: [account.provider, account.providerAccountId],
+    }),
+  })
 );
 
 export const sessions = pgTable("sessions", {
@@ -134,8 +151,10 @@ export const verificationTokens = pgTable(
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (verificationToken) => ({
-    compositePk: primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
-  }),
+    compositePk: primaryKey({
+      columns: [verificationToken.identifier, verificationToken.token],
+    }),
+  })
 );
 
 export const authenticators = pgTable(
@@ -153,8 +172,10 @@ export const authenticators = pgTable(
     transports: text("transports"),
   },
   (authenticator) => ({
-    compositePK: primaryKey({ columns: [authenticator.userId, authenticator.credentialID] }),
-  }),
+    compositePK: primaryKey({
+      columns: [authenticator.userId, authenticator.credentialID],
+    }),
+  })
 );
 
 export const sourceTexts = pgTable(
@@ -173,7 +194,7 @@ export const sourceTexts = pgTable(
   },
   (table) => ({
     userIdx: index("source_texts_user_idx").on(table.userId),
-  }),
+  })
 );
 
 export const lessons = pgTable(
@@ -194,8 +215,12 @@ export const lessons = pgTable(
     summaryVi: text("summary_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
     contextExplanationVi: text("context_explanation_vi"),
-    analysisStatus: stageStatusEnum("analysis_status").notNull().default("pending"),
-    exerciseStatus: stageStatusEnum("exercise_status").notNull().default("pending"),
+    analysisStatus: stageStatusEnum("analysis_status")
+      .notNull()
+      .default("pending"),
+    exerciseStatus: stageStatusEnum("exercise_status")
+      .notNull()
+      .default("pending"),
     analysisPromptVersion: text("analysis_prompt_version"),
     exercisePromptVersion: text("exercise_prompt_version"),
     gradingPromptVersion: text("grading_prompt_version"),
@@ -205,9 +230,12 @@ export const lessons = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    sourceVersionUnique: uniqueIndex("lessons_source_version_unique").on(table.sourceTextId, table.version),
+    sourceVersionUnique: uniqueIndex("lessons_source_version_unique").on(
+      table.sourceTextId,
+      table.version
+    ),
     userIdx: index("lessons_user_idx").on(table.userId),
-  }),
+  })
 );
 
 export const keyPhrases = pgTable(
@@ -228,9 +256,10 @@ export const keyPhrases = pgTable(
     senseKey: text("sense_key").notNull(),
     meaningVi: text("meaning_vi").notNull(),
     meaningInContextVi: text("meaning_in_context_vi").notNull(),
-    exampleEn: text("example_en"),
-    exampleVi: text("example_vi"),
-    examples: jsonb("examples").$type<{ exampleEn: string; exampleVi: string }[]>().default([]).notNull(),
+    examples: jsonb("examples")
+      .$type<{ exampleEn: string; exampleVi: string }[]>()
+      .default([])
+      .notNull(),
     literalTranslationVi: text("literal_translation_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
     whyConfusingVi: text("why_confusing_vi"),
@@ -241,7 +270,7 @@ export const keyPhrases = pgTable(
   },
   (table) => ({
     lessonIdx: index("key_phrases_lesson_idx").on(table.lessonId),
-  }),
+  })
 );
 
 export const sentenceBreakdowns = pgTable(
@@ -263,8 +292,11 @@ export const sentenceBreakdowns = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    lessonIdx: index("sentence_breakdowns_lesson_idx").on(table.lessonId, table.orderIndex),
-  }),
+    lessonIdx: index("sentence_breakdowns_lesson_idx").on(
+      table.lessonId,
+      table.orderIndex
+    ),
+  })
 );
 
 export const lessonFocuses = pgTable(
@@ -288,7 +320,7 @@ export const lessonFocuses = pgTable(
   },
   (table) => ({
     lessonIdx: index("lesson_focuses_lesson_idx").on(table.lessonId),
-  }),
+  })
 );
 
 export const exercises = pgTable(
@@ -298,8 +330,12 @@ export const exercises = pgTable(
     lessonId: uuid("lesson_id")
       .notNull()
       .references(() => lessons.id, { onDelete: "cascade" }),
-    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
-    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
+    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
+      onDelete: "set null",
+    }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
+      onDelete: "set null",
+    }),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -315,7 +351,7 @@ export const exercises = pgTable(
   },
   (table) => ({
     lessonIdx: index("exercises_lesson_idx").on(table.lessonId),
-  }),
+  })
 );
 
 export const attempts = pgTable(
@@ -341,7 +377,8 @@ export const attempts = pgTable(
   (table) => ({
     exerciseIdx: index("attempts_exercise_idx").on(table.exerciseId),
     userIdx: index("attempts_user_idx").on(table.userId),
-  }),
+    lessonIdx: index("attempts_lesson_idx").on(table.lessonId),
+  })
 );
 
 export const userErrors = pgTable(
@@ -351,10 +388,18 @@ export const userErrors = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    attemptId: uuid("attempt_id").references(() => attempts.id, { onDelete: "set null" }),
-    lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
-    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, { onDelete: "set null" }),
-    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, { onDelete: "set null" }),
+    attemptId: uuid("attempt_id").references(() => attempts.id, {
+      onDelete: "set null",
+    }),
+    lessonId: uuid("lesson_id").references(() => lessons.id, {
+      onDelete: "set null",
+    }),
+    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
+      onDelete: "set null",
+    }),
+    lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
+      onDelete: "set null",
+    }),
     errorType: errorTypeEnum("error_type").notNull(),
     conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
@@ -366,7 +411,8 @@ export const userErrors = pgTable(
   },
   (table) => ({
     userIdx: index("user_errors_user_idx").on(table.userId),
-  }),
+    lessonIdx: index("user_errors_lesson_idx").on(table.lessonId),
+  })
 );
 
 export const mistakePatterns = pgTable(
@@ -387,14 +433,24 @@ export const mistakePatterns = pgTable(
     reviewPromptVi: text("review_prompt_vi"),
     reviewRubricVi: text("review_rubric_vi"),
     reviewCorrectAnswer: text("review_correct_answer"),
-    reviewAcceptableAnswers: jsonb("review_acceptable_answers").$type<string[]>(),
-    reviewPromptStatus: jobStatusEnum("review_prompt_status").notNull().default("succeeded"),
-    reviewPromptAttempts: integer("review_prompt_attempts").notNull().default(0),
+    reviewAcceptableAnswers: jsonb("review_acceptable_answers").$type<
+      string[]
+    >(),
+    reviewPromptStatus: jobStatusEnum("review_prompt_status")
+      .notNull()
+      .default("succeeded"),
+    reviewPromptAttempts: integer("review_prompt_attempts")
+      .notNull()
+      .default(0),
     reviewPromptError: text("review_prompt_error"),
-    reviewPromptLockedAt: timestamp("review_prompt_locked_at", { mode: "date" }),
+    reviewPromptLockedAt: timestamp("review_prompt_locked_at", {
+      mode: "date",
+    }),
     reviewPromptLockedBy: text("review_prompt_locked_by"),
     occurrenceCount: integer("occurrence_count").notNull().default(1),
     intervalDays: integer("interval_days").notNull().default(0),
+    easeFactor: real("ease_factor").notNull().default(2.5),
+    repetitions: integer("repetitions").notNull().default(0),
     masteryState: masteryStateEnum("mastery_state").notNull().default("active"),
     dueAt: timestamp("due_at", { mode: "date" }).notNull().defaultNow(),
     lastReviewedAt: timestamp("last_reviewed_at", { mode: "date" }),
@@ -406,10 +462,14 @@ export const mistakePatterns = pgTable(
     aggregateUnique: uniqueIndex("mistake_patterns_aggregate_unique").on(
       table.userId,
       table.conceptKey,
-      table.errorType,
+      table.errorType
     ),
-    dueIdx: index("mistake_patterns_due_idx").on(table.userId, table.masteryState, table.dueAt),
-  }),
+    dueIdx: index("mistake_patterns_due_idx").on(
+      table.userId,
+      table.masteryState,
+      table.dueAt
+    ),
+  })
 );
 
 export const generationJobs = pgTable(
@@ -435,9 +495,15 @@ export const generationJobs = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    userStatusIdx: index("generation_jobs_user_status_idx").on(table.userId, table.status),
-    statusIdx: index("generation_jobs_status_idx").on(table.status, table.createdAt),
-  }),
+    userStatusIdx: index("generation_jobs_user_status_idx").on(
+      table.userId,
+      table.status
+    ),
+    statusIdx: index("generation_jobs_status_idx").on(
+      table.status,
+      table.createdAt
+    ),
+  })
 );
 
 export const generationMilestones = pgTable(
@@ -455,13 +521,15 @@ export const generationMilestones = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    lessonJobIdx: index("generation_milestones_lesson_job_idx").on(table.lessonId, table.generationJobId, table.id),
-    jobCodeStageUnique: uniqueIndex("generation_milestones_job_code_stage_unique").on(
+    lessonJobIdx: index("generation_milestones_lesson_job_idx").on(
+      table.lessonId,
       table.generationJobId,
-      table.code,
-      table.stage,
+      table.id
     ),
-  }),
+    jobCodeStageUnique: uniqueIndex(
+      "generation_milestones_job_code_stage_unique"
+    ).on(table.generationJobId, table.code, table.stage),
+  })
 );
 
 export const generationThoughts = pgTable(
@@ -479,16 +547,24 @@ export const generationThoughts = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    lessonJobIdx: index("generation_thoughts_lesson_job_idx").on(table.lessonId, table.generationJobId, table.id),
-  }),
+    lessonJobIdx: index("generation_thoughts_lesson_job_idx").on(
+      table.lessonId,
+      table.generationJobId,
+      table.id
+    ),
+  })
 );
 
 export const aiRequests = pgTable(
   "ai_requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    lessonId: uuid("lesson_id").references(() => lessons.id, {
+      onDelete: "set null",
+    }),
     purpose: aiPurposeEnum("purpose").notNull(),
     provider: text("provider").notNull(),
     model: text("model").notNull(),
@@ -506,7 +582,7 @@ export const aiRequests = pgTable(
   (table) => ({
     userIdx: index("ai_requests_user_idx").on(table.userId),
     lessonIdx: index("ai_requests_lesson_idx").on(table.lessonId),
-  }),
+  })
 );
 
 export type SourceText = typeof sourceTexts.$inferSelect;
@@ -521,7 +597,6 @@ export type UserError = typeof userErrors.$inferSelect;
 export type GenerationJob = typeof generationJobs.$inferSelect;
 export type GenerationMilestone = typeof generationMilestones.$inferSelect;
 export type GenerationThought = typeof generationThoughts.$inferSelect;
-
 
 export const reviewAttempts = pgTable(
   "review_attempts",
@@ -542,7 +617,7 @@ export const reviewAttempts = pgTable(
   (table) => ({
     userIdx: index("review_attempts_user_idx").on(table.userId),
     patternIdx: index("review_attempts_pattern_idx").on(table.mistakePatternId),
-  }),
+  })
 );
 
 export type ReviewAttempt = typeof reviewAttempts.$inferSelect;
@@ -562,7 +637,7 @@ export const aiApiKeys = pgTable(
   },
   (table) => ({
     statusIdx: index("ai_api_keys_status_idx").on(table.status),
-  }),
+  })
 );
 
 export type AiApiKey = typeof aiApiKeys.$inferSelect;

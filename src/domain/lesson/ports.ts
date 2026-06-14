@@ -56,8 +56,6 @@ export interface KeyPhrase {
   senseKey: string;
   meaningVi: string;
   meaningInContextVi: string | null;
-  exampleEn: string | null;
-  exampleVi: string | null;
   examples: { exampleEn: string; exampleVi: string }[];
   literalTranslationVi: string | null;
   naturalTranslationVi: string | null;
@@ -198,9 +196,7 @@ export interface SaveAnalysisInput {
     conceptMeaningVi: string;
     meaningVi: string;
     meaningInContextVi: string;
-    exampleEn: string;
-    exampleVi: string;
-    examples?: { exampleEn: string; exampleVi: string }[];
+    examples: { exampleEn: string; exampleVi: string }[];
     literalTranslationVi?: string;
     naturalTranslationVi?: string;
     whyConfusingVi?: string;

@@ -56,16 +56,12 @@ export const keyPhraseSchema = z.object({
   conceptMeaningVi: z.string().min(1),
   meaningVi: z.string().min(1),
   meaningInContextVi: z.string().min(1),
-  exampleEn: z.string().min(1),
-  exampleVi: z.string().min(1),
-  examples: z
-    .array(
-      z.object({
-        exampleEn: z.string().min(1),
-        exampleVi: z.string().min(1),
-      })
-    )
-    .optional(),
+  examples: z.array(
+    z.object({
+      exampleEn: z.string().min(1),
+      exampleVi: z.string().min(1),
+    })
+  ),
   literalTranslationVi: z.string().optional(),
   naturalTranslationVi: z.string().optional(),
   whyConfusingVi: z.string().optional(),

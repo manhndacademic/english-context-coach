@@ -46,12 +46,12 @@ export function GradingFeedback({
   const isReview = type === "review";
 
   const outerClassName = isReview
-    ? `grid gap-2 border-t border-border pt-4 mt-2 animate-in fade-in slide-in-from-top-3 duration-200 rounded-xl p-5 border ${
+    ? `animate-slide-in-up grid gap-2 border-t border-border pt-4 mt-2 rounded-xl p-5 border ${
         isCorrect
           ? "bg-success-light/45 border-success/20"
           : "bg-warning-light/45 border-warning/20"
       }`
-    : "grid gap-1.5 border-t border-border pt-4 mt-2";
+    : "animate-slide-in-up grid gap-1.5 border-t border-border pt-4 mt-2";
 
   return (
     <div className={outerClassName}>

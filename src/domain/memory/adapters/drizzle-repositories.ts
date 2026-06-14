@@ -153,6 +153,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         set: {
           occurrenceCount: drizzleSql`${schema.mistakePatterns.occurrenceCount} + 1`,
           intervalDays: 0,
+          repetitions: 0,
           masteryState: "active",
           dueAt: new Date(),
           updatedAt: new Date(),
@@ -182,6 +183,8 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         set: {
           occurrenceCount: row.occurrenceCount,
           intervalDays: row.intervalDays,
+          easeFactor: row.easeFactor,
+          repetitions: row.repetitions,
           masteryState: row.masteryState,
           dueAt: row.dueAt,
           lastReviewedAt: row.lastReviewedAt,

@@ -43,10 +43,6 @@ export const analysisJsonShape = {
         "generalized Vietnamese meaning of the concept (e.g. dời lại / trì hoãn)",
       meaningVi: "string",
       meaningInContextVi: "string",
-      exampleEn:
-        "related English example sentence using the phrase (corresponds to the first item in examples)",
-      exampleVi:
-        "natural Vietnamese meaning of the example (corresponds to the first item in examples)",
       examples: [
         {
           exampleEn: "related English example sentence 1 using the phrase",
@@ -99,7 +95,7 @@ export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
     "Prefer key phrases that appear directly in the source text so the UI can highlight them.",
     "Do not include duplicate or overlapping key phrases when they teach the same thing; keep the phrase that best matches the source text.",
     "Keep meaningVi as reusable general meaning and meaningInContextVi as the specific meaning in this source text.",
-    "For every key phrase, generate exactly 3 context-relevant example sentences in the `examples` array. Each example must have `exampleEn` (the English sentence using the phrase) and `exampleVi` (its natural Vietnamese translation). These examples must be related to the source context but should not expose private names, project identifiers, URLs, or sensitive snippets. For backward compatibility, also populate the root `exampleEn` and `exampleVi` fields of the key phrase using the first item in the `examples` list.",
+    "For every key phrase, generate exactly 3 context-relevant example sentences in the `examples` array. Each example must have `exampleEn` (the English sentence using the phrase) and `exampleVi` (its natural Vietnamese translation). These examples must be related to the source context but should not expose private names, project identifiers, URLs, or sensitive snippets.",
     "Do not include a full literal translation of the whole source text; only include literalTranslationVi for a key phrase when it is a real trap.",
     "Keep meaningInContextVi concise, and include whyConfusingVi only when there is a real learner trap.",
     "Use natural learner-friendly Vietnamese.",

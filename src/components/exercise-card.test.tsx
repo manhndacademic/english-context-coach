@@ -27,8 +27,12 @@ const mockKeyPhrase: KeyPhrase = {
   conceptMeaningVi: "làm tốt một cách vượt trội",
   meaningVi: "làm tốt một cách vượt trội",
   meaningInContextVi: "xuất sắc trong công việc",
-  exampleEn: "She excels at solving problems.",
-  exampleVi: "Cô ấy xuất sắc trong giải quyết vấn đề.",
+  examples: [
+    {
+      exampleEn: "She excels at solving problems.",
+      exampleVi: "Cô ấy xuất sắc trong giải quyết vấn đề.",
+    },
+  ],
   category: "general_phrase",
   difficulty: "B2",
 } as any;

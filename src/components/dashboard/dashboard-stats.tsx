@@ -20,7 +20,7 @@ export function DashboardStats({
         <Calendar size={18} className="text-muted" /> Hôm nay của bạn
       </h2>
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
           <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
             Cần ôn tập
           </span>
@@ -32,7 +32,7 @@ export function DashboardStats({
             {dueCount}
           </strong>
         </div>
-        <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
           <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
             Mẫu lỗi lưu
           </span>
@@ -40,7 +40,7 @@ export function DashboardStats({
             {patternCount}
           </strong>
         </div>
-        <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
           <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
             Đã thành thạo
           </span>
@@ -48,7 +48,7 @@ export function DashboardStats({
             {masteredCount}
           </strong>
         </div>
-        <div className="bg-surface-strong rounded-md p-3.5 grid gap-1">
+        <div className="hover-lift bg-surface-strong border border-transparent rounded-md p-3.5 grid gap-1">
           <span className="text-muted text-[11px] font-semibold uppercase tracking-wider leading-none">
             Tỷ lệ ôn đúng
           </span>

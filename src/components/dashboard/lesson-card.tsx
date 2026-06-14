@@ -78,7 +78,7 @@ export function LessonCard({ lesson }: LessonCardProps) {
 
   return (
     <Link
-      className="flex flex-col min-[600px]:flex-row items-stretch min-[600px]:items-center justify-between gap-3 min-[600px]:gap-4 p-4 border border-border rounded-md bg-surface text-text no-underline transition-all duration-150 hover:-translate-y-px hover:border-accent hover:shadow-sm"
+      className="hover-lift flex flex-col min-[600px]:flex-row items-stretch min-[600px]:items-center justify-between gap-3 min-[600px]:gap-4 p-4 border border-border rounded-md bg-surface text-text no-underline"
       href={`/lessons/${lesson.id}`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">

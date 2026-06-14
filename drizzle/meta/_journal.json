@@ -71,6 +71,27 @@
       "when": 1781356214897,
       "tag": "0009_futuristic_colleen_wing",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781444836333,
+      "tag": "0010_woozy_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781445152612,
+      "tag": "0011_known_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781446125237,
+      "tag": "0012_huge_dragon_lord",
+      "breakpoints": true
     }
   ]
 }

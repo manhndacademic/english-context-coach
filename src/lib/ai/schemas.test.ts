@@ -27,8 +27,12 @@ describe("AI schemas", () => {
           conceptMeaningVi: "ổn, được",
           meaningVi: "ổn, được",
           meaningInContextVi: "người nói chấp nhận hoặc thấy không có vấn đề",
-          exampleEn: "The updated draft looks good to me.",
-          exampleVi: "Bản nháp đã cập nhật ổn với tôi.",
+          examples: [
+            {
+              exampleEn: "The updated draft looks good to me.",
+              exampleVi: "Bản nháp đã cập nhật ổn với tôi.",
+            },
+          ],
           category: "general_phrase",
           difficulty: "A2",
         },
@@ -183,6 +187,19 @@ describe("AI schemas", () => {
         explanationVi: "Lỗi dịch nghĩa đen.",
         targetItem: "take a look",
       },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts gradingSchema with null error and null feedbackDetails when correct", () => {
+    const result = gradingSchema.safeParse({
+      score: 100,
+      isCorrect: true,
+      feedbackVi: "Chính xác!",
+      naturalAnswer: "Bạn có thể xem giúp tôi khi có cơ hội không?",
+      feedbackDetails: null,
+      error: null,
     });
 
     expect(result.success).toBe(true);

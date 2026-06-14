@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MistakePattern } from "./mistake-pattern";
 
-describe("MistakePattern Domain Aggregate", () => {
-  it("should create new mistake patterns with correct default Leitner state", () => {
+describe("MistakePattern Domain Aggregate (SM-2)", () => {
+  it("should create new mistake patterns with correct default SM-2 state", () => {
     const pattern = MistakePattern.createNew({
       id: "pattern-1",
       userId: "user-123",
@@ -18,6 +18,8 @@ describe("MistakePattern Domain Aggregate", () => {
 
     expect(pattern.occurrenceCount).toBe(1);
     expect(pattern.intervalDays).toBe(0);
+    expect(pattern.easeFactor).toBe(2.5);
+    expect(pattern.repetitions).toBe(0);
     expect(pattern.masteryState).toBe("active");
     expect(pattern.reviewPromptStatus).toBe("queued");
     expect(pattern.dueAt).toBeInstanceOf(Date);
@@ -58,7 +60,7 @@ describe("MistakePattern Domain Aggregate", () => {
     expect(pattern.isDue(past)).toBe(false);
   });
 
-  it("should increment occurrence correctly and reset review state", () => {
+  it("should increment occurrence correctly and reset repetitions and interval", () => {
     const pattern = MistakePattern.createNew({
       id: "pattern-1",
       userId: "user-123",
@@ -72,50 +74,22 @@ describe("MistakePattern Domain Aggregate", () => {
       isSensitive: false,
     });
 
-    // Make it mastered first
-    pattern.recordReviewAttempt(true, new Date()); // interval = 1
-    pattern.recordReviewAttempt(true, new Date()); // interval = 3
-    pattern.recordReviewAttempt(true, new Date()); // interval = 7
-    pattern.recordReviewAttempt(true, new Date()); // interval = 14 -> mastered
-    expect(pattern.masteryState).toBe("mastered");
+    // Make it progress (reps = 2, interval = 3)
+    pattern.recordReviewAttempt(true, undefined, new Date());
+    pattern.recordReviewAttempt(true, undefined, new Date());
+    expect(pattern.repetitions).toBe(2);
+    expect(pattern.intervalDays).toBe(3);
 
-    // Re-encountering the mistake
+    // Re-encountering the mistake in lesson resets reps and interval
     pattern.incrementOccurrence();
     expect(pattern.occurrenceCount).toBe(2);
     expect(pattern.intervalDays).toBe(0);
+    expect(pattern.repetitions).toBe(0);
     expect(pattern.masteryState).toBe("active");
   });
 
-  describe("Leitner scheduling calculations", () => {
-    it("should calculate correct next intervals upon success", () => {
-      expect(MistakePattern.nextReviewAfterSuccess(0)).toBe(1);
-      expect(MistakePattern.nextReviewAfterSuccess(1)).toBe(3);
-      expect(MistakePattern.nextReviewAfterSuccess(3)).toBe(7);
-      expect(MistakePattern.nextReviewAfterSuccess(7)).toBe(14);
-      expect(MistakePattern.nextReviewAfterSuccess(14)).toBe(14);
-    });
-
-    it("should compute correct next due date based on interval days", () => {
-      const start = new Date("2026-06-14T12:00:00Z");
-      const nextDue = MistakePattern.nextDueDate(3, start);
-      expect(nextDue.getUTCDate()).toBe(17);
-    });
-
-    it("should reset due date to 1 day after failure", () => {
-      const start = new Date("2026-06-14T12:00:00Z");
-      const failureDue = MistakePattern.resetDueAfterFailure(start);
-      expect(failureDue.getUTCDate()).toBe(15);
-    });
-
-    it("should calculate correct mastery state transition", () => {
-      expect(MistakePattern.masteryStateAfterReview(true, 7)).toBe("active");
-      expect(MistakePattern.masteryStateAfterReview(true, 14)).toBe("mastered");
-      expect(MistakePattern.masteryStateAfterReview(false, 14)).toBe("active");
-    });
-  });
-
-  describe("recordReviewAttempt transitions", () => {
-    it("should transition correctly on successful review and progress intervals", () => {
+  describe("SM-2 scheduling calculations", () => {
+    it("progresses intervals and adjusts Ease Factor correctly with perfect rating (q=5)", () => {
       const start = new Date("2026-06-14T12:00:00Z");
       const pattern = MistakePattern.createNew({
         id: "pattern-1",
@@ -130,19 +104,38 @@ describe("MistakePattern Domain Aggregate", () => {
         isSensitive: false,
       });
 
-      // 1st success -> interval = 1, due in 1 day
-      pattern.recordReviewAttempt(true, start);
+      // 1st success (score 98 -> q=5)
+      pattern.recordReviewAttempt(true, 98, start);
+      expect(pattern.repetitions).toBe(1);
       expect(pattern.intervalDays).toBe(1);
-      expect(pattern.masteryState).toBe("active");
+      // EF = 2.5 + (0.1 - (0) * ...) = 2.6
+      expect(pattern.easeFactor).toBeCloseTo(2.6, 2);
       expect(pattern.dueAt.getUTCDate()).toBe(15);
 
-      // 2nd success -> interval = 3, due in 3 days
-      pattern.recordReviewAttempt(true, start);
-      expect(pattern.intervalDays).toBe(3);
+      // 2nd success (score 100 -> q=5)
+      pattern.recordReviewAttempt(true, 100, start);
+      expect(pattern.repetitions).toBe(2);
+      expect(pattern.intervalDays).toBe(3); // custom interval for n=2
+      // EF = 2.6 + 0.1 = 2.7
+      expect(pattern.easeFactor).toBeCloseTo(2.7, 2);
       expect(pattern.dueAt.getUTCDate()).toBe(17);
+
+      // 3rd success (score 95 -> q=5)
+      pattern.recordReviewAttempt(true, 95, start);
+      expect(pattern.repetitions).toBe(3);
+      // interval = Math.round(3 * 2.7) = 8
+      expect(pattern.intervalDays).toBe(8);
+      // EF = 2.7 + 0.1 = 2.8
+      expect(pattern.easeFactor).toBeCloseTo(2.8, 2);
+      expect(pattern.dueAt.getUTCDate()).toBe(22);
+
+      // 4th success (score 96 -> q=5) -> interval = Math.round(8 * 2.9) = 23
+      pattern.recordReviewAttempt(true, 96, start);
+      expect(pattern.intervalDays).toBe(23);
+      expect(pattern.masteryState).toBe("mastered"); // interval >= 14 -> mastered
     });
 
-    it("should reset interval to 0 and set due in 1 day upon failure", () => {
+    it("lowers Ease Factor when review is recalled with difficulty (q=3)", () => {
       const start = new Date("2026-06-14T12:00:00Z");
       const pattern = MistakePattern.createNew({
         id: "pattern-1",
@@ -157,22 +150,46 @@ describe("MistakePattern Domain Aggregate", () => {
         isSensitive: false,
       });
 
-      // Advance to interval = 7
-      pattern.recordReviewAttempt(true, start);
-      pattern.recordReviewAttempt(true, start);
-      pattern.recordReviewAttempt(true, start);
-      expect(pattern.intervalDays).toBe(7);
+      // 1st success recalled with difficulty (score 75 -> q=3)
+      pattern.recordReviewAttempt(true, 75, start);
+      expect(pattern.repetitions).toBe(1);
+      expect(pattern.intervalDays).toBe(1);
+      // EF' = 2.5 + (0.1 - (2) * (0.08 + 2 * 0.02)) = 2.5 + (0.1 - 2 * 0.12) = 2.5 - 0.14 = 2.36
+      expect(pattern.easeFactor).toBeCloseTo(2.36, 2);
+    });
 
-      // Failure
-      pattern.recordReviewAttempt(false, start);
+    it("resets repetitions to 0 and interval to 0 upon failure (q < 3)", () => {
+      const start = new Date("2026-06-14T12:00:00Z");
+      const pattern = MistakePattern.createNew({
+        id: "pattern-1",
+        userId: "user-123",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-123",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "hoãn lại",
+        safeReviewPromptVi: "Dịch câu sau: ...",
+        isSensitive: false,
+      });
+
+      // Success
+      pattern.recordReviewAttempt(true, 95, start);
+      expect(pattern.repetitions).toBe(1);
+      expect(pattern.intervalDays).toBe(1);
+
+      // Failure (score 40 -> q=1)
+      pattern.recordReviewAttempt(false, 40, start);
+      expect(pattern.repetitions).toBe(0);
       expect(pattern.intervalDays).toBe(0);
-      expect(pattern.masteryState).toBe("active");
-      expect(pattern.dueAt.getUTCDate()).toBe(15);
+      expect(pattern.dueAt.getUTCDate()).toBe(15); // due tomorrow
+      // EF' = 2.6 + (0.1 - 4 * (0.08 + 4 * 0.02)) = 2.6 + (0.1 - 4 * 0.16) = 2.6 - 0.54 = 2.06
+      expect(pattern.easeFactor).toBeCloseTo(2.06, 2);
     });
   });
 
   describe("toPlainObject serialization", () => {
-    it("should return a plain object with all dates serialized as ISO strings", () => {
+    it("should return a plain object with all dates serialized as ISO strings and including SM-2 fields", () => {
       const pattern = MistakePattern.createNew({
         id: "pattern-1",
         userId: "user-123",
@@ -194,6 +211,8 @@ describe("MistakePattern Domain Aggregate", () => {
       expect(plain.lastReviewedAt).toBeNull();
       expect(plain.occurrenceCount).toBe(1);
       expect(plain.intervalDays).toBe(0);
+      expect(plain.easeFactor).toBe(2.5);
+      expect(plain.repetitions).toBe(0);
       expect(plain.masteryState).toBe("active");
       expect(plain.id).toBe("pattern-1");
       expect(plain.userId).toBe("user-123");

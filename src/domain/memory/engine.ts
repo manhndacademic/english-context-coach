@@ -182,7 +182,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         answer: input.answer,
       });
 
-      pattern.recordReviewAttempt(grade.isCorrect);
+      pattern.recordReviewAttempt(grade.isCorrect, grade.score);
 
       // 2. Perform persistence within transaction context
       await this.txCoordinator.runInTransaction(async (repos) => {

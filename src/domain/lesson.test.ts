@@ -12,8 +12,12 @@ const basePhrase: any = {
   conceptMeaningVi: "hoãn lại / trì hoãn",
   meaningVi: "hoãn lại",
   meaningInContextVi: "dời việc này sang sau",
-  exampleEn: "Can we push the review back to Friday?",
-  exampleVi: "Mình có thể dời buổi review sang thứ Sáu không?",
+  examples: [
+    {
+      exampleEn: "Can we push the review back to Friday?",
+      exampleVi: "Mình có thể dời buổi review sang thứ Sáu không?",
+    },
+  ],
   category: "phrasal_verb",
   difficulty: "B1",
 } as const;
@@ -59,10 +63,14 @@ describe("lesson product rules", () => {
           conceptMeaningVi: "thỏa thuận kỹ thuật API",
           meaningVi: "thỏa thuận kỹ thuật API",
           meaningInContextVi: "tài liệu cần chốt trước khi tiếp tục",
-          exampleEn:
-            "The API contract should be finalized before implementation.",
-          exampleVi:
-            "Tài liệu thống nhất API nên được chốt trước khi triển khai.",
+          examples: [
+            {
+              exampleEn:
+                "The API contract should be finalized before implementation.",
+              exampleVi:
+                "Tài liệu thống nhất API nên được chốt trước khi triển khai.",
+            },
+          ],
           category: "technical_term",
           difficulty: "B2",
         },
@@ -130,8 +138,12 @@ describe("lesson product rules", () => {
             conceptMeaningVi: "ổn, được",
             meaningVi: "ổn, được",
             meaningInContextVi: "người nói thấy việc này ổn",
-            exampleEn: "The schedule looks good.",
-            exampleVi: "Lịch như vậy ổn.",
+            examples: [
+              {
+                exampleEn: "The schedule looks good.",
+                exampleVi: "Lịch như vậy ổn.",
+              },
+            ],
             category: "general_phrase",
             difficulty: "A2",
           },

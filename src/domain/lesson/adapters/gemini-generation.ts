@@ -2,7 +2,11 @@ import type { LLMProvider } from "@/domain/ai";
 import { analysisPrompt, exercisesPrompt } from "@/lib/ai/prompts";
 import { analysisSchema, exercisesSchema } from "@/lib/ai/schemas";
 import { PROMPT_VERSIONS } from "@/domain/constants";
-import type { GenerationEngine, SaveAnalysisInput, SaveExercisesInput } from "../ports";
+import type {
+  GenerationEngine,
+  SaveAnalysisInput,
+  SaveExercisesInput,
+} from "../ports";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 
 export class GeminiGenerationEngine implements GenerationEngine {
@@ -56,8 +60,6 @@ export class GeminiGenerationEngine implements GenerationEngine {
         conceptMeaningVi: phrase.conceptMeaningVi,
         meaningVi: phrase.meaningVi,
         meaningInContextVi: phrase.meaningInContextVi,
-        exampleEn: phrase.exampleEn,
-        exampleVi: phrase.exampleVi,
         examples: phrase.examples ?? [],
         literalTranslationVi: phrase.literalTranslationVi ?? undefined,
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
@@ -101,8 +103,14 @@ export class GeminiGenerationEngine implements GenerationEngine {
         promptVi: exercise.promptVi,
         promptEn: "promptEn" in exercise ? exercise.promptEn : undefined,
         choices: "choices" in exercise ? exercise.choices : undefined,
-        correctAnswer: "correctAnswer" in exercise ? (exercise.correctAnswer as any) : undefined,
-        acceptableAnswers: "acceptableAnswers" in exercise ? exercise.acceptableAnswers : undefined,
+        correctAnswer:
+          "correctAnswer" in exercise
+            ? (exercise.correctAnswer as any)
+            : undefined,
+        acceptableAnswers:
+          "acceptableAnswers" in exercise
+            ? exercise.acceptableAnswers
+            : undefined,
         rubricVi: "rubricVi" in exercise ? exercise.rubricVi : undefined,
       })),
     };

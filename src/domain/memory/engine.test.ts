@@ -594,6 +594,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
         intervalDays: 1,
+        repetitions: 1,
       });
 
       grader.result = {
@@ -632,6 +633,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         safeReviewPromptVi: "Dịch",
         isSensitive: false,
         intervalDays: 7,
+        repetitions: 3,
+        easeFactor: 2.0,
       });
 
       grader.result = {
@@ -650,7 +653,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(result.masteryState).toBe("mastered");
 
       const updatedPattern = repo.mistakePatterns.get(pattern.id);
-      expect(updatedPattern.intervalDays).toBe(14);
+      expect(updatedPattern.intervalDays).toBe(15);
       expect(updatedPattern.masteryState).toBe("mastered");
     });
 
