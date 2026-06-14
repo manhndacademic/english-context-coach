@@ -54,6 +54,20 @@ async function markKeyInvalid(keyId: string, errorMsg: string) {
   }
 }
 
+export function parseApiKeys(envKeysStr: string | undefined): string[] {
+  if (!envKeysStr) return [];
+  const rawParts = envKeysStr.split(/[,\n]+/);
+  const keys: string[] = [];
+  for (let part of rawParts) {
+    let clean = part.split("#")[0].split("//")[0];
+    clean = clean.trim();
+    if (clean) {
+      keys.push(clean);
+    }
+  }
+  return keys;
+}
+
 async function resolveApiKeyWithExclusions(
   userId?: string,
   excludedKeyIds?: Set<string>
@@ -109,16 +123,23 @@ async function resolveApiKeyWithExclusions(
     }
   }
 
-  // 3. Fall back to process.env.GEMINI_API_KEYS (comma-separated list) or process.env.GEMINI_API_KEY
-  const envKeysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
-  if (envKeysStr) {
-    const envKeys = envKeysStr.split(",").map((k) => k.trim()).filter(Boolean);
+  // 3. Fall back to process.env.GEMINI_API_KEYS or process.env.GEMINI_API_KEY
+  let envKeys: string[] = [];
+  if (process.env.GEMINI_API_KEYS) {
+    envKeys = parseApiKeys(process.env.GEMINI_API_KEYS);
+  }
+  if (envKeys.length === 0 && process.env.GEMINI_API_KEY) {
+    envKeys = parseApiKeys(process.env.GEMINI_API_KEY);
+  }
+
+  if (envKeys.length > 0) {
     const activeEnvKeys = envKeys
       .map((key, index) => ({ key, id: `env-key-${index}` }))
       .filter((k) => !excludedKeyIds || !excludedKeyIds.has(k.id));
 
     if (activeEnvKeys.length > 0) {
-      const picked = activeEnvKeys[Math.floor(Math.random() * activeEnvKeys.length)];
+      const picked =
+        activeEnvKeys[Math.floor(Math.random() * activeEnvKeys.length)];
       return { key: picked.key, id: picked.id, isUserKey: false };
     }
   }
@@ -145,7 +166,10 @@ async function callGeminiWithKeyRetry(
     try {
       resolved = await resolveApiKeyWithExclusions(userId, excludedKeyIds);
     } catch (err: any) {
-      throw new AiError(`Failed to resolve API key: ${err.message}`, "missing_api_key");
+      throw new AiError(
+        `Failed to resolve API key: ${err.message}`,
+        "missing_api_key"
+      );
     }
 
     const { key, id: keyId, isUserKey } = resolved;
@@ -207,7 +231,12 @@ async function callGeminiWithKeyRetry(
       if (keyId && !isUserKey && !keyId.startsWith("env-key-")) {
         await db
           .update(schema.aiApiKeys)
-          .set({ status: "active", errorMessage: null, rateLimitedAt: null, updatedAt: new Date() })
+          .set({
+            status: "active",
+            errorMessage: null,
+            rateLimitedAt: null,
+            updatedAt: new Date(),
+          })
           .where(eq(schema.aiApiKeys.id, keyId));
         logger.info(`API key reset to active: ${keyId}`);
       }
@@ -219,14 +248,20 @@ async function callGeminiWithKeyRetry(
       );
 
       if (isUserKey) {
-        throw new AiError(`Custom User API Key failed: ${err.message || err}`, "user_key_failed");
+        throw new AiError(
+          `Custom User API Key failed: ${err.message || err}`,
+          "user_key_failed"
+        );
       }
 
       if (keyId) {
         excludedKeyIds.add(keyId);
         if (!keyId.startsWith("env-key-")) {
           if (isRateLimitError(err)) {
-            await markKeyRateLimited(keyId, err.message || "Rate limit exceeded");
+            await markKeyRateLimited(
+              keyId,
+              err.message || "Rate limit exceeded"
+            );
           } else if (isInvalidKeyError(err)) {
             await markKeyInvalid(keyId, err.message || "Invalid API key");
           }
@@ -255,28 +290,47 @@ async function callGeminiWithRetry(
   modelKind: "analysis" | "fast",
   zodSchema?: z.ZodTypeAny,
   onThought?: (text: string) => Promise<void>
-): Promise<{ text: string; inputTokens: number; outputTokens: number; model: string }> {
+): Promise<{
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+}> {
   const globalThinkingLevel = getGeminiThinkingLevel();
   const models = providerRotationPool.getModels(modelKind);
   const exhaustedModels = new Set<string>();
 
   for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
-    const model = providerRotationPool.getNextAvailable(modelKind, exhaustedModels);
+    const model = providerRotationPool.getNextAvailable(
+      modelKind,
+      exhaustedModels
+    );
     exhaustedModels.add(model);
 
     if (!providerRotationPool.isAvailable(model)) {
       logger.warn(`Model "${model}" is cooling down — trying next.`);
     }
 
-    const thinkingLevel = providerRotationPool.getThinkingLevel(model, globalThinkingLevel);
+    const thinkingLevel = providerRotationPool.getThinkingLevel(
+      model,
+      globalThinkingLevel
+    );
 
     try {
-      const result = await callGeminiWithKeyRetry(userId, prompt, model, thinkingLevel, zodSchema, onThought);
+      const result = await callGeminiWithKeyRetry(
+        userId,
+        prompt,
+        model,
+        thinkingLevel,
+        zodSchema,
+        onThought
+      );
       // Success — clear any lingering model cooldown
       providerRotationPool.clearCooldown(model);
       return { ...result, model };
     } catch (err: any) {
-      const isRateLimit = isRateLimitError(err) || err.code === "all_keys_failed";
+      const isRateLimit =
+        isRateLimitError(err) || err.code === "all_keys_failed";
 
       if (isRateLimit) {
         providerRotationPool.markRateLimited(model);
@@ -313,19 +367,27 @@ export class GeminiLLMProvider implements LLMProvider {
     const payloadHash = hashCanonicalPayload({
       prompt: options.prompt,
       promptVersion: options.promptVersion,
-      schemaVersion: SCHEMA_VERSIONS[options.schemaVersion as keyof typeof SCHEMA_VERSIONS],
+      schemaVersion:
+        SCHEMA_VERSIONS[options.schemaVersion as keyof typeof SCHEMA_VERSIONS],
     });
     const startedAt = Date.now();
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
-    let resolvedModel = providerRotationPool.getNextAvailable(options.modelKind);
+    let resolvedModel = providerRotationPool.getNextAvailable(
+      options.modelKind
+    );
     let status: "succeeded" | "failed" = "failed";
     let errorClass: string | null = null;
 
     try {
       for (let attempt = 1; attempt <= 2; attempt += 1) {
         try {
-          const { text: raw, inputTokens, outputTokens, model } = await callGeminiWithRetry(
+          const {
+            text: raw,
+            inputTokens,
+            outputTokens,
+            model,
+          } = await callGeminiWithRetry(
             options.userId,
             options.prompt,
             options.modelKind,
@@ -339,12 +401,17 @@ export class GeminiLLMProvider implements LLMProvider {
           let parsedJson: unknown;
           const extracted = extractJson(raw);
           try {
-            parsedJson = coerceJsonForSchema(JSON.parse(extracted), options.schemaVersion as keyof typeof SCHEMA_VERSIONS);
+            parsedJson = coerceJsonForSchema(
+              JSON.parse(extracted),
+              options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+            );
           } catch (parseError) {
             logger.error(`JSON parsing failed on attempt ${attempt}.`);
             logger.error(`Raw response length: ${raw.length} characters.`);
             logger.error(`Raw response:\n---START---\n${raw}\n---END---`);
-            logger.error(`Extracted string:\n---START---\n${extracted}\n---END---`);
+            logger.error(
+              `Extracted string:\n---START---\n${extracted}\n---END---`
+            );
             logger.error(`Parse error details:`, parseError);
             throw parseError;
           }
@@ -355,10 +422,17 @@ export class GeminiLLMProvider implements LLMProvider {
             return parsed.data;
           }
 
-          logger.warn(`Schema validation failed on attempt ${attempt}. Validation error: ${parsed.error.toString()}`);
+          logger.warn(
+            `Schema validation failed on attempt ${attempt}. Validation error: ${parsed.error.toString()}`
+          );
 
           logger.info(`Attempting repair...`);
-          const { text: repaired, inputTokens: repairIn, outputTokens: repairOut, model: repairModel } = await callGeminiWithRetry(
+          const {
+            text: repaired,
+            inputTokens: repairIn,
+            outputTokens: repairOut,
+            model: repairModel,
+          } = await callGeminiWithRetry(
             options.userId,
             repairPrompt(raw, options.schemaVersion),
             options.modelKind,
@@ -371,12 +445,21 @@ export class GeminiLLMProvider implements LLMProvider {
           let repairedJson: unknown;
           const extractedRepaired = extractJson(repaired);
           try {
-            repairedJson = coerceJsonForSchema(JSON.parse(extractedRepaired), options.schemaVersion as keyof typeof SCHEMA_VERSIONS);
+            repairedJson = coerceJsonForSchema(
+              JSON.parse(extractedRepaired),
+              options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+            );
           } catch (repairParseError) {
             logger.error(`Repaired JSON parsing failed.`);
-            logger.error(`Repaired response length: ${repaired.length} characters.`);
-            logger.error(`Repaired response:\n---START---\n${repaired}\n---END---`);
-            logger.error(`Extracted repaired string:\n---START---\n${extractedRepaired}\n---END---`);
+            logger.error(
+              `Repaired response length: ${repaired.length} characters.`
+            );
+            logger.error(
+              `Repaired response:\n---START---\n${repaired}\n---END---`
+            );
+            logger.error(
+              `Extracted repaired string:\n---START---\n${extractedRepaired}\n---END---`
+            );
             logger.error(`Repair parse error details:`, repairParseError);
             throw repairParseError;
           }
@@ -387,22 +470,37 @@ export class GeminiLLMProvider implements LLMProvider {
             return repairedParsed.data;
           }
 
-          logger.warn(`Repair schema validation failed on attempt ${attempt}. Validation error: ${repairedParsed.error.toString()}`);
+          logger.warn(
+            `Repair schema validation failed on attempt ${attempt}. Validation error: ${repairedParsed.error.toString()}`
+          );
 
           if (attempt === 2) {
-            throw new AiError("AI returned JSON that did not match the expected schema after repair.", "invalid_json_schema");
+            throw new AiError(
+              "AI returned JSON that did not match the expected schema after repair.",
+              "invalid_json_schema"
+            );
           }
         } catch (innerError) {
           if (attempt === 2) {
             throw innerError;
           }
-          logger.warn(`Retryable operation failed on attempt ${attempt}. Retrying...`);
+          logger.warn(
+            `Retryable operation failed on attempt ${attempt}. Retrying...`
+          );
         }
       }
 
-      throw new AiError("AI returned JSON that did not match the expected schema after retry.", "invalid_json_schema");
+      throw new AiError(
+        "AI returned JSON that did not match the expected schema after retry.",
+        "invalid_json_schema"
+      );
     } catch (error) {
-      errorClass = error instanceof AiError ? error.code : error instanceof Error ? error.name : "unknown";
+      errorClass =
+        error instanceof AiError
+          ? error.code
+          : error instanceof Error
+            ? error.name
+            : "unknown";
       throw error;
     } finally {
       // Record AI request directly to DB
@@ -414,13 +512,20 @@ export class GeminiLLMProvider implements LLMProvider {
           provider: "gemini",
           model: resolvedModel,
           promptVersion: options.promptVersion,
-          schemaVersion: SCHEMA_VERSIONS[options.schemaVersion as keyof typeof SCHEMA_VERSIONS],
+          schemaVersion:
+            SCHEMA_VERSIONS[
+              options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+            ],
           payloadHash,
           status,
           latencyMs: Date.now() - startedAt,
           inputTokens: totalInputTokens || null,
           outputTokens: totalOutputTokens || null,
-          costMicros: estimateCost(resolvedModel, totalInputTokens, totalOutputTokens),
+          costMicros: estimateCost(
+            resolvedModel,
+            totalInputTokens,
+            totalOutputTokens
+          ),
           errorClass,
         });
       } catch (dbErr) {

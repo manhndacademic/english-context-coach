@@ -2,7 +2,10 @@ import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 vi.unmock("@/db");
 import { db, schema } from "@/db";
 import { encryptApiKey } from "@/lib/crypto";
-import { GeminiLLMProvider } from "@/domain/ai/adapters/gemini-provider";
+import {
+  GeminiLLMProvider,
+  parseApiKeys,
+} from "@/domain/ai/adapters/gemini-provider";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -17,7 +20,9 @@ describe("AI Key Rotation & Error Handling", () => {
 
     // Clean up
     await db.delete(schema.aiApiKeys);
-    await db.delete(schema.users).where(eq(schema.users.email, "rotation-test@example.com"));
+    await db
+      .delete(schema.users)
+      .where(eq(schema.users.email, "rotation-test@example.com"));
 
     // Create a test user
     [testUser] = await db
@@ -56,7 +61,9 @@ describe("AI Key Rotation & Error Handling", () => {
       modelKind: "fast" as const,
     };
 
-    await expect(provider.generateJson(options)).rejects.toThrow("Custom User API Key failed");
+    await expect(provider.generateJson(options)).rejects.toThrow(
+      "Custom User API Key failed"
+    );
   });
 
   it("should rotately mark rate-limited keys and exclude them", async () => {
@@ -107,7 +114,7 @@ describe("AI Key Rotation & Error Handling", () => {
 
       // Check that both keys were marked as invalid in the database
       const dbKeys = await db.select().from(schema.aiApiKeys);
-      expect(dbKeys.map(k => k.status)).toContain("invalid");
+      expect(dbKeys.map((k) => k.status)).toContain("invalid");
     } finally {
       process.env.GEMINI_API_KEY = originalEnvKey;
     }
@@ -122,7 +129,7 @@ describe("AI Key Rotation & Error Handling", () => {
 
     const originalEnvKey = process.env.GEMINI_API_KEY;
     const originalEnvKeys = process.env.GEMINI_API_KEYS;
-    
+
     process.env.GEMINI_API_KEYS = "AIzaSyEnvKey1,AIzaSyEnvKey2";
     delete process.env.GEMINI_API_KEY;
 
@@ -142,5 +149,49 @@ describe("AI Key Rotation & Error Handling", () => {
       process.env.GEMINI_API_KEY = originalEnvKey;
       process.env.GEMINI_API_KEYS = originalEnvKeys;
     }
+  });
+
+  describe("parseApiKeys", () => {
+    it("should handle undefined and empty strings", () => {
+      expect(parseApiKeys(undefined)).toEqual([]);
+      expect(parseApiKeys("")).toEqual([]);
+      expect(parseApiKeys("   ")).toEqual([]);
+    });
+
+    it("should parse comma-separated keys", () => {
+      expect(parseApiKeys("key1,key2,key3")).toEqual(["key1", "key2", "key3"]);
+      expect(parseApiKeys("  key1 , key2,key3  ")).toEqual([
+        "key1",
+        "key2",
+        "key3",
+      ]);
+    });
+
+    it("should parse newline-separated keys", () => {
+      expect(parseApiKeys("key1\nkey2\nkey3")).toEqual([
+        "key1",
+        "key2",
+        "key3",
+      ]);
+      expect(parseApiKeys("\nkey1\n\nkey2\n")).toEqual(["key1", "key2"]);
+    });
+
+    it("should parse mixed comma and newline-separated keys", () => {
+      expect(parseApiKeys("key1,key2\nkey3, key4")).toEqual([
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+      ]);
+    });
+
+    it("should strip inline comments starting with # or //", () => {
+      const input = `
+        key1 # first account key
+        key2 // second account key
+        key3,key4 # multiple on same line
+      `;
+      expect(parseApiKeys(input)).toEqual(["key1", "key2", "key3", "key4"]);
+    });
   });
 });

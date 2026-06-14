@@ -23,23 +23,23 @@ cp .env.example .env
 
 Open the `.env` file and configure the values:
 
-| Environment Variable     | Description                                           | Production Configuration Guide                                                                                                       |
-| :----------------------- | :---------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`           | PostgreSQL connection string.                         | `postgres://postgres:<SECURE_PASSWORD>@postgres:5432/english_context_coach`                                                          |
-| `REDIS_URL`              | Redis connection URL for background jobs.             | `redis://redis:6379`                                                                                                                 |
-| `AUTH_SECRET`            | Secret key used to encrypt Auth.js sessions.          | Generate using: `openssl rand -hex 32`                                                                                               |
-| `AUTH_URL`               | The public URL of the application.                    | `https://english.domain.com` (Must use HTTPS)                                                                                        |
-| `AUTH_TRUST_HOST`        | Trusts forwarded headers from reverse proxies.        | Set to `true` (Mandatory behind a proxy)                                                                                             |
-| `GOOGLE_CLIENT_ID`       | Client ID from Google Cloud Console.                  | See instructions in Section 3                                                                                                        |
-| `GOOGLE_CLIENT_SECRET`   | Client Secret from Google Cloud Console.              | See instructions in Section 3                                                                                                        |
-| `GEMINI_API_KEYS`        | Google Gemini API Keys.                               | A comma-separated list of keys used in rotation (takes precedence over `GEMINI_API_KEY`).                                            |
-| `GEMINI_API_KEY`         | Google Gemini API Key.                                | Single fallback key if no keys are in the database and `GEMINI_API_KEYS` is not set.                                                 |
-| `GEMINI_ANALYSIS_MODELS` | Fallback models for analysis and grading.             | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
-| `GEMINI_FAST_MODELS`     | Fallback models for exercise generation.              | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash` |
-| `GEMINI_THINKING_LEVEL`  | Thinking budget level for the model.                  | `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH`                                                                                                |
-| `WORKER_CONCURRENCY`     | Number of background tasks processed concurrently.    | Defaults to `1` (Recommended for small RAM servers)                                                                                  |
-| `ENCRYPTION_SECRET`      | Secret key for encrypting API keys in database.       | Generate using: `openssl rand -hex 16` (Must be at least 32 characters)                                                              |
-| `ADMIN_EMAIL`            | Email of the admin user to be automatically promoted. | e.g. `your.email@gmail.com`                                                                                                          |
+| Environment Variable     | Description                                           | Production Configuration Guide                                                                                                                         |
+| :----------------------- | :---------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | PostgreSQL connection string.                         | `postgres://postgres:<SECURE_PASSWORD>@postgres:5432/english_context_coach`                                                                            |
+| `REDIS_URL`              | Redis connection URL for background jobs.             | `redis://redis:6379`                                                                                                                                   |
+| `AUTH_SECRET`            | Secret key used to encrypt Auth.js sessions.          | Generate using: `openssl rand -hex 32`                                                                                                                 |
+| `AUTH_URL`               | The public URL of the application.                    | `https://english.domain.com` (Must use HTTPS)                                                                                                          |
+| `AUTH_TRUST_HOST`        | Trusts forwarded headers from reverse proxies.        | Set to `true` (Mandatory behind a proxy)                                                                                                               |
+| `GOOGLE_CLIENT_ID`       | Client ID from Google Cloud Console.                  | See instructions in Section 3                                                                                                                          |
+| `GOOGLE_CLIENT_SECRET`   | Client Secret from Google Cloud Console.              | See instructions in Section 3                                                                                                                          |
+| `GEMINI_API_KEYS`        | Google Gemini API Keys.                               | A comma-separated or newline-separated list of keys used in rotation (takes precedence over `GEMINI_API_KEY`). Supports inline comments (`#` or `//`). |
+| `GEMINI_API_KEY`         | Google Gemini API Key.                                | Fallback key (supports single or multiple keys, newline-separated, and comments) if no keys are in the database and `GEMINI_API_KEYS` is not set.      |
+| `GEMINI_ANALYSIS_MODELS` | Fallback models for analysis and grading.             | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash`                   |
+| `GEMINI_FAST_MODELS`     | Fallback models for exercise generation.              | Comma-separated list. Recommended: `gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it,gemini-3-flash-preview,gemini-3.5-flash`                   |
+| `GEMINI_THINKING_LEVEL`  | Thinking budget level for the model.                  | `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH`                                                                                                                  |
+| `WORKER_CONCURRENCY`     | Number of background tasks processed concurrently.    | Defaults to `1` (Recommended for small RAM servers)                                                                                                    |
+| `ENCRYPTION_SECRET`      | Secret key for encrypting API keys in database.       | Generate using: `openssl rand -hex 16` (Must be at least 32 characters)                                                                                |
+| `ADMIN_EMAIL`            | Email of the admin user to be automatically promoted. | e.g. `your.email@gmail.com`                                                                                                                            |
 
 ---
 
