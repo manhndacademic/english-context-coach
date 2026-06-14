@@ -11,13 +11,14 @@ interface DeleteKeyButtonProps {
 export function DeleteKeyButton({ keyId, keyName }: DeleteKeyButtonProps) {
   return (
     <form
-      action={deleteSystemApiKeyAction.bind(null, keyId)}
+      action={deleteSystemApiKeyAction}
       onSubmit={(e) => {
         if (!confirm(`Bạn có chắc chắn muốn xóa key "${keyName}" không?`)) {
           e.preventDefault();
         }
       }}
     >
+      <input type="hidden" name="keyId" value={keyId} />
       <button
         type="submit"
         title="Xóa key"

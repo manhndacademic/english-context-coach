@@ -1,17 +1,17 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { db, schema } from "@/db";
 import { desc } from "drizzle-orm";
-import { 
-  addSystemApiKeyAction, 
-  reverifySystemApiKeyAction 
+import {
+  addSystemApiKeyAction,
+  reverifySystemApiKeyAction,
 } from "@/app/actions/admin-keys";
-import { 
-  KeyRound, 
-  Plus, 
-  RefreshCw, 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle 
+import {
+  KeyRound,
+  Plus,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import { DeleteKeyButton } from "@/components/admin/delete-key-button";
 
@@ -53,20 +53,33 @@ export default async function AdminKeysPage() {
     <>
       <div className="flex justify-between items-center border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-text m-0">Quản lý vòng xoay API Keys</h1>
-          <p className="text-muted text-sm m-0">Thêm, xóa và kiểm tra sức khỏe của các API Key trong pool xoay vòng.</p>
+          <h1 className="text-2xl font-bold text-text m-0">
+            Quản lý vòng xoay API Keys
+          </h1>
+          <p className="text-muted text-sm m-0">
+            Thêm, xóa và kiểm tra sức khỏe của các API Key trong pool xoay vòng.
+          </p>
         </div>
       </div>
 
       {/* Add New Key Form */}
       <section className="bg-surface border border-border rounded-lg p-5 sm:p-6 shadow-sm grid gap-4">
         <h2 className="text-lg font-bold text-text flex items-center gap-2 m-0">
-          <Plus size={18} className="text-accent" /> Thêm API Key mới vào hệ thống
+          <Plus size={18} className="text-accent" /> Thêm API Key mới vào hệ
+          thống
         </h2>
-        
-        <form action={addSystemApiKeyAction} className="grid grid-cols-1 sm:grid-cols-[1.5fr_2fr_1fr_auto] gap-3 items-end">
+
+        <form
+          action={addSystemApiKeyAction}
+          className="grid grid-cols-1 sm:grid-cols-[1.5fr_2fr_1fr_auto] gap-3 items-end"
+        >
           <div className="grid gap-1">
-            <label htmlFor="name" className="text-xs font-bold text-muted uppercase">Tên gợi nhớ</label>
+            <label
+              htmlFor="name"
+              className="text-xs font-bold text-muted uppercase"
+            >
+              Tên gợi nhớ
+            </label>
             <input
               type="text"
               id="name"
@@ -78,7 +91,12 @@ export default async function AdminKeysPage() {
           </div>
 
           <div className="grid gap-1">
-            <label htmlFor="apiKey" className="text-xs font-bold text-muted uppercase">Google AI Studio API Key</label>
+            <label
+              htmlFor="apiKey"
+              className="text-xs font-bold text-muted uppercase"
+            >
+              Google AI Studio API Key
+            </label>
             <input
               type="password"
               id="apiKey"
@@ -90,7 +108,12 @@ export default async function AdminKeysPage() {
           </div>
 
           <div className="grid gap-1">
-            <label htmlFor="provider" className="text-xs font-bold text-muted uppercase">Nhà cung cấp</label>
+            <label
+              htmlFor="provider"
+              className="text-xs font-bold text-muted uppercase"
+            >
+              Nhà cung cấp
+            </label>
             <select
               id="provider"
               name="provider"
@@ -112,7 +135,8 @@ export default async function AdminKeysPage() {
       {/* Keys List Table */}
       <section className="bg-surface border border-border rounded-lg p-5 sm:p-6 shadow-sm">
         <h2 className="text-lg font-bold text-text flex items-center gap-2 mb-4 mt-0">
-          <KeyRound size={18} className="text-muted" /> Danh sách API Keys hiện tại
+          <KeyRound size={18} className="text-muted" /> Danh sách API Keys hiện
+          tại
         </h2>
 
         <div className="overflow-x-auto">
@@ -130,9 +154,14 @@ export default async function AdminKeysPage() {
               {keys.length ? (
                 keys.map((key) => (
                   <tr key={key.id} className="hover:bg-background/40">
-                    <td className="py-3 pr-4 font-semibold text-text">{key.name}</td>
+                    <td className="py-3 pr-4 font-semibold text-text">
+                      {key.name}
+                    </td>
                     <td className="py-3 px-4">{getStatusBadge(key.status)}</td>
-                    <td className="py-3 px-4 text-xs text-danger max-w-[240px] truncate" title={key.errorMessage ?? ""}>
+                    <td
+                      className="py-3 px-4 text-xs text-danger max-w-[240px] truncate"
+                      title={key.errorMessage ?? ""}
+                    >
                       {key.errorMessage || "—"}
                     </td>
                     <td className="py-3 px-4 text-muted text-xs">
@@ -146,7 +175,8 @@ export default async function AdminKeysPage() {
                     <td className="py-3 pl-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         {key.status !== "active" && (
-                          <form action={reverifySystemApiKeyAction.bind(null, key.id)}>
+                          <form action={reverifySystemApiKeyAction}>
+                            <input type="hidden" name="keyId" value={key.id} />
                             <button
                               type="submit"
                               title="Kích hoạt lại key"

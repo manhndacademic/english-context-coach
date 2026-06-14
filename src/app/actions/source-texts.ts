@@ -6,87 +6,136 @@ import {
   getLessonGenerationEngine,
   getLessonRepository,
 } from "@/domain/lesson";
-import { getLearnerMemoryEngine } from "@/domain/memory";
-import { requireUser } from "@/lib/auth/guards";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
+import { validatedAction } from "@/lib/action-builder";
+import { z } from "zod";
 
 export type SourceTextActionState = {
   error?: string;
 };
 
-export async function createSourceTextAction(
-  _state: SourceTextActionState,
-  formData: FormData
-): Promise<SourceTextActionState> {
-  const user = await requireUser();
-  const content = String(formData.get("content") ?? "");
-  const inputMode = String(formData.get("inputMode") ?? "auto");
-  const result = await getLessonGenerationEngine().queue(
-    user.id,
-    content,
-    inputMode
-  );
-  if (!result.ok) return { error: result.message };
-  await notifyJobQueued();
-  revalidatePath("/dashboard");
-  redirect(`/lessons/${result.lessonId}`);
-}
+const createSourceTextSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(
+      1,
+      "Nội dung bài học không được để trống (Source text content is required)"
+    ),
+  inputMode: z.enum(["auto", "grammar", "dev_trace"]),
+});
 
-export async function regenerateLessonAction(formData: FormData) {
-  const user = await requireUser();
-  const sourceTextId = String(formData.get("sourceTextId") ?? "");
-  const repo = getLessonRepository();
-  const latestLesson = await repo.findLatestLesson(sourceTextId);
-  if (!latestLesson) {
-    throw new Error("No lesson found for this source text.");
-  }
-  const result = await getLessonGenerationEngine().retry(
-    user.id,
-    latestLesson.id
-  );
-  if (result.ok) {
+export const createSourceTextAction = validatedAction(
+  createSourceTextSchema,
+  async (data, user): Promise<SourceTextActionState> => {
+    const result = await getLessonGenerationEngine().queue(
+      user.id,
+      data.content,
+      data.inputMode
+    );
+    if (!result.ok) return { error: result.message };
     await notifyJobQueued();
+    revalidatePath("/dashboard");
     redirect(`/lessons/${result.lessonId}`);
   }
-  revalidatePath("/dashboard");
-}
+);
 
-export async function retryExercisesAction(formData: FormData) {
-  const user = await requireUser();
-  const lessonId = String(formData.get("lessonId") ?? "");
-  const result = await getLessonGenerationEngine().retry(user.id, lessonId);
-  if (result.ok) {
-    await notifyJobQueued();
-    revalidatePath(`/lessons/${lessonId}`);
+const regenerateLessonSchema = z.object({
+  sourceTextId: z
+    .string()
+    .uuid("ID văn bản gốc không hợp lệ (Source Text ID must be a UUID)"),
+});
+
+export const regenerateLessonAction = validatedAction(
+  regenerateLessonSchema,
+  async (data, user) => {
+    const repo = getLessonRepository();
+    const latestLesson = await repo.findLatestLesson(data.sourceTextId);
+    if (!latestLesson) {
+      throw new Error(
+        "Không tìm thấy bài học cho văn bản gốc này (No lesson found for this source text)."
+      );
+    }
+    const result = await getLessonGenerationEngine().retry(
+      user.id,
+      latestLesson.id
+    );
+    if (result.ok) {
+      await notifyJobQueued();
+      redirect(`/lessons/${result.lessonId}`);
+    }
+    revalidatePath("/dashboard");
   }
-}
+);
 
-export async function retryLessonGenerationAction(formData: FormData) {
-  const user = await requireUser();
-  const lessonId = String(formData.get("lessonId") ?? "");
-  const result = await getLessonGenerationEngine().retry(user.id, lessonId);
-  if (result.ok) {
-    await notifyJobQueued();
-    revalidatePath(`/lessons/${lessonId}`);
+const retryExercisesSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+});
+
+export const retryExercisesAction = validatedAction(
+  retryExercisesSchema,
+  async (data, user) => {
+    const result = await getLessonGenerationEngine().retry(
+      user.id,
+      data.lessonId
+    );
+    if (result.ok) {
+      await notifyJobQueued();
+      revalidatePath(`/lessons/${data.lessonId}`);
+    }
   }
-}
+);
 
-export async function forceRetryLessonAction(formData: FormData) {
-  const user = await requireUser();
-  const lessonId = String(formData.get("lessonId") ?? "");
-  const repo = getLessonRepository();
+const retryLessonGenerationSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+});
 
-  await repo.resetStuckJob(user.id, lessonId);
-  await notifyJobQueued();
+export const retryLessonGenerationAction = validatedAction(
+  retryLessonGenerationSchema,
+  async (data, user) => {
+    const result = await getLessonGenerationEngine().retry(
+      user.id,
+      data.lessonId
+    );
+    if (result.ok) {
+      await notifyJobQueued();
+      revalidatePath(`/lessons/${data.lessonId}`);
+    }
+  }
+);
 
-  revalidatePath(`/lessons/${lessonId}`);
-}
+const forceRetryLessonSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+});
 
-export async function deleteSourceTextAction(formData: FormData) {
-  const user = await requireUser();
-  const sourceTextId = String(formData.get("sourceTextId") ?? "");
-  const repo = getLessonRepository();
-  await repo.deleteSourceText(user.id, sourceTextId);
-  revalidatePath("/dashboard");
-  redirect("/dashboard");
-}
+export const forceRetryLessonAction = validatedAction(
+  forceRetryLessonSchema,
+  async (data, user) => {
+    const repo = getLessonRepository();
+    await repo.resetStuckJob(user.id, data.lessonId);
+    await notifyJobQueued();
+    revalidatePath(`/lessons/${data.lessonId}`);
+  }
+);
+
+const deleteSourceTextSchema = z.object({
+  sourceTextId: z
+    .string()
+    .uuid("ID văn bản gốc không hợp lệ (Source Text ID must be a UUID)"),
+});
+
+export const deleteSourceTextAction = validatedAction(
+  deleteSourceTextSchema,
+  async (data, user) => {
+    const repo = getLessonRepository();
+    await repo.deleteSourceText(user.id, data.sourceTextId);
+    revalidatePath("/dashboard");
+    redirect("/dashboard");
+  }
+);

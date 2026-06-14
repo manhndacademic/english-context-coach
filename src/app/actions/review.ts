@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/guards";
 import {
   getLearnerMemoryEngine,
   getMistakePatternRepository,
 } from "@/domain/memory";
+import { validatedAction } from "@/lib/action-builder";
+import { z } from "zod";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -26,21 +27,24 @@ export type ReviewResultState = {
   error?: string;
 };
 
-export async function submitReviewAttemptAction(
-  _prevState: ReviewResultState,
-  formData: FormData
-): Promise<ReviewResultState> {
-  try {
-    const user = await requireUser();
-    const patternId = String(formData.get("patternId") ?? "");
-    const answer = String(formData.get("answer") ?? "").trim();
-    if (!answer) return { error: "Vui lòng nhập câu trả lời." };
+const submitReviewAttemptSchema = z.object({
+  patternId: z
+    .string()
+    .uuid("ID mẫu lỗi không hợp lệ (Pattern ID must be a UUID)"),
+  answer: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập câu trả lời (Answer is required)"),
+});
 
+export const submitReviewAttemptAction = validatedAction(
+  submitReviewAttemptSchema,
+  async (data, user): Promise<ReviewResultState> => {
     const engine = getLearnerMemoryEngine();
     const result = await engine.submitReviewAttempt({
       userId: user.id,
-      patternId,
-      answer,
+      patternId: data.patternId,
+      answer: data.answer,
     });
 
     if (!result.success) {
@@ -60,28 +64,23 @@ export async function submitReviewAttemptAction(
       naturalAnswer: result.naturalAnswer,
       feedbackDetails: result.feedbackDetails,
     };
-  } catch (error) {
-    console.error(error);
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Đã xảy ra lỗi hệ thống khi chấm điểm ôn tập.",
-    };
   }
-}
+);
 
-export async function retryReviewPromptGenerationAction(
-  formData: FormData
-): Promise<void> {
-  try {
-    const user = await requireUser();
-    const patternId = String(formData.get("patternId") ?? "");
-    if (!patternId) return;
+const retryReviewPromptGenerationSchema = z.object({
+  patternId: z
+    .string()
+    .uuid("ID mẫu lỗi không hợp lệ (Pattern ID must be a UUID)"),
+});
 
+export const retryReviewPromptGenerationAction = validatedAction(
+  retryReviewPromptGenerationSchema,
+  async (data, user): Promise<void> => {
     const repo = getMistakePatternRepository();
-    const pattern = await repo.findMistakePatternById(patternId);
-    if (!pattern || pattern.userId !== user.id) return;
+    const pattern = await repo.findMistakePatternById(data.patternId);
+    if (!pattern || pattern.userId !== user.id) {
+      throw new Error("Không tìm thấy mẫu lỗi hoặc bạn không có quyền.");
+    }
 
     pattern.setJobStatus("queued", {
       reviewPromptAttempts: 0,
@@ -90,7 +89,5 @@ export async function retryReviewPromptGenerationAction(
     await repo.saveMistakePattern(pattern);
 
     revalidatePath("/dashboard");
-  } catch (error) {
-    console.error("Failed to retry review prompt generation:", error);
   }
-}
+);
