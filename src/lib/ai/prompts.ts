@@ -1,10 +1,16 @@
-import { MAX_LESSON_ITEMS, MIN_LESSON_ITEMS, PROMPT_VERSIONS } from "@/domain/constants";
+import {
+  MAX_LESSON_ITEMS,
+  MIN_LESSON_ITEMS,
+  PROMPT_VERSIONS,
+} from "@/domain/constants";
 import type { AnalysisResult } from "./schemas";
 
 const analysisJsonShape = {
   title: "short neutral Vietnamese/English title",
-  textType: "work_message | technical_doc | email | article | academic | general | unknown",
-  inputMode: "understand_and_practice | fix_and_understand | naturalize_english | mixed_language_support | not_english | developer_error_explanation | unsupported",
+  textType:
+    "work_message | technical_doc | email | article | academic | general | unknown",
+  inputMode:
+    "understand_and_practice | fix_and_understand | naturalize_english | mixed_language_support | not_english | developer_error_explanation | unsupported",
   detectedLevel: "A2 | B1 | B2 | C1",
   summaryVi: "string",
   naturalTranslationVi: "string",
@@ -16,16 +22,19 @@ const analysisJsonShape = {
       conceptPhrase: "generalized canonical title/phrase of the concept",
       conceptMeaningVi: "generalized Vietnamese explanation of the concept",
       category: "tone | structure | purpose | context",
-      explanationVi: "Vietnamese explanation of what to notice in the whole source text",
+      explanationVi:
+        "Vietnamese explanation of what to notice in the whole source text",
       difficulty: "A2 | B1 | B2 | C1",
     },
   ],
   sentenceBreakdowns: [
     {
       sentence: "source sentence or coherent sentence fragment",
-      correctedSentenceEn: "optional string: corrected English version of this sentence (only for fix_and_understand or naturalize_english modes)",
+      correctedSentenceEn:
+        "optional string: corrected English version of this sentence (only for fix_and_understand or naturalize_english modes)",
       naturalMeaningVi: "natural Vietnamese meaning of this sentence",
-      structureNotesVi: "Vietnamese explanation of grammar, reference, or structure that affects understanding",
+      structureNotesVi:
+        "Vietnamese explanation of grammar, reference, or structure that affects understanding",
       toneOrContextVi: "optional Vietnamese note about tone or context",
     },
   ],
@@ -33,25 +42,29 @@ const analysisJsonShape = {
     {
       phrase: "string",
       conceptKey: "snake_case identifier for the concept (e.g. push_back)",
-      conceptPhrase: "generalized canonical English phrase of the concept (e.g. push back)",
-      conceptMeaningVi: "generalized Vietnamese meaning of the concept (e.g. dời lại / trì hoãn)",
+      conceptPhrase:
+        "generalized canonical English phrase of the concept (e.g. push back)",
+      conceptMeaningVi:
+        "generalized Vietnamese meaning of the concept (e.g. dời lại / trì hoãn)",
       meaningVi: "string",
       meaningInContextVi: "string",
-      exampleEn: "related English example sentence using the phrase (corresponds to the first item in examples)",
-      exampleVi: "natural Vietnamese meaning of the example (corresponds to the first item in examples)",
+      exampleEn:
+        "related English example sentence using the phrase (corresponds to the first item in examples)",
+      exampleVi:
+        "natural Vietnamese meaning of the example (corresponds to the first item in examples)",
       examples: [
         {
           exampleEn: "related English example sentence 1 using the phrase",
-          exampleVi: "natural Vietnamese translation of example 1"
+          exampleVi: "natural Vietnamese translation of example 1",
         },
         {
           exampleEn: "related English example sentence 2 using the phrase",
-          exampleVi: "natural Vietnamese translation of example 2"
+          exampleVi: "natural Vietnamese translation of example 2",
         },
         {
           exampleEn: "related English example sentence 3 using the phrase",
-          exampleVi: "natural Vietnamese translation of example 3"
-        }
+          exampleVi: "natural Vietnamese translation of example 3",
+        },
       ],
       literalTranslationVi: "optional string",
       naturalTranslationVi: "optional string",
@@ -83,59 +96,85 @@ const exercisesJsonShape = {
     {
       type: "natural_translation",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt asking the learner to translate English into natural Vietnamese",
+      promptVi:
+        "Vietnamese prompt asking the learner to translate English into natural Vietnamese",
       promptEn: "English sentence to translate into Vietnamese",
       rubricVi: "Vietnamese grading rubric",
     },
     {
       type: "focus_question",
       focus: "lesson focus title",
-      promptVi: "Vietnamese open-ended prompt about whole-text meaning, tone, structure, or purpose",
+      promptVi:
+        "Vietnamese open-ended prompt about whole-text meaning, tone, structure, or purpose",
       promptEn: "optional English source sentence or excerpt",
       rubricVi: "Vietnamese grading rubric",
     },
     {
       type: "trap_choice",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt asking the learner to choose the natural Vietnamese translation, avoiding literal traps",
+      promptVi:
+        "Vietnamese prompt asking the learner to choose the natural Vietnamese translation, avoiding literal traps",
       promptEn: "English sentence containing the key phrase",
-      choices: ["natural translation (correct)", "literal trap 1 (wrong)", "literal trap 2 (wrong)"],
+      choices: [
+        "natural translation (correct)",
+        "literal trap 1 (wrong)",
+        "literal trap 2 (wrong)",
+      ],
       correctAnswer: "natural translation (correct)",
       acceptableAnswers: ["natural translation (correct)"],
     },
     {
       type: "phrase_production",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt asking the learner to write/dịch an English sentence containing the key phrase to express a specific Vietnamese concept",
+      promptVi:
+        "Vietnamese prompt asking the learner to write/dịch an English sentence containing the key phrase to express a specific Vietnamese concept",
       promptEn: "optional English hint or reference structure",
       correctAnswer: "expected English sentence",
-      acceptableAnswers: ["alternative correct English sentence 1", "alternative correct English sentence 2"],
-      rubricVi: "Vietnamese grading rubric detailing correct phrase use and grammar",
+      acceptableAnswers: [
+        "alternative correct English sentence 1",
+        "alternative correct English sentence 2",
+      ],
+      rubricVi:
+        "Vietnamese grading rubric detailing correct phrase use and grammar",
     },
     {
       type: "dialogue_completion",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt asking the learner to write B's response in a mock dialogue using the key phrase",
-      promptEn: "Dialogue text, e.g. 'A: Hey, can we move the meeting to Friday?\nB: [Write your reply using 'push back']'",
+      promptVi:
+        "Vietnamese prompt asking the learner to write B's response in a mock dialogue using the key phrase",
+      promptEn:
+        "Dialogue text, e.g. 'A: Hey, can we move the meeting to Friday?\nB: [Write your reply using 'push back']'",
       correctAnswer: "expected B's reply sentence",
-      acceptableAnswers: ["alternative correct reply 1", "alternative correct reply 2"],
-      rubricVi: "Vietnamese grading rubric checking dialogue appropriateness and key phrase usage",
+      acceptableAnswers: [
+        "alternative correct reply 1",
+        "alternative correct reply 2",
+      ],
+      rubricVi:
+        "Vietnamese grading rubric checking dialogue appropriateness and key phrase usage",
     },
     {
       type: "register_shift",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt asking the learner to rewrite a dry or awkward English sentence to use the key phrase naturally",
+      promptVi:
+        "Vietnamese prompt asking the learner to rewrite a dry or awkward English sentence to use the key phrase naturally",
       promptEn: "awkward or dry English sentence to rewrite",
-      correctAnswer: "expected natural/idiomatic English sentence using the phrase",
+      correctAnswer:
+        "expected natural/idiomatic English sentence using the phrase",
       acceptableAnswers: ["alternative natural English sentence 1"],
       rubricVi: "Vietnamese grading rubric checking register and phrase usage",
     },
     {
       type: "trap_detect",
       phrase: "key phrase",
-      promptVi: "Vietnamese prompt presenting a bad word-by-word literal translation trap, asking to choose why it is wrong",
-      promptEn: "English sentence containing the phrase, followed by its bad literal translation",
-      choices: ["correct explanation of the translation trap", "incorrect explanation 1", "incorrect explanation 2"],
+      promptVi:
+        "Vietnamese prompt presenting a bad word-by-word literal translation trap, asking to choose why it is wrong",
+      promptEn:
+        "English sentence containing the phrase, followed by its bad literal translation",
+      choices: [
+        "correct explanation of the translation trap",
+        "incorrect explanation 1",
+        "incorrect explanation 2",
+      ],
       correctAnswer: "correct explanation of the translation trap",
     },
   ],
@@ -145,23 +184,34 @@ const gradingJsonShape = {
   score: "integer 0-100",
   isCorrect: "boolean",
   feedbackVi: "concise, actionable Vietnamese learner-friendly feedback",
-  naturalAnswer: "optional natural translation/answer in Vietnamese, showing the correct/natural way to translate/understand in context",
-  literalTranslationTrap: "optional literal/word-by-word Vietnamese translation trap if the user fell into it (e.g. 'lấy một cái nhìn' for 'take a look')",
+  naturalAnswer:
+    "optional natural translation/answer in Vietnamese, showing the correct/natural way to translate/understand in context",
+  literalTranslationTrap:
+    "optional literal/word-by-word Vietnamese translation trap if the user fell into it (e.g. 'lấy một cái nhìn' for 'take a look')",
   error: {
-    shouldSave: "boolean: true if this is a high-value structured error that should be saved to the learner's error memory for later review (e.g., a real misunderstanding of a phrasal verb, collocation, literal trap, context or tone, etc. - false if it is just a minor typo, layout/formatting issue, or random noise)",
-    confidence: "integer 0-100: AI confidence score that this structured error is correct and worth saving",
-    errorType: "literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
+    shouldSave:
+      "boolean: true if this is a high-value structured error that should be saved to the learner's error memory for later review (e.g., a real misunderstanding of a phrasal verb, collocation, literal trap, context or tone, etc. - false if it is just a minor typo, layout/formatting issue, or random noise)",
+    confidence:
+      "integer 0-100: AI confidence score that this structured error is correct and worth saving",
+    errorType:
+      "literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
     explanationVi: "concise Vietnamese explanation of the error",
-    targetItem: "the specific English key phrase or structure that was misunderstood/translated incorrectly (e.g., 'take a look')"
-  }
+    targetItem:
+      "the specific English key phrase or structure that was misunderstood/translated incorrectly (e.g., 'take a look')",
+  },
 };
 
 const reviewPromptJsonShape = {
   reviewPromptEn: "new English practice sentence containing the concept",
-  reviewPromptVi: "Vietnamese prompt asking the learner to translate, e.g. 'Dịch câu sau sang tiếng Việt tự nhiên...'",
-  reviewRubricVi: "Vietnamese grading rubric containing key context details and translation traps to check",
+  reviewPromptVi:
+    "Vietnamese prompt asking the learner to translate, e.g. 'Dịch câu sau sang tiếng Việt tự nhiên...'",
+  reviewRubricVi:
+    "Vietnamese grading rubric containing key context details and translation traps to check",
   reviewCorrectAnswer: "canonical correct natural Vietnamese translation",
-  reviewAcceptableAnswers: ["alternative correct Vietnamese translation 1", "alternative correct Vietnamese translation 2"],
+  reviewAcceptableAnswers: [
+    "alternative correct Vietnamese translation 1",
+    "alternative correct Vietnamese translation 2",
+  ],
 };
 
 export const repairJsonShapes = {
@@ -213,7 +263,8 @@ export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
   if (userHighlights && userHighlights.length > 0) {
     list.push(
       `CRITICAL REQUIREMENT: The user has explicitly highlighted the following phrases from the text that they want to learn. You MUST include each of these highlighted phrases in the 'keyPhrases' array of the output, explaining their category, difficulty, contextual meaning, and literal/natural translations: ${JSON.stringify(userHighlights)}.\n` +
-      `You MUST include them even if they are single, common, or simple words. This overrides any rules about ignoring simple or single words.`
+        `You MUST include them even if they are single, common, or simple words. This overrides any rules about ignoring simple or single words.\n` +
+        `IMPORTANT: In addition to these user-highlighted phrases, you should still identify and generate other key phrases from the remaining text as normal, up to the maximum limit of ${MAX_LESSON_ITEMS} total key phrases. Do not restrict your analysis to only the user-highlighted phrases.`
     );
   }
 
@@ -265,11 +316,14 @@ export function gradingPrompt(input: {
 }
 
 export function repairPrompt(rawJson: string, schemaName: string) {
-  const expectedShape = repairJsonShapes[schemaName as keyof typeof repairJsonShapes];
+  const expectedShape =
+    repairJsonShapes[schemaName as keyof typeof repairJsonShapes];
   return [
     `Repair this ${schemaName} response into valid strict JSON only.`,
     "The top-level JSON value must be an object, not an array.",
-    expectedShape ? `Expected JSON shape:\n${JSON.stringify(expectedShape)}` : undefined,
+    expectedShape
+      ? `Expected JSON shape:\n${JSON.stringify(expectedShape)}`
+      : undefined,
     "Keep the same meaning. Do not add markdown.",
     rawJson,
   ]
