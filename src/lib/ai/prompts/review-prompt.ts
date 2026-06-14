@@ -1,13 +1,22 @@
 export const reviewPromptJsonShape = {
-  reviewPromptEn: "new English practice sentence containing the concept",
+  reviewType:
+    "natural_translation | cloze_phrase | dialogue_completion | trap_choice | trap_detect",
+  reviewPromptEn:
+    "new English practice sentence or challenge containing the concept (with a blank '____' for cloze/dialogue formats)",
   reviewPromptVi:
-    "Vietnamese prompt asking the learner to translate, e.g. 'Dịch câu sau sang tiếng Việt tự nhiên...'",
+    "Vietnamese prompt instructions suitable for the selected reviewType",
   reviewRubricVi:
     "Vietnamese grading rubric containing key context details and translation traps to check",
-  reviewCorrectAnswer: "canonical correct natural Vietnamese translation",
+  reviewCorrectAnswer:
+    "canonical correct natural Vietnamese translation or option choice text",
   reviewAcceptableAnswers: [
-    "alternative correct Vietnamese translation 1",
-    "alternative correct Vietnamese translation 2",
+    "alternative correct natural Vietnamese translation 1",
+    "alternative correct natural Vietnamese translation 2",
+  ],
+  reviewChoices: [
+    "choice option 1 (correct choice)",
+    "choice option 2 (incorrect translation trap)",
+    "choice option 3 (distractor)",
   ],
 };
 
@@ -25,14 +34,22 @@ export function reviewPromptGenerationPrompt(input: {
     "Concept category: " + input.category,
     "Previous error type: " + input.errorType,
     "Instructions:",
-    "1. Generate a NEW, privacy-safe, realistic English sentence (`reviewPromptEn`) that uses the concept phrase naturally. Do not reuse any project names, private details, or sensitive context.",
-    "   * CRITICAL: `reviewPromptEn` MUST be a complete, grammatically correct full sentence (typically 8 to 20 words). It MUST NOT be just the concept phrase itself or a fragment.",
-    "2. The sentence must test the same understanding that the learner failed (e.g. if category is phrasal_verb, ensure the verb has the correct phrasal sense in the new sentence).",
-    "3. The sentence should be appropriate for business or general English context, depending on the category.",
-    "4. Generate a Vietnamese translation prompt (`reviewPromptVi`), e.g. 'Dịch câu sau sang tiếng Việt tự nhiên: ...'",
-    "5. Provide a clear, natural Vietnamese correct translation (`reviewCorrectAnswer`) and 1-3 alternative translations (`reviewAcceptableAnswers`).",
-    "   * CRITICAL: These answers MUST be full natural translations of the entire generated sentence (`reviewPromptEn`). They MUST NOT be just the translation of the concept phrase alone.",
-    "6. Provide a short Vietnamese grading rubric (`reviewRubricVi`) highlighting what key meaning components the translation must preserve and what word-by-word traps to penalize.",
+    "1. Dynamically select the best review exercise type (`reviewType`) based on the concept and the previous error:",
+    "   - Use `cloze_phrase` or `dialogue_completion` for phrasal verbs or register shifts.",
+    "   - Use `trap_choice` or `trap_detect` for phrasal verbs, idioms, or collocations with common literal translation traps.",
+    "   - Use `natural_translation` for general phrases or grammar structures.",
+    "2. Generate a NEW, privacy-safe, realistic English sentence (`reviewPromptEn`) that uses the concept phrase naturally. Do not reuse any project names, private details, or sensitive context.",
+    '   - For `cloze_phrase` or `dialogue_completion`, replace the concept phrase in `reviewPromptEn` with a blank: e.g. "Can we ____ the meeting back?" for "push back".',
+    "   - Otherwise, `reviewPromptEn` must be a complete, grammatically correct full sentence.",
+    "3. Generate a clear Vietnamese instruction prompt (`reviewPromptVi`) suitable for the selected type:",
+    '   - For `natural_translation`: "Dịch câu sau sang tiếng Việt tự nhiên."',
+    '   - For `cloze_phrase`: "Điền từ/cụm từ phù hợp vào chỗ trống để hoàn thành câu."',
+    '   - For `dialogue_completion`: "Hoàn thành câu trả lời của B bằng từ/cụm từ phù hợp."',
+    '   - For `trap_choice` / `trap_detect`: "Chọn bản dịch tự nhiên nhất, tránh bẫy dịch từng từ."',
+    "4. If `reviewType` is `trap_choice` or `trap_detect`, generate `reviewChoices` with 3 to 4 options in Vietnamese. One option must be the exact correct answer matching `reviewCorrectAnswer`, another option must be the literal translation trap, and others should be plausible distractors. For other types, set `reviewChoices` to null.",
+    "5. Provide a clear correct response (`reviewCorrectAnswer`) and 1-3 alternative responses (`reviewAcceptableAnswers`).",
+    "   - For translation types, these must be full natural translations of the entire generated sentence (`reviewPromptEn`).",
+    "6. Provide a short Vietnamese grading rubric (`reviewRubricVi`) highlighting what key meaning components the response must preserve and what word-by-word traps to penalize.",
     "7. Return strict JSON only. No markdown.",
     "JSON shape:",
     JSON.stringify(reviewPromptJsonShape),

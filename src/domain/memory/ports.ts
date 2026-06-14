@@ -112,10 +112,12 @@ export interface ReviewPromptGenerator {
     category: string;
     errorType: string;
   }): Promise<{
+    reviewType: string;
     reviewPromptEn: string;
     reviewPromptVi: string;
     reviewRubricVi: string;
     reviewCorrectAnswer: string;
     reviewAcceptableAnswers: string[];
+    reviewChoices: string[] | null;
   }>;
 }

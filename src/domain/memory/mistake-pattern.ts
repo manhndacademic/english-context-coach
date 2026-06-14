@@ -73,12 +73,13 @@ export class MistakePattern {
     private _lastReviewedAt: Date | null,
     public readonly createdAt: Date,
     private _updatedAt: Date,
-    // review prompts and job status fields
     private _reviewPromptEn: string | null,
     private _reviewPromptVi: string | null,
     private _reviewRubricVi: string | null,
     private _reviewCorrectAnswer: string | null,
     private _reviewAcceptableAnswers: string[] | null,
+    private _reviewType: string,
+    private _reviewChoices: string[] | null,
     private _reviewPromptStatus: "queued" | "running" | "succeeded" | "failed",
     private _reviewPromptAttempts: number,
     private _reviewPromptError: string | null,
@@ -123,6 +124,8 @@ export class MistakePattern {
       null,
       null,
       null,
+      "natural_translation", // reviewType
+      null, // reviewChoices
       "queued", // reviewPromptStatus
       0,
       null,
@@ -168,6 +171,8 @@ export class MistakePattern {
       state.reviewRubricVi,
       state.reviewCorrectAnswer,
       state.reviewAcceptableAnswers,
+      state.reviewType ?? "natural_translation",
+      state.reviewChoices ?? null,
       state.reviewPromptStatus,
       state.reviewPromptAttempts,
       state.reviewPromptError,
@@ -215,6 +220,12 @@ export class MistakePattern {
   }
   get reviewAcceptableAnswers() {
     return this._reviewAcceptableAnswers;
+  }
+  get reviewType() {
+    return this._reviewType;
+  }
+  get reviewChoices() {
+    return this._reviewChoices;
   }
   get reviewPromptStatus() {
     return this._reviewPromptStatus;
@@ -308,17 +319,21 @@ export class MistakePattern {
   }
 
   updateReviewPrompt(prompts: {
+    reviewType: string;
     reviewPromptEn: string;
     reviewPromptVi: string;
     reviewRubricVi: string;
     reviewCorrectAnswer: string;
     reviewAcceptableAnswers: string[];
+    reviewChoices: string[] | null;
   }) {
+    this._reviewType = prompts.reviewType;
     this._reviewPromptEn = prompts.reviewPromptEn;
     this._reviewPromptVi = prompts.reviewPromptVi;
     this._reviewRubricVi = prompts.reviewRubricVi;
     this._reviewCorrectAnswer = prompts.reviewCorrectAnswer;
     this._reviewAcceptableAnswers = prompts.reviewAcceptableAnswers;
+    this._reviewChoices = prompts.reviewChoices ?? null;
     this._reviewPromptStatus = "succeeded";
     this._reviewPromptError = null;
     this._reviewPromptLockedAt = null;
@@ -374,6 +389,8 @@ export class MistakePattern {
       reviewRubricVi: this._reviewRubricVi,
       reviewCorrectAnswer: this._reviewCorrectAnswer,
       reviewAcceptableAnswers: this._reviewAcceptableAnswers,
+      reviewType: this._reviewType,
+      reviewChoices: this._reviewChoices,
       reviewPromptStatus: this._reviewPromptStatus,
       reviewPromptAttempts: this._reviewPromptAttempts,
       reviewPromptError: this._reviewPromptError,
@@ -408,6 +425,8 @@ export class MistakePattern {
       reviewRubricVi: this._reviewRubricVi,
       reviewCorrectAnswer: this._reviewCorrectAnswer,
       reviewAcceptableAnswers: this._reviewAcceptableAnswers,
+      reviewType: this._reviewType,
+      reviewChoices: this._reviewChoices,
       reviewPromptStatus: this._reviewPromptStatus,
       reviewPromptAttempts: this._reviewPromptAttempts,
       reviewPromptError: this._reviewPromptError,
@@ -458,6 +477,8 @@ export interface MistakePatternPlain {
   reviewRubricVi: string | null;
   reviewCorrectAnswer: string | null;
   reviewAcceptableAnswers: string[] | null;
+  reviewType: string;
+  reviewChoices: string[] | null;
   reviewPromptStatus: "queued" | "running" | "succeeded" | "failed";
   reviewPromptAttempts: number;
   reviewPromptError: string | null;

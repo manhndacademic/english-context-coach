@@ -210,11 +210,19 @@ export const gradingSchema = z.object({
 });
 
 export const reviewPromptSchema = z.object({
+  reviewType: z.enum([
+    "natural_translation",
+    "cloze_phrase",
+    "dialogue_completion",
+    "trap_choice",
+    "trap_detect",
+  ]),
   reviewPromptEn: z.string().min(1),
   reviewPromptVi: z.string().min(1),
   reviewRubricVi: z.string().min(1),
   reviewCorrectAnswer: z.string().min(1),
   reviewAcceptableAnswers: z.array(z.string().min(1)).min(1).max(5),
+  reviewChoices: z.array(z.string().min(1)).min(3).max(4).nullable().optional(),
 });
 
 export type AnalysisResult = z.infer<typeof analysisSchema>;

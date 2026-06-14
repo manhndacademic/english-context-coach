@@ -26,7 +26,7 @@ describe("MistakePattern Domain Aggregate (SM-2)", () => {
   });
 
   it("should check isDue correctly based on state and status", () => {
-    const now = new Date();
+    const now = new Date(Date.now() + 1000);
     const pattern = MistakePattern.createNew({
       id: "pattern-1",
       userId: "user-123",
@@ -45,11 +45,13 @@ describe("MistakePattern Domain Aggregate (SM-2)", () => {
 
     // Set to succeeded and due now
     pattern.updateReviewPrompt({
+      reviewType: "natural_translation",
       reviewPromptEn: "Let's push back the meeting.",
       reviewPromptVi: "Hãy hoãn cuộc họp lại.",
       reviewRubricVi: "Phải dịch đúng push back.",
       reviewCorrectAnswer: "Hãy hoãn cuộc họp lại.",
       reviewAcceptableAnswers: ["Hãy dời cuộc họp lại."],
+      reviewChoices: null,
     });
 
     expect(pattern.reviewPromptStatus).toBe("succeeded");

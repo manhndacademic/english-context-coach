@@ -14,11 +14,13 @@ export class GeminiReviewPromptGenerator implements ReviewPromptGenerator {
     category: string;
     errorType: string;
   }): Promise<{
+    reviewType: string;
     reviewPromptEn: string;
     reviewPromptVi: string;
     reviewRubricVi: string;
     reviewCorrectAnswer: string;
     reviewAcceptableAnswers: string[];
+    reviewChoices: string[] | null;
   }> {
     const result = await this.llm.generateJson({
       userId: input.userId,
@@ -36,11 +38,13 @@ export class GeminiReviewPromptGenerator implements ReviewPromptGenerator {
     });
 
     return {
+      reviewType: result.reviewType,
       reviewPromptEn: result.reviewPromptEn,
       reviewPromptVi: result.reviewPromptVi,
       reviewRubricVi: result.reviewRubricVi,
       reviewCorrectAnswer: result.reviewCorrectAnswer,
       reviewAcceptableAnswers: result.reviewAcceptableAnswers,
+      reviewChoices: result.reviewChoices ?? null,
     };
   }
 }

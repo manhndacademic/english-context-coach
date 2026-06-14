@@ -436,6 +436,8 @@ export const mistakePatterns = pgTable(
     reviewAcceptableAnswers: jsonb("review_acceptable_answers").$type<
       string[]
     >(),
+    reviewType: text("review_type").notNull().default("natural_translation"),
+    reviewChoices: jsonb("review_choices").$type<string[]>(),
     reviewPromptStatus: jobStatusEnum("review_prompt_status")
       .notNull()
       .default("succeeded"),

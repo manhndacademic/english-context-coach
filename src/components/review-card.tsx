@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useMemo } from "react";
 import {
   AlertCircle,
   Loader2,
@@ -41,6 +41,22 @@ export function ReviewCard({
     ReviewResultState,
     FormData
   >(submitReviewAttemptAction, {});
+
+  const isChoiceType =
+    pattern.reviewType === "meaning_choice" ||
+    pattern.reviewType === "trap_choice" ||
+    pattern.reviewType === "trap_detect";
+
+  const choiceSet = useMemo(
+    () =>
+      new Set(
+        [
+          pattern.reviewCorrectAnswer,
+          ...(pattern.reviewAcceptableAnswers ?? []),
+        ].filter(Boolean)
+      ),
+    [pattern]
+  );
 
   const promptEn = pattern.reviewPromptEn ?? pattern.normalizedPhrase;
   const promptVi =
@@ -139,21 +155,69 @@ export function ReviewCard({
       <form action={formAction} className="grid gap-4">
         <input name="patternId" type="hidden" value={pattern.id} />
 
-        <div className="grid gap-2 text-left">
-          <label htmlFor="answer" className="text-sm font-semibold text-text">
-            Bản dịch tự nhiên của bạn
-          </label>
-          <textarea
-            id="answer"
-            disabled={isPending || state.isCorrect}
-            name="answer"
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Viết câu dịch tiếng Việt tự nhiên của bạn ở đây..."
-            required
-            value={answer}
-            className="w-full border border-border rounded-xl bg-background text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 min-h-[110px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
-          />
-        </div>
+        {isChoiceType ? (
+          <div className="grid gap-2 text-left">
+            <span className="text-sm font-semibold text-text">
+              Chọn câu trả lời đúng
+            </span>
+            <div className="grid gap-2 mt-1">
+              {pattern.reviewChoices?.map((choice, index) => {
+                const isChoiceCorrect = choiceSet.has(choice);
+                const isSelected = answer === choice;
+                const showSuccess = state.isCorrect && isChoiceCorrect;
+                return (
+                  <label
+                    key={`${pattern.id}-choice-${index}`}
+                    className={`flex items-center gap-3 p-3 px-4 rounded-xl border text-left cursor-pointer transition-all ${
+                      showSuccess
+                        ? "bg-success-light border-success text-success font-semibold"
+                        : isSelected
+                          ? "border-accent bg-accent-light/30 ring-2 ring-accent/30 font-medium"
+                          : "border-border hover:bg-surface-active"
+                    }`}
+                  >
+                    <input
+                      disabled={isPending || state.isCorrect}
+                      name="answer"
+                      required
+                      type="radio"
+                      value={choice}
+                      checked={isSelected}
+                      onChange={(event) => setAnswer(event.target.value)}
+                      className="accent-accent disabled:opacity-50"
+                    />
+                    <span className="text-sm md:text-[15px]">
+                      {renderRichText(choice)}
+                    </span>
+                    {showSuccess ? (
+                      <CheckCircle2
+                        className="ml-auto text-success shrink-0"
+                        size={15}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-2 text-left">
+            <label htmlFor="answer" className="text-sm font-semibold text-text">
+              Bản dịch tự nhiên của bạn
+            </label>
+            <textarea
+              id="answer"
+              disabled={isPending || state.isCorrect}
+              name="answer"
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Viết câu dịch tiếng Việt tự nhiên của bạn ở đây..."
+              required
+              value={answer}
+              className="w-full border border-border rounded-xl bg-background text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 min-h-[110px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+            />
+          </div>
+        )}
 
         {state.error && (
           <div className="inline-flex items-center gap-2 bg-danger-light border border-danger/15 text-danger p-3 rounded-lg text-sm font-medium">
@@ -175,7 +239,11 @@ export function ReviewCard({
             ) : (
               <SendHorizontal size={16} aria-hidden="true" />
             )}
-            {isPending ? "Đang chấm điểm..." : "Gửi bản dịch"}
+            {isPending
+              ? "Đang chấm điểm..."
+              : isChoiceType
+                ? "Gửi câu trả lời"
+                : "Gửi bản dịch"}
           </Button>
         ) : (
           <Button

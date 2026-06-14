@@ -224,8 +224,10 @@ class MockGradingEngine implements GradingEngine {
     feedbackVi: "Chính xác!",
   };
   onGrade?: () => void;
+  lastInput?: any;
 
-  async grade() {
+  async grade(input: any) {
+    this.lastInput = input;
     this.onGrade?.();
     return this.result;
   }
@@ -270,11 +272,13 @@ class MockAttemptMemoryTransition {
 
 class MockReviewPromptGenerator implements ReviewPromptGenerator {
   result = {
+    reviewType: "natural_translation",
     reviewPromptEn: "Mock Prompt En",
     reviewPromptVi: "Mock Prompt Vi",
     reviewRubricVi: "Mock Rubric Vi",
     reviewCorrectAnswer: "Mock Correct Answer",
     reviewAcceptableAnswers: ["Acceptable Answer"],
+    reviewChoices: null as string[] | null,
   };
   error: Error | null = null;
 
@@ -619,6 +623,45 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(updatedPattern.masteryState).toBe("active");
       expect(updatedPattern.dueAt.getTime()).toBeGreaterThan(Date.now());
       expect(dispatcher.triggered).toContain(pattern.id);
+    });
+
+    it("constructs mockExercise with the pattern's reviewType and reviewChoices", async () => {
+      const pattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "dời lại / trì hoãn",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+        reviewPromptStatus: "succeeded",
+        reviewPromptEn: "Let's push back the meeting.",
+        reviewType: "trap_choice",
+        reviewChoices: ["choice A", "choice B", "choice C"],
+      });
+
+      grader.result = {
+        score: 100,
+        isCorrect: true,
+        feedbackVi: "Chính xác!",
+      };
+
+      const result = await engine.submitReviewAttempt({
+        userId: "user-1",
+        patternId: pattern.id,
+        answer: "choice B",
+      });
+
+      expect(result.success).toBe(true);
+      expect(grader.lastInput).toBeDefined();
+      expect(grader.lastInput.exercise.type).toBe("trap_choice");
+      expect(grader.lastInput.exercise.choices).toEqual([
+        "choice A",
+        "choice B",
+        "choice C",
+      ]);
     });
 
     it("marks a MistakePattern as mastered when a correct review reaches the final interval", async () => {
