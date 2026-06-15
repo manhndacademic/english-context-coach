@@ -19,18 +19,31 @@ export const saveUserApiKeyAction = validatedAction(
   async (data, user) => {
     let encryptedKey: string | null = null;
     if (data.apiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: data.apiKey });
-        await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: "ping",
-        });
-      } catch (e: any) {
-        return {
-          error: `Xác thực API Key thất bại: ${e.message || e}`,
-        } as any;
+      const rawKeys = data.apiKey
+        .split(/[,\n]+/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+
+      if (rawKeys.length > 0) {
+        try {
+          // Validate each key in parallel
+          await Promise.all(
+            rawKeys.map(async (key) => {
+              const ai = new GoogleGenAI({ apiKey: key });
+              await ai.models.generateContent({
+                model: "gemini-3.1-flash-lite",
+                contents: "ping",
+              });
+            })
+          );
+        } catch (e: any) {
+          return {
+            error: `Xác thực API Key thất bại: ${e.message || e}`,
+          } as any;
+        }
+        const encryptedKeys = rawKeys.map((k) => encryptApiKey(k));
+        encryptedKey = JSON.stringify(encryptedKeys);
       }
-      encryptedKey = encryptApiKey(data.apiKey);
     }
 
     await getKeyResolver().saveUserApiKey(user.id, encryptedKey);

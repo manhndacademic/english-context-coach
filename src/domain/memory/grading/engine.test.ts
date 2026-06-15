@@ -43,7 +43,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(100);
-    expect(llm.calls.length).toBe(1);
+    expect(llm.calls.length).toBe(0);
 
     const resultAcceptable = await grader.grade({
       userId: "user-1",
@@ -52,12 +52,12 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
     expect(resultAcceptable.isCorrect).toBe(true);
     expect(resultAcceptable.score).toBe(100);
-    expect(llm.calls.length).toBe(2);
+    expect(llm.calls.length).toBe(0);
   });
 
   it("grades incorrect objective answers by falling back to calling the LLM for detailed feedback", async () => {
     const exercise = {
-      type: "meaning_choice",
+      type: "cloze_phrase",
       correctAnswer: "Ổn rồi",
       promptVi: "Hỏi",
       promptEn: "Prompt",
@@ -118,7 +118,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(100);
-    expect(llm.calls.length).toBe(1);
+    expect(llm.calls.length).toBe(0);
   });
 
   it("grades wrong cloze_phrase and does NOT expose correctAnswer in naturalAnswer but calls LLM", async () => {
@@ -196,7 +196,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(100);
-    expect(llm.calls.length).toBe(1);
+    expect(llm.calls.length).toBe(0);
   });
 
   // ─── Objective grading: trap_detect ───
@@ -219,7 +219,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(100);
-    expect(llm.calls.length).toBe(1);
+    expect(llm.calls.length).toBe(0);
   });
 
   // ─── AI grading: production exercises ───

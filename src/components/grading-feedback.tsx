@@ -174,7 +174,7 @@ export function GradingFeedback({
               {naturalAnswer && solved && isSubjectiveType ? (
                 <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success text-left">
                   <strong className="text-xs font-bold text-success block">
-                    Gợi ý
+                    Cách diễn đạt tự nhiên
                   </strong>
                   <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
                     {naturalAnswer}

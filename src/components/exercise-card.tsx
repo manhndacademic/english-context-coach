@@ -175,6 +175,11 @@ export function ExerciseCard({
     };
   }, [isCurrent, solved, isChoiceType, exercise.choices]);
 
+  const formattedPromptEn = useMemo(() => {
+    if (!exercise.promptEn) return "";
+    return exercise.promptEn.replace(/(?:_\s*){3,}_/g, "_______");
+  }, [exercise.promptEn]);
+
   return (
     <article
       className={`border border-border rounded-md p-4 bg-surface relative grid gap-3 transition-all ${
@@ -248,7 +253,7 @@ export function ExerciseCard({
         className="text-sm md:text-base leading-relaxed text-text mt-2 font-serif text-left"
         id={promptId}
       >
-        {renderRichText(exercise.promptEn || "")}
+        {renderRichText(formattedPromptEn)}
       </div>
 
       <form

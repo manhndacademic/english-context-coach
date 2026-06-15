@@ -18,7 +18,7 @@ describe("GradingFeedback Component", () => {
 
     expect(html).toContain("Chính xác");
     expect(html).toContain("Chính xác! Câu trả lời rất tốt.");
-    expect(html).toContain("Gợi ý");
+    expect(html).toContain("Cách diễn đạt tự nhiên");
     expect(html).toContain("I excel at coding.");
   });
 

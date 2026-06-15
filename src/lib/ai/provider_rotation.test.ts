@@ -79,6 +79,32 @@ describe("AI Key Rotation & Error Handling", () => {
     );
   });
 
+  it("should rotate between multiple user-provided API keys and fail only when all are exhausted", async () => {
+    // Save multiple fake user keys (as a JSON array of encrypted keys)
+    const fakeKeys = ["AIzaSyUserKey1", "AIzaSyUserKey2"];
+    const encryptedArray = JSON.stringify(
+      fakeKeys.map((k) => encryptApiKey(k))
+    );
+    await db
+      .update(schema.users)
+      .set({ customGeminiApiKey: encryptedArray })
+      .where(eq(schema.users.id, testUser.id));
+
+    const options = {
+      userId: testUser.id,
+      purpose: "repair" as const,
+      prompt: "Hello",
+      promptVersion: "1.0",
+      schemaVersion: "grading" as const,
+      schema: z.object({ isCorrect: z.boolean() }),
+      modelKind: "fast" as const,
+    };
+
+    await expect(provider.generateJson(options)).rejects.toThrow(
+      "Custom User API Key failed"
+    );
+  });
+
   it("should rotately mark rate-limited keys and exclude them", async () => {
     // Remove user key to test system keys
     await db

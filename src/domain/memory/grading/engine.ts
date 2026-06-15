@@ -2,7 +2,7 @@ import type { Exercise } from "@/domain/lesson/ports";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { LLMProvider } from "@/domain/ai";
 import { gradingPrompt } from "@/lib/ai/prompts";
-import { gradingSchema, type GradingResult } from "@/lib/ai/schemas";
+import { gradingSchema } from "@/lib/ai/schemas";
 import type { GradingEngine, LearnerGradingResult } from "../ports";
 
 function normalizeAnswer(value: string) {
@@ -14,20 +14,18 @@ function normalizeAnswer(value: string) {
     .trim();
 }
 
-/** Exercise types that require AI grading (free-text production or subjective). */
-const AI_GRADED_TYPES: ReadonlySet<string> = new Set([
-  "natural_translation",
-  "focus_question",
-  "phrase_production",
-  "dialogue_completion",
-  "register_shift",
-]);
-
 function gradeObjectiveExercise(
   exercise: Exercise,
   answer: string
-): GradingResult | null {
-  if (AI_GRADED_TYPES.has(exercise.type)) return null;
+): LearnerGradingResult | null {
+  const isMultipleChoice =
+    exercise.type === "meaning_choice" ||
+    exercise.type === "trap_choice" ||
+    exercise.type === "trap_detect";
+
+  const isCloze = exercise.type === "cloze_phrase";
+
+  if (!isMultipleChoice && !isCloze) return null;
 
   const normalizedAnswer = normalizeAnswer(answer);
   const expected = [
@@ -38,16 +36,37 @@ function gradeObjectiveExercise(
     .map((value) => normalizeAnswer(value as string));
 
   const isCorrect = expected.includes(normalizedAnswer);
-  if (!isCorrect) {
-    // Return null to fall back to calling the LLM grader for incorrect answers.
+
+  if (isCorrect) {
+    return {
+      score: 100,
+      isCorrect: true,
+      feedbackVi: exercise.rubricVi ?? "Chính xác! Bạn đã chọn đáp án đúng.",
+      naturalAnswer: exercise.correctAnswer ?? undefined,
+    };
+  }
+
+  // If incorrect and fill-in-the-blank, fall back to AI to analyze morphology/spelling
+  if (isCloze) {
     return null;
   }
 
+  // Otherwise, it is an incorrect multiple-choice, grade locally as incorrect
   return {
-    score: 100,
-    isCorrect: true,
-    feedbackVi: "Đúng. Bạn đã hiểu cụm này theo đúng ngữ cảnh.",
+    score: 0,
+    isCorrect: false,
+    feedbackVi:
+      exercise.rubricVi ?? "Chưa chính xác. Vui lòng chọn lại đáp án đúng.",
     naturalAnswer: exercise.correctAnswer ?? undefined,
+    error: {
+      shouldSave: true,
+      confidence: 1,
+      errorType: "phrase_misunderstanding",
+      explanationVi:
+        exercise.rubricVi ?? "Nhầm lẫn nghĩa hoặc cách dùng cụm từ.",
+      targetItem:
+        exercise.correctAnswer ?? exercise.promptEn ?? exercise.promptVi,
+    },
   };
 }
 
@@ -62,36 +81,8 @@ export class DefaultGradingEngine implements GradingEngine {
   }): Promise<LearnerGradingResult> {
     const ruleGrade = gradeObjectiveExercise(input.exercise, input.answer);
     if (ruleGrade) {
-      try {
-        const aiResponse = await this.llm.generateJson({
-          userId: input.userId,
-          lessonId: input.lessonId,
-          purpose: "grading",
-          prompt: gradingPrompt({
-            promptEn: input.exercise.promptEn ?? "",
-            promptVi: input.exercise.promptVi,
-            answer: input.answer,
-            rubricVi: input.exercise.rubricVi,
-            correctAnswer: input.exercise.correctAnswer,
-            forceCorrect: true,
-          }),
-          promptVersion: PROMPT_VERSIONS.grading,
-          schemaVersion: "grading",
-          schema: gradingSchema,
-          modelKind: "analysis",
-        });
-        return {
-          ...ruleGrade,
-          feedbackVi: aiResponse.feedbackVi || ruleGrade.feedbackVi,
-          naturalAnswer: aiResponse.naturalAnswer || ruleGrade.naturalAnswer,
-        };
-      } catch (error) {
-        console.error(
-          "[GradingEngine] AI feedback call for objective correct answer failed, falling back to static grade:",
-          error
-        );
-        return ruleGrade;
-      }
+      // Return local grade immediately without calling the LLM
+      return ruleGrade;
     }
 
     try {

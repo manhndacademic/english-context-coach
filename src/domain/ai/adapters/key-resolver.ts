@@ -85,12 +85,36 @@ export class DrizzleKeyResolver implements KeyResolver {
 
       if (user?.customGeminiApiKey) {
         try {
-          const key = decryptApiKey(user.customGeminiApiKey);
-          if (key) {
-            return { key, isUserKey: true };
+          let encryptedKeys: string[] = [];
+          const rawValue = user.customGeminiApiKey.trim();
+          if (rawValue.startsWith("[") && rawValue.endsWith("]")) {
+            encryptedKeys = JSON.parse(rawValue);
+          } else {
+            encryptedKeys = [rawValue];
+          }
+
+          const candidateKeys = encryptedKeys
+            .map((encKey, index) => ({ encKey, id: `user-key-${index}` }))
+            .filter((c) => !excludedKeyIds || !excludedKeyIds.has(c.id));
+
+          if (candidateKeys.length > 0) {
+            const picked =
+              candidateKeys[Math.floor(Math.random() * candidateKeys.length)];
+            const key = decryptApiKey(picked.encKey);
+            if (key) {
+              return { key, id: picked.id, isUserKey: true };
+            }
+          } else if (encryptedKeys.length > 0) {
+            const key = decryptApiKey(encryptedKeys[0]);
+            if (key) {
+              return { key, id: "user-key-0", isUserKey: true };
+            }
           }
         } catch (e) {
-          logger.error(`Failed to decrypt user key for ${userId}:`, e);
+          logger.error(
+            `Failed to decrypt/parse user custom keys for ${userId}:`,
+            e
+          );
         }
       }
     }

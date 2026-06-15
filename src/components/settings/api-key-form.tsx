@@ -43,7 +43,7 @@ export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
         // Clear input field
         const input = e.currentTarget.querySelector(
           "#apiKey"
-        ) as HTMLInputElement;
+        ) as HTMLTextAreaElement;
         if (input) input.value = "";
       }
     } catch (err: any) {
@@ -73,23 +73,22 @@ export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
       <form onSubmit={handleSubmit} className="grid gap-5">
         <div className="grid gap-2">
           <label htmlFor="apiKey" className="text-sm font-semibold text-text">
-            Google Gemini API Key
+            Google Gemini API Key(s)
           </label>
-          <div className="relative flex items-center">
-            <input
-              type="password"
+          <div className="relative flex items-start">
+            <textarea
               id="apiKey"
               name="apiKey"
               placeholder={
                 hasKey
-                  ? "••••••••••••••••••••••••••••••••"
-                  : "Nhập API Key của bạn (AIzaSy...)"
+                  ? "Đã lưu API Keys. Nhập lại danh sách mới để ghi đè (các key cách nhau bởi dấu phẩy hoặc xuống dòng), hoặc bỏ trống để xóa."
+                  : "Nhập một hoặc nhiều API Keys (cách nhau bởi dấu phẩy hoặc xuống dòng)..."
               }
               disabled={loading}
-              className="w-full min-h-11 px-3.5 pr-10 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none disabled:opacity-60"
+              className="w-full min-h-[90px] p-3 pr-10 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none disabled:opacity-60 resize-y leading-relaxed"
             />
             {loading && (
-              <span className="absolute right-3.5 text-muted animate-spin">
+              <span className="absolute right-3.5 top-3.5 text-muted animate-spin">
                 <Loader2 size={18} />
               </span>
             )}
@@ -111,7 +110,8 @@ export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
           {hasKey && !error && !success && (
             <span className="text-success text-xs flex items-center gap-1.5 font-medium mt-1">
               <ShieldCheck size={14} /> Bạn đã cấu hình API Key cá nhân. Nhập
-              key mới để thay đổi hoặc bỏ trống và lưu để xóa key.
+              danh sách key mới để thay đổi/bổ sung (xoay vòng ngẫu nhiên), hoặc
+              bỏ trống và lưu để xóa.
             </span>
           )}
 
@@ -122,7 +122,7 @@ export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
                 href="https://aistudio.google.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent underline font-semibold"
+                className="text-accent underline font-semibold focus:outline-none"
               >
                 Google AI Studio
               </a>

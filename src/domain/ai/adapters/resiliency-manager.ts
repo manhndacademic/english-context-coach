@@ -12,6 +12,9 @@ import {
 import { repairPrompt } from "@/lib/ai/prompts";
 import { SCHEMA_VERSIONS } from "@/domain/constants";
 import { hashCanonicalPayload } from "@/lib/crypto";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("d.m.ai.resiliency", "ai-provider");
 
 export interface LLMClientCallResult {
   text: string;
@@ -160,7 +163,7 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
   ): Promise<T> {
     const excludedKeyIds = new Set<string>();
     let attempts = 0;
-    const maxKeyAttempts = 3;
+    const maxKeyAttempts = 5;
 
     while (attempts < maxKeyAttempts) {
       attempts++;
@@ -221,24 +224,23 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
 
         return options.schema.parse(coercedRepaired);
       } catch (err: any) {
-        if (isUserKey) {
-          throw new AiError(
-            `Custom User API Key failed: ${err.message || err}`,
-            "user_key_failed"
-          );
-        }
-
         if (keyId) {
           excludedKeyIds.add(keyId);
-          if (isRateLimitError(err)) {
-            await this.keyResolver.markKeyRateLimited(
-              keyId,
-              err.message || "Rate limit exceeded"
-            );
-          } else if (isInvalidKeyError(err)) {
-            await this.keyResolver.markKeyInvalid(
-              keyId,
-              err.message || "Invalid API key"
+          if (!isUserKey) {
+            if (isRateLimitError(err)) {
+              await this.keyResolver.markKeyRateLimited(
+                keyId,
+                err.message || "Rate limit exceeded"
+              );
+            } else if (isInvalidKeyError(err)) {
+              await this.keyResolver.markKeyInvalid(
+                keyId,
+                err.message || "Invalid API key"
+              );
+            }
+          } else {
+            logger.warn(
+              `User custom API key ${keyId} failed: ${err.message || err}`
             );
           }
         } else {
@@ -247,8 +249,10 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
 
         if (attempts >= maxKeyAttempts) {
           throw new AiError(
-            `All API keys exhausted for model "${model}". Last error: ${err.message || err}`,
-            "all_keys_failed"
+            isUserKey
+              ? `Custom User API Key failed: ${err.message || err}`
+              : `All API keys exhausted for model "${model}". Last error: ${err.message || err}`,
+            isUserKey ? "user_key_failed" : "all_keys_failed"
           );
         }
       }

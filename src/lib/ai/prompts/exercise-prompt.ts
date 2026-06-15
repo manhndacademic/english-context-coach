@@ -105,8 +105,26 @@ export const exercisesJsonShape = {
 };
 
 export function exercisesPrompt(analysis: AnalysisResult) {
+  const phraseCount = analysis.keyPhrases?.length ?? 0;
+  const focusCount = analysis.lessonFocuses?.length ?? 0;
+  const totalConcepts = phraseCount + focusCount;
+
+  let minCount = 5;
+  let maxCount = 10;
+
+  if (totalConcepts <= 1) {
+    minCount = 2;
+    maxCount = 3;
+  } else if (totalConcepts <= 3) {
+    minCount = 4;
+    maxCount = 5;
+  } else if (totalConcepts <= 5) {
+    minCount = 6;
+    maxCount = 8;
+  }
+
   return [
-    "Create 5-10 practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. Strict JSON only.",
+    `Create ${minCount}-${maxCount} practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. Strict JSON only.`,
     `Exercise types:
 - meaning_choice: Multiple-choice on phrase meaning. Requires "choices" array (3-4 items). Graded locally.
 - cloze_phrase: Fill in the blank. "promptEn" must contain "____" (4 underscores) for the missing phrase. Graded locally.
