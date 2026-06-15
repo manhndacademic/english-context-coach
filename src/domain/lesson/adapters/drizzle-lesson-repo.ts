@@ -14,7 +14,7 @@ import { db, schema, sql as rawSql } from "@/db";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
-import { findMatchingLessonFocus } from "../rules";
+import { dedupeKeyPhrases, findMatchingLessonFocus } from "../rules";
 import {
   selectDisplayGenerationJob,
   type GenerationMilestoneCode,
@@ -190,6 +190,33 @@ export class DrizzleLessonRepository implements LessonRepository {
     analysis: SaveAnalysisInput,
     model: string
   ): Promise<void> {
+    const [lessonRow] = await this.dbClient
+      .select({ sourceTextId: schema.lessons.sourceTextId })
+      .from(schema.lessons)
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
+      .limit(1);
+
+    if (!lessonRow) {
+      throw new Error(`Lesson ${lessonId} not found.`);
+    }
+
+    const [sourceTextRow] = await this.dbClient
+      .select({ content: schema.sourceTexts.content })
+      .from(schema.sourceTexts)
+      .where(
+        and(
+          eq(schema.sourceTexts.id, lessonRow.sourceTextId),
+          eq(schema.sourceTexts.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!sourceTextRow) {
+      throw new Error(`Source text ${lessonRow.sourceTextId} not found.`);
+    }
+
     await this.dbClient.transaction(async (tx: any) => {
       await tx
         .update(schema.lessons)
@@ -208,9 +235,15 @@ export class DrizzleLessonRepository implements LessonRepository {
         })
         .where(eq(schema.lessons.id, lessonId));
 
-      if (analysis.keyPhrases.length) {
+      const dedupedKeyPhrases = dedupeKeyPhrases(
+        analysis.keyPhrases,
+        sourceTextRow.content,
+        this.textProcessor
+      );
+
+      if (dedupedKeyPhrases.length) {
         await tx.insert(schema.keyPhrases).values(
-          analysis.keyPhrases.map((phrase) => ({
+          dedupedKeyPhrases.map((phrase) => ({
             lessonId,
             userId,
             phrase: phrase.phrase,

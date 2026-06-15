@@ -55,7 +55,7 @@ describe("DrizzleLessonRepository — SourceText methods", () => {
       update: vi.fn(),
       delete: vi.fn(),
       execute: vi.fn(),
-      transaction: vi.fn(),
+      transaction: vi.fn((cb) => cb(mockDbClient)),
     };
     repository = new DrizzleLessonRepository(mockDbClient, getTextProcessor());
   });
@@ -278,6 +278,129 @@ describe("DrizzleLessonRepository — SourceText methods", () => {
       const result = await repository.getRecentLessons("user-new", 10);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("saveAnalysis", () => {
+    it("throws an error when the lesson is not found", async () => {
+      mockDbClient.select.mockReturnValueOnce(mockChain([]));
+
+      const dummyAnalysis = {
+        title: "Test Lesson",
+        textType: "general" as any,
+        inputMode: "understand_and_practice",
+        detectedLevel: "B1" as any,
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "Dịch tự nhiên",
+        contextExplanationVi: "Giải thích",
+        keyPhrases: [],
+        sentenceBreakdowns: [],
+        lessonFocuses: [],
+      };
+
+      await expect(
+        repository.saveAnalysis(
+          "les-missing",
+          "user-1",
+          dummyAnalysis,
+          "gemini-model"
+        )
+      ).rejects.toThrow("Lesson les-missing not found.");
+    });
+
+    it("throws an error when the source text is not found", async () => {
+      mockDbClient.select
+        .mockReturnValueOnce(mockChain([{ sourceTextId: "st-missing" }]))
+        .mockReturnValueOnce(mockChain([]));
+
+      const dummyAnalysis = {
+        title: "Test Lesson",
+        textType: "general" as any,
+        inputMode: "understand_and_practice",
+        detectedLevel: "B1" as any,
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "Dịch tự nhiên",
+        contextExplanationVi: "Giải thích",
+        keyPhrases: [],
+        sentenceBreakdowns: [],
+        lessonFocuses: [],
+      };
+
+      await expect(
+        repository.saveAnalysis(
+          "les-1",
+          "user-1",
+          dummyAnalysis,
+          "gemini-model"
+        )
+      ).rejects.toThrow("Source text st-missing not found.");
+    });
+
+    it("deduplicates overlapping key phrases using source text content and saves only the clean set", async () => {
+      mockDbClient.select
+        .mockReturnValueOnce(mockChain([{ sourceTextId: "st-1" }]))
+        .mockReturnValueOnce(
+          mockChain([{ content: "We need to push this back." }])
+        );
+
+      mockDbClient.update.mockReturnValue(mockChain([]));
+
+      const mockValues = vi.fn().mockImplementation(() => mockChain([]));
+      const mockInsert = vi.fn().mockImplementation(() => ({
+        values: mockValues,
+      }));
+      mockDbClient.insert = mockInsert;
+
+      const overlappingAnalysis = {
+        title: "Test Lesson",
+        textType: "general" as any,
+        inputMode: "understand_and_practice",
+        detectedLevel: "B1" as any,
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "Dịch tự nhiên",
+        contextExplanationVi: "Giải thích",
+        keyPhrases: [
+          {
+            phrase: "push back",
+            conceptKey: "push_back",
+            conceptPhrase: "push back",
+            conceptMeaningVi: "hoãn lại",
+            meaningVi: "hoãn lại",
+            meaningInContextVi: "dời lại",
+            examples: [],
+            category: "phrasal_verb" as any,
+            difficulty: "B1" as any,
+          },
+          {
+            phrase: "push this back",
+            conceptKey: "push_back",
+            conceptPhrase: "push back",
+            conceptMeaningVi: "hoãn lại",
+            meaningVi: "hoãn lại",
+            meaningInContextVi: "dời việc này lại",
+            examples: [],
+            category: "phrasal_verb" as any,
+            difficulty: "B1" as any,
+          },
+        ],
+        sentenceBreakdowns: [],
+        lessonFocuses: [],
+      };
+
+      await repository.saveAnalysis(
+        "les-1",
+        "user-1",
+        overlappingAnalysis,
+        "gemini-model"
+      );
+
+      expect(mockDbClient.update).toHaveBeenCalled();
+      expect(mockInsert).toHaveBeenCalled();
+      expect(mockValues).toHaveBeenCalled();
+
+      const insertedValues = mockValues.mock.calls[0][0];
+      expect(insertedValues).toHaveLength(1);
+      expect(insertedValues[0].phrase).toBe("push this back");
     });
   });
 });
