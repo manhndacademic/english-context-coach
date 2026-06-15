@@ -7,8 +7,16 @@ export async function requireUser() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1);
+  const [user] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, session.user.id))
+    .limit(1);
   if (!user) redirect("/login");
+
+  if (user.role !== "admin" && user.status !== "approved") {
+    redirect("/pending-approval");
+  }
 
   return user;
 }

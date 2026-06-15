@@ -98,6 +98,12 @@ export const aiPurposeEnum = pgEnum("ai_purpose", [
   "repair",
 ]);
 
+export const userStatusEnum = pgEnum("user_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -107,6 +113,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   role: text("role").default("user").notNull(),
   customGeminiApiKey: text("custom_gemini_api_key"),
+  status: userStatusEnum("status").default("pending").notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });

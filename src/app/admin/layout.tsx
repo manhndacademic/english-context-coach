@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import Link from "next/link";
-import { LayoutDashboard, KeyRound, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, KeyRound, ArrowLeft, Users } from "lucide-react";
 
 export default async function AdminLayout({
   children,
@@ -21,7 +21,7 @@ export default async function AdminLayout({
         <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 items-start">
           <aside className="bg-surface border border-border rounded-lg p-4 shadow-sm flex flex-col gap-1">
             <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-muted mb-2">
-              Trình quản trị LLM
+              Hệ thống quản trị
             </div>
             <Link
               href="/admin"
@@ -35,6 +35,12 @@ export default async function AdminLayout({
               className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold rounded-md transition-all text-text hover:bg-surface-strong"
             >
               <KeyRound size={16} className="text-muted" /> Vòng xoay API Keys
+            </Link>
+            <Link
+              href="/admin/users"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold rounded-md transition-all text-text hover:bg-surface-strong"
+            >
+              <Users size={16} className="text-muted" /> Quản lý người dùng
             </Link>
             <hr className="border-border my-2" />
             <Link

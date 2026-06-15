@@ -49,7 +49,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-    }),
+    })
   );
 }
 
@@ -81,10 +81,11 @@ export const authConfig = {
     async session({ session, token }) {
       if (session.user && token.sub) {
         const [user] = await db
-          .select({ 
-            id: schema.users.id, 
+          .select({
+            id: schema.users.id,
             role: schema.users.role,
-            email: schema.users.email 
+            email: schema.users.email,
+            status: schema.users.status,
           })
           .from(schema.users)
           .where(eq(schema.users.id, token.sub))
@@ -92,18 +93,28 @@ export const authConfig = {
 
         if (user) {
           session.user.id = user.id;
-          
+
           const adminEmail = process.env.ADMIN_EMAIL;
-          if (
-            adminEmail && 
-            user.email.toLowerCase().trim() === adminEmail.toLowerCase().trim() && 
-            user.role !== "admin"
-          ) {
-            await db
-              .update(schema.users)
-              .set({ role: "admin" })
-              .where(eq(schema.users.id, user.id));
-            session.user.role = "admin";
+          const isAdminEmail =
+            adminEmail &&
+            user.email.toLowerCase().trim() === adminEmail.toLowerCase().trim();
+
+          if (isAdminEmail) {
+            if (user.role !== "admin") {
+              await db
+                .update(schema.users)
+                .set({ role: "admin", status: "approved" })
+                .where(eq(schema.users.id, user.id));
+              session.user.role = "admin";
+            } else {
+              if (user.status !== "approved") {
+                await db
+                  .update(schema.users)
+                  .set({ status: "approved" })
+                  .where(eq(schema.users.id, user.id));
+              }
+              session.user.role = "admin";
+            }
           } else {
             session.user.role = user.role;
           }
