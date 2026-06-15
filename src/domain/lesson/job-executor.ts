@@ -144,7 +144,9 @@ export class DefaultJobExecutor implements JobExecutor {
             }
           },
           lesson.inputMode,
-          userHighlights
+          userHighlights,
+          job.userId,
+          job.lessonId
         );
 
         await this.lessons.saveAnalysis(
@@ -211,7 +213,9 @@ export class DefaultJobExecutor implements JobExecutor {
                 text: sanitized,
               });
             }
-          }
+          },
+          job.userId,
+          job.lessonId
         );
 
         try {

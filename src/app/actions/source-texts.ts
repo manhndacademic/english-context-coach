@@ -22,7 +22,16 @@ const createSourceTextSchema = z.object({
       1,
       "Nội dung bài học không được để trống (Source text content is required)"
     ),
-  inputMode: z.enum(["auto", "grammar", "dev_trace"]),
+  inputMode: z.enum([
+    "auto",
+    "understand_and_practice",
+    "fix_and_understand",
+    "naturalize_english",
+    "mixed_language_support",
+    "not_english",
+    "developer_error_explanation",
+    "unsupported",
+  ]),
 });
 
 export const createSourceTextAction = validatedAction(

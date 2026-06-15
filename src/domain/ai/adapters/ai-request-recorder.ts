@@ -20,6 +20,7 @@ export class DrizzleAiRequestRecorder implements AiRequestRecorder {
     outputTokens: number | null;
     costMicros: number;
     errorClass: string | null;
+    errorMessage: string | null;
   }): Promise<void> {
     try {
       await db.insert(schema.aiRequests).values({
@@ -37,6 +38,7 @@ export class DrizzleAiRequestRecorder implements AiRequestRecorder {
         outputTokens: options.outputTokens,
         costMicros: options.costMicros,
         errorClass: options.errorClass,
+        errorMessage: options.errorMessage,
       });
     } catch (dbErr) {
       logger.error("Failed to record AI request to DB:", dbErr);

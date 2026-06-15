@@ -26,6 +26,7 @@ export async function GET(
           status: progress.job.status,
           stage: progress.job.stage,
           attempts: progress.job.attempts,
+          errorMessage: progress.job.errorMessage,
         }
       : null,
     milestones: progress.milestones.map((milestone) => ({

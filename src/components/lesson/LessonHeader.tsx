@@ -28,6 +28,7 @@ interface LessonHeaderProps {
       status: "queued" | "running" | "succeeded" | "failed";
       stage: string;
       attempts: number;
+      errorMessage: string | null;
     } | null;
     milestones: Array<{
       id: number;
@@ -150,6 +151,7 @@ export function LessonHeader({ lesson, progress, now }: LessonHeaderProps) {
                   status: progress.job.status,
                   stage: progress.job.stage,
                   attempts: progress.job.attempts,
+                  errorMessage: progress.job.errorMessage,
                 }
               : null
           }

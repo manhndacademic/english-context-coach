@@ -356,7 +356,14 @@ class MockGenerationEngine implements GenerationEngine {
   analysisError: Error | null = null;
   exercisesError: Error | null = null;
 
-  async generateAnalysis(_sourceText: string, onThought?: any) {
+  async generateAnalysis(
+    _sourceText: string,
+    onThought?: any,
+    _requestedMode?: string,
+    _userHighlights?: string[],
+    _userId?: string,
+    _lessonId?: string
+  ) {
     if (this.analysisError) throw this.analysisError;
     if (onThought) {
       await onThought("Thought 1");
@@ -364,7 +371,12 @@ class MockGenerationEngine implements GenerationEngine {
     return this.analysisResult as any;
   }
 
-  async generateExercises(_analysis: any, onThought?: any) {
+  async generateExercises(
+    _analysis: any,
+    onThought?: any,
+    _userId?: string,
+    _lessonId?: string
+  ) {
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");

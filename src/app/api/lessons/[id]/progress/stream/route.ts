@@ -45,6 +45,7 @@ function snapshotBody(snapshot: ProgressSnapshot) {
           status: snapshot.job.status,
           stage: snapshot.job.stage,
           attempts: snapshot.job.attempts,
+          errorMessage: snapshot.job.errorMessage,
         }
       : null,
   };

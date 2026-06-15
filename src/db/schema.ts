@@ -579,6 +579,7 @@ export const aiRequests = pgTable(
     outputTokens: integer("output_tokens"),
     costMicros: integer("cost_micros"),
     errorClass: text("error_class"),
+    errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({

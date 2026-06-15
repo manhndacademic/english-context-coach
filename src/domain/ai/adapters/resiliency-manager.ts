@@ -72,6 +72,7 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
     let resolvedModel = this.modelPool.getNextAvailable(options.modelKind);
     let status: "succeeded" | "failed" = "failed";
     let errorClass: string | null = null;
+    let errorMessage: string | null = null;
 
     try {
       for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
@@ -120,6 +121,7 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
           : error instanceof Error
             ? error.name
             : "unknown";
+      errorMessage = error instanceof Error ? error.message : String(error);
       throw error;
     } finally {
       const latencyMs = Date.now() - startedAt;
@@ -145,6 +147,7 @@ export class DefaultLLMResiliencyManager implements LLMResiliencyManager {
           totalOutputTokens
         ),
         errorClass,
+        errorMessage,
       });
     }
   }

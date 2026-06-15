@@ -20,15 +20,19 @@ export class GeminiGenerationEngine implements GenerationEngine {
     sourceText: string,
     onThought?: (text: string) => Promise<void>,
     requestedMode?: string,
-    userHighlights?: string[]
+    userHighlights?: string[],
+    userId?: string,
+    lessonId?: string
   ): Promise<SaveAnalysisInput> {
+    const activeUserId = userId ?? this.userId;
+    const activeLessonId = lessonId ?? this.lessonId;
     let promptText = analysisPrompt(sourceText, userHighlights);
     if (requestedMode && requestedMode !== "auto") {
       promptText += `\n\nCRITICAL: The user has requested to process this text in mode: \`${requestedMode}\`. You MUST classify the inputMode as \`${requestedMode}\` and adapt the content fields accordingly.`;
     }
     const result = (await this.llm.generateJson({
-      userId: this.userId,
-      lessonId: this.lessonId,
+      userId: activeUserId,
+      lessonId: activeLessonId,
       purpose: "analysis",
       prompt: promptText,
       promptVersion: PROMPT_VERSIONS.analysis,
@@ -81,11 +85,15 @@ export class GeminiGenerationEngine implements GenerationEngine {
 
   async generateExercises(
     analysis: SaveAnalysisInput,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    userId?: string,
+    lessonId?: string
   ): Promise<SaveExercisesInput> {
+    const activeUserId = userId ?? this.userId;
+    const activeLessonId = lessonId ?? this.lessonId;
     const result = (await this.llm.generateJson({
-      userId: this.userId,
-      lessonId: this.lessonId,
+      userId: activeUserId,
+      lessonId: activeLessonId,
       purpose: "exercise_generation",
       prompt: exercisesPrompt(analysis as any),
       promptVersion: PROMPT_VERSIONS.exercises,

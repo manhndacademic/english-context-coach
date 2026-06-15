@@ -409,12 +409,16 @@ export interface GenerationEngine {
     sourceText: string,
     onThought?: (text: string) => Promise<void>,
     requestedMode?: string,
-    userHighlights?: string[]
+    userHighlights?: string[],
+    userId?: string,
+    lessonId?: string
   ): Promise<SaveAnalysisInput>;
 
   generateExercises(
     analysis: SaveAnalysisInput,
-    onThought?: (text: string) => Promise<void>
+    onThought?: (text: string) => Promise<void>,
+    userId?: string,
+    lessonId?: string
   ): Promise<SaveExercisesInput>;
 }
 

@@ -354,8 +354,21 @@ class MockGenerationEngine implements GenerationEngine {
 
   analysisError: Error | null = null;
   exercisesError: Error | null = null;
+  lastAnalysisUserId?: string;
+  lastAnalysisLessonId?: string;
+  lastExercisesUserId?: string;
+  lastExercisesLessonId?: string;
 
-  async generateAnalysis(_sourceText: string, onThought?: any) {
+  async generateAnalysis(
+    _sourceText: string,
+    onThought?: any,
+    _requestedMode?: string,
+    _userHighlights?: string[],
+    userId?: string,
+    lessonId?: string
+  ) {
+    this.lastAnalysisUserId = userId;
+    this.lastAnalysisLessonId = lessonId;
     if (this.analysisError) throw this.analysisError;
     if (onThought) {
       await onThought("Thought 1");
@@ -363,7 +376,14 @@ class MockGenerationEngine implements GenerationEngine {
     return this.analysisResult as any;
   }
 
-  async generateExercises(_analysis: any, onThought?: any) {
+  async generateExercises(
+    _analysis: any,
+    onThought?: any,
+    userId?: string,
+    lessonId?: string
+  ) {
+    this.lastExercisesUserId = userId;
+    this.lastExercisesLessonId = lessonId;
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");
@@ -454,5 +474,25 @@ describe("DefaultJobExecutor", () => {
     const lesson = repo.lessons.get(res.lesson.id);
     expect(lesson.analysisStatus).toBe("pending");
     expect(repo.generationJobs.get(res.job.id).status).toBe("queued");
+  });
+
+  it("passes userId and lessonId to the generation engine", async () => {
+    const res = await repo.createSourceTextAndLessonAndJob(
+      "user-special-123",
+      "Please take a look at this document.",
+      "Title",
+      "hash-1"
+    );
+
+    const result = await executor.execute(res.job, "worker-1");
+    expect(result.status).toBe("processed");
+    if (result.status === "processed") {
+      expect(result.success).toBe(true);
+    }
+
+    expect(genEngine.lastAnalysisUserId).toBe("user-special-123");
+    expect(genEngine.lastAnalysisLessonId).toBe(res.lesson.id);
+    expect(genEngine.lastExercisesUserId).toBe("user-special-123");
+    expect(genEngine.lastExercisesLessonId).toBe(res.lesson.id);
   });
 });

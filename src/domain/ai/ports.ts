@@ -42,5 +42,6 @@ export interface AiRequestRecorder {
     outputTokens: number | null;
     costMicros: number;
     errorClass: string | null;
+    errorMessage: string | null;
   }): Promise<void>;
 }
