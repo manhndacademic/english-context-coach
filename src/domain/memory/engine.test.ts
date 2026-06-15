@@ -1,12 +1,8 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
-import type { LessonRepository } from "@/domain/lesson/ports";
-import type {
-  AttemptMemoryTransitionResult,
-  AttemptMemoryTransitionInput,
-} from "./attempt-memory-transition";
 import { MistakePattern } from "./mistake-pattern";
+import type { LessonRepository } from "@/domain/lesson/ports";
 import type {
   ExerciseRepository,
   AttemptRepository,
@@ -235,33 +231,6 @@ class MockGradingEngine implements GradingEngine {
   }
 }
 
-class MockAttemptMemoryTransition {
-  calls: AttemptMemoryTransitionInput[] = [];
-  result: AttemptMemoryTransitionResult = {
-    attempt: {
-      id: "attempt-1",
-      exerciseId: "exercise-1",
-      lessonId: "lesson-1",
-      userId: "user-1",
-      answer: "answer",
-      score: 100,
-      isCorrect: true,
-      feedbackVi: "Chính xác!",
-      gradingMetadata: null,
-      createdAt: new Date(),
-    },
-    userErrorCreated: false,
-    mistakePatternStatus: "none",
-  };
-  onApply?: () => void;
-
-  async apply(input: AttemptMemoryTransitionInput) {
-    this.calls.push(input);
-    this.onApply?.();
-    return this.result;
-  }
-}
-
 class MockReviewPromptGenerator implements ReviewPromptGenerator {
   result = {
     reviewType: "natural_translation",
@@ -390,7 +359,6 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
   let notifyQueueCalls: number;
   let notifyQueue: () => Promise<void>;
   let reviewGenerator: MockReviewPromptGenerator;
-  let attemptTransition: MockAttemptMemoryTransition;
   let engine: DefaultLearnerMemoryEngine;
 
   beforeEach(() => {
@@ -410,7 +378,6 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       notifyQueueCalls++;
     };
     reviewGenerator = new MockReviewPromptGenerator();
-    attemptTransition = new MockAttemptMemoryTransition();
     engine = new DefaultLearnerMemoryEngine(
       exerciseRepo,
       attemptRepo,
@@ -421,7 +388,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       notifyQueue,
       reviewGenerator,
       getTextProcessor(),
-      attemptTransition as any
+      () => `pattern-${repo.mistakePatterns.size + 1}`
     );
   });
 
@@ -470,7 +437,6 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(repo.userErrors.length).toBe(0);
       expect(repo.mistakePatterns.size).toBe(0);
       expect(txCoordinator.runCount).toBe(0);
-      expect(attemptTransition.calls).toHaveLength(0);
     });
 
     it("grades outside the transaction, runs the transition inside it, and maps the result", async () => {
@@ -491,19 +457,24 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
           mistakeType: "Lỗi ngữ cảnh",
           detailedExplanation: "Chi tiết...",
         },
+        error: {
+          shouldSave: true,
+          confidence: 90,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Lỗi dịch nghĩa.",
+          targetItem: "correct text",
+        },
       };
       grader.onGrade = () => {
         events.push(txCoordinator.active ? "grade:in-tx" : "grade:outside-tx");
       };
-      attemptTransition.onApply = () => {
+
+      const originalCreateAttempt = attemptRepo.createAttempt;
+      attemptRepo.createAttempt = async (attempt: any) => {
         events.push(
           txCoordinator.active ? "transition:in-tx" : "transition:outside-tx"
         );
-      };
-      attemptTransition.result = {
-        ...attemptTransition.result,
-        userErrorCreated: true,
-        mistakePatternStatus: "new",
+        return originalCreateAttempt.call(attemptRepo, attempt);
       };
 
       const result = await engine.submitAttempt({
@@ -520,16 +491,21 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(result.mistakePatternStatus).toBe("new");
       expect(result.feedbackDetails?.mistakeType).toBe("Lỗi ngữ cảnh");
       expect(txCoordinator.runCount).toBe(1);
-      expect(attemptTransition.calls).toHaveLength(1);
-      expect(attemptTransition.calls[0]).toMatchObject({
+      expect(events).toEqual(["grade:outside-tx", "transition:in-tx"]);
+      expect(notifyQueueCalls).toBe(1);
+
+      // Verify records are actually written to DB
+      expect(repo.attempts).toHaveLength(1);
+      expect(repo.attempts[0]).toMatchObject({
         userId: "user-1",
         lessonId: "les-1",
         answer: "wrong text",
-        exercise: repo.exercises.get("ex-1"),
-        grade: grader.result,
+        score: 82,
+        isCorrect: false,
       });
-      expect(events).toEqual(["grade:outside-tx", "transition:in-tx"]);
-      expect(notifyQueueCalls).toBe(0);
+      expect(repo.userErrors).toHaveLength(1);
+      expect(repo.userErrors[0].errorType).toBe("phrase_misunderstanding");
+      expect(repo.mistakePatterns.size).toBe(1);
     });
 
     it("dispatches the review prompt job only after the transaction completes", async () => {
@@ -539,18 +515,35 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         correctAnswer: "correct text",
       });
       const events: string[] = [];
+      grader.result = {
+        score: 82,
+        isCorrect: false,
+        feedbackVi: "Chưa đúng.",
+        error: {
+          shouldSave: true,
+          confidence: 90,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Lỗi dịch nghĩa.",
+          targetItem: "correct text",
+        },
+      };
       grader.onGrade = () => {
         events.push("grade");
       };
-      attemptTransition.onApply = () => {
+
+      const originalCreateAttempt = attemptRepo.createAttempt;
+      attemptRepo.createAttempt = async (attempt: any) => {
         events.push("transition");
+        return originalCreateAttempt.call(attemptRepo, attempt);
       };
+
       const notifyQueueFn = async () => {
         events.push(
           txCoordinator.active ? "dispatch:in-tx" : "dispatch:after-tx"
         );
         notifyQueueCalls++;
       };
+
       engine = new DefaultLearnerMemoryEngine(
         exerciseRepo,
         attemptRepo,
@@ -561,12 +554,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         notifyQueueFn,
         reviewGenerator,
         getTextProcessor(),
-        attemptTransition as any
+        () => `pattern-${repo.mistakePatterns.size + 1}`
       );
-      attemptTransition.result = {
-        ...attemptTransition.result,
-        reviewPromptJob: { patternId: "pattern-42" },
-      };
 
       await engine.submitAttempt({
         userId: "user-1",
@@ -578,6 +567,270 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(notifyQueueCalls).toBe(1);
       expect(events).toEqual(["grade", "transition", "dispatch:after-tx"]);
       expect(txCoordinator.events).toEqual(["tx:start", "tx:end"]);
+    });
+
+    describe("state transitions", () => {
+      const runTransition = async (
+        exerciseOverrides: any,
+        gradeOverrides: any
+      ) => {
+        const exercise = {
+          id: "exercise-1",
+          lessonId: "lesson-1",
+          userId: "user-1",
+          keyPhraseId: null,
+          lessonFocusId: null,
+          type: "natural_translation",
+          promptVi: "Dịch tự nhiên.",
+          promptEn: "Could you push this back?",
+          choices: null,
+          correctAnswer: "dời việc này lại",
+          acceptableAnswers: null,
+          rubricVi: null,
+          orderIndex: 1,
+          createdAt: new Date(),
+          ...exerciseOverrides,
+        };
+        repo.exercises.set(exercise.id, exercise);
+
+        grader.result = {
+          score: 0,
+          isCorrect: false,
+          feedbackVi: "Chưa đúng.",
+          error: {
+            shouldSave: true,
+            confidence: 90,
+            errorType: "phrase_misunderstanding",
+            explanationVi: "Sai nghĩa cụm.",
+            targetItem: "AI target should not win",
+          },
+          ...gradeOverrides,
+        };
+
+        return await engine.submitAttempt({
+          userId: "user-1",
+          exerciseId: exercise.id,
+          lessonId: "lesson-1",
+          answer: "wrong answer",
+        });
+      };
+
+      it("saves an attempt without user memory when shouldSave is false", async () => {
+        const result = await runTransition(
+          {},
+          {
+            error: {
+              shouldSave: false,
+              confidence: 100,
+              errorType: "phrase_misunderstanding",
+              explanationVi: "Không nên lưu.",
+              targetItem: "push back",
+            },
+          }
+        );
+
+        expect(result.userErrorCreated).toBe(false);
+        expect(result.mistakePatternStatus).toBe("none");
+        expect(repo.attempts).toHaveLength(1);
+        expect(repo.userErrors).toHaveLength(0);
+        expect(repo.mistakePatterns.size).toBe(0);
+      });
+
+      it("saves an attempt without user memory when confidence is below the gate", async () => {
+        const result = await runTransition(
+          {},
+          {
+            error: {
+              shouldSave: true,
+              confidence: 69,
+              errorType: "phrase_misunderstanding",
+              explanationVi: "Không đủ chắc.",
+              targetItem: "push back",
+            },
+          }
+        );
+
+        expect(result.userErrorCreated).toBe(false);
+        expect(repo.attempts).toHaveLength(1);
+        expect(repo.userErrors).toHaveLength(0);
+      });
+
+      it("saves user error when confidence is exactly at the gate", async () => {
+        const result = await runTransition(
+          {},
+          {
+            error: {
+              shouldSave: true,
+              confidence: 70,
+              errorType: "phrase_misunderstanding",
+              explanationVi: "Vừa đủ chắc.",
+              targetItem: "push back",
+            },
+          }
+        );
+
+        expect(result.userErrorCreated).toBe(true);
+        expect(repo.attempts).toHaveLength(1);
+        expect(repo.userErrors).toHaveLength(1);
+      });
+
+      it("uses KeyPhrase concept as authoritative over AI targetItem", async () => {
+        lessonRepo.keyPhrases.set("phrase-1", {
+          id: "phrase-1",
+          conceptKey: "push_back",
+          conceptPhrase: "push back",
+          conceptMeaningVi: "dời lại / trì hoãn",
+          normalizedPhrase: "push back",
+          senseKey: "push_back_sense",
+          meaningVi: "dời lại / trì hoãn",
+          category: "phrasal_verb",
+          isSensitive: false,
+        });
+
+        await runTransition({ keyPhraseId: "phrase-1" }, {});
+
+        expect(repo.userErrors[0].conceptKey).toBe("push_back");
+        expect(repo.userErrors[0].normalizedPhrase).toBe("push back");
+        expect(Array.from(repo.mistakePatterns.values())[0].meaningVi).toBe(
+          "dời lại / trì hoãn"
+        );
+      });
+
+      it("uses LessonFocus concept when there is no KeyPhrase", async () => {
+        lessonRepo.lessonFocuses.set("focus-1", {
+          id: "focus-1",
+          title: "Lời nhờ lịch sự",
+          conceptKey: "polite_request",
+          conceptPhrase: "polite request",
+          conceptMeaningVi: "nhờ vả lịch sự, không gây áp lực",
+          category: "tone",
+          explanationVi: "Dùng sắc thái mềm.",
+        });
+
+        await runTransition({ lessonFocusId: "focus-1" }, {});
+
+        const pattern = Array.from(repo.mistakePatterns.values())[0];
+        expect(repo.userErrors[0].conceptKey).toBe("polite_request");
+        expect(pattern.normalizedPhrase).toBe("polite request");
+        expect(pattern.category).toBe("business_phrase");
+      });
+
+      it("uses exercise fallback before AI targetItem when no concept owner exists", async () => {
+        await runTransition(
+          {
+            correctAnswer: "dời việc này lại",
+            promptEn: "Could you push this back?",
+          },
+          {}
+        );
+
+        expect(repo.userErrors[0].conceptKey).toBe("dời việc này lại");
+        expect(repo.userErrors[0].conceptKey).not.toBe(
+          "ai target should not win"
+        );
+      });
+
+      it("creates a new MistakePattern and returns a review prompt job", async () => {
+        const result = await runTransition({}, {});
+
+        expect(result.userErrorCreated).toBe(true);
+        expect(result.mistakePatternStatus).toBe("new");
+        expect(repo.mistakePatterns.size).toBe(1);
+        const pattern = Array.from(repo.mistakePatterns.values())[0];
+        expect(pattern.reviewPromptStatus).toBe("queued");
+      });
+
+      it("updates repeated MistakePattern through aggregate state and save", async () => {
+        const existing = MistakePattern.createNew({
+          id: "existing-pattern",
+          userId: "user-1",
+          conceptKey: "dời việc này lại",
+          normalizedPhrase: "dời việc này lại",
+          senseKey: "exercise:dời việc này lại",
+          category: "general_phrase",
+          errorType: "phrase_misunderstanding",
+          meaningVi: "Sai nghĩa cụm.",
+          safeReviewPromptVi:
+            'Ôn lại cụm "dời việc này lại" theo nghĩa tự nhiên trong ngữ cảnh.',
+          isSensitive: false,
+        });
+        repo.mistakePatterns.set(existing.id, existing);
+
+        const result = await runTransition({}, {});
+
+        expect(result.mistakePatternStatus).toBe("repeated");
+        expect(repo.userErrors[0].isRepeated).toBe(true);
+        expect(existing.occurrenceCount).toBe(2);
+        expect(existing.intervalDays).toBe(0);
+      });
+
+      it("reactivates a mastered MistakePattern immediately when missed again", async () => {
+        const mastered = MistakePattern.reconstitute({
+          ...MistakePattern.createNew({
+            id: "mastered-pattern",
+            userId: "user-1",
+            conceptKey: "dời việc này lại",
+            normalizedPhrase: "dời việc này lại",
+            senseKey: "exercise:dời việc này lại",
+            category: "general_phrase",
+            errorType: "phrase_misunderstanding",
+            meaningVi: "Sai nghĩa cụm.",
+            safeReviewPromptVi:
+              'Ôn lại cụm "dời việc này lại" theo nghĩa tự nhiên trong ngữ cảnh.',
+            isSensitive: false,
+          }).toDbRow(),
+          occurrenceCount: 3,
+          intervalDays: 14,
+          masteryState: "mastered",
+          dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+        repo.mistakePatterns.set(mastered.id, mastered);
+
+        await runTransition({}, {});
+
+        expect(mastered.occurrenceCount).toBe(4);
+        expect(mastered.intervalDays).toBe(0);
+        expect(mastered.masteryState).toBe("active");
+        expect(mastered.dueAt.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+      });
+
+      it("saves sensitive KeyPhrase UserError without long-term MistakePattern memory", async () => {
+        lessonRepo.keyPhrases.set("phrase-1", {
+          id: "phrase-1",
+          conceptKey: "internal_customer",
+          conceptPhrase: "internal customer",
+          conceptMeaningVi: "khách hàng nội bộ",
+          normalizedPhrase: "internal customer",
+          senseKey: "internal_customer_sense",
+          meaningVi: "khách hàng nội bộ",
+          category: "business_phrase",
+          isSensitive: true,
+        });
+
+        const result = await runTransition({ keyPhraseId: "phrase-1" }, {});
+
+        expect(result.userErrorCreated).toBe(true);
+        expect(result.mistakePatternStatus).toBe("none");
+        expect(repo.userErrors[0].isRepeated).toBe(false);
+        expect(repo.userErrors[0].isSourceSensitive).toBe(true);
+        expect(repo.mistakePatterns.size).toBe(0);
+      });
+
+      it("saves sensitive fallback UserError without long-term MistakePattern memory", async () => {
+        const result = await runTransition(
+          {
+            correctAnswer: "contact john@example.com",
+            promptEn: "Please contact john@example.com today.",
+          },
+          {}
+        );
+
+        expect(result.userErrorCreated).toBe(true);
+        expect(result.mistakePatternStatus).toBe("none");
+        expect(repo.userErrors[0].isRepeated).toBe(false);
+        expect(repo.userErrors[0].isSourceSensitive).toBe(true);
+        expect(repo.mistakePatterns.size).toBe(0);
+      });
     });
   });
 
