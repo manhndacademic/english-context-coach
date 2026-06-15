@@ -10,7 +10,6 @@ import type {
   MistakePatternRepository,
   TransactionCoordinator,
   GradingEngine,
-  JobDispatcher,
   ReviewPromptGenerator,
 } from "./ports";
 import type {
@@ -29,7 +28,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     private txCoordinator: TransactionCoordinator,
     _lessonRepo: LessonRepository,
     private grader: GradingEngine,
-    private dispatcher: JobDispatcher,
+    private notifyQueue: () => Promise<void>,
     private reviewGenerator: ReviewPromptGenerator,
     _textProcessor: TextProcessor,
     private attemptTransition = new AttemptMemoryTransition(
@@ -93,15 +92,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       );
 
       if (transitionResult.reviewPromptJob) {
-        this.dispatcher
-          .triggerReviewPromptGeneration(
-            transitionResult.reviewPromptJob.patternId
-          )
-          .catch((err) =>
-            console.error(
-              `[Engine] Failed to trigger review prompt generation: ${err}`
-            )
-          );
+        this.notifyQueue().catch((err) =>
+          console.error(`[Engine] Failed to notify queue: ${err}`)
+        );
       }
 
       return {
@@ -184,6 +177,13 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
       pattern.recordReviewAttempt(grade.isCorrect, grade.score);
 
+      if (grade.isCorrect) {
+        pattern.setJobStatus("queued", {
+          reviewPromptAttempts: 0,
+          reviewPromptError: null,
+        });
+      }
+
       // 2. Perform persistence within transaction context
       await this.txCoordinator.runInTransaction(async (repos) => {
         await repos.attempts.createReviewAttempt({
@@ -200,13 +200,9 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
       // 3. Trigger review prompt regeneration on success (outside transaction)
       if (grade.isCorrect) {
-        this.dispatcher
-          .triggerReviewPromptGeneration(pattern.id)
-          .catch((err) =>
-            console.error(
-              `[Engine] Failed to trigger review prompt generation on success: ${err}`
-            )
-          );
+        this.notifyQueue().catch((err) =>
+          console.error(`[Engine] Failed to notify queue on success: ${err}`)
+        );
       }
 
       return {

@@ -107,10 +107,6 @@ export interface GradingEngine {
   }): Promise<LearnerGradingResult>;
 }
 
-export interface JobDispatcher {
-  triggerReviewPromptGeneration(mistakePatternId: string): Promise<void>;
-}
-
 export interface ReviewPromptGenerator {
   generate(input: {
     userId: string;

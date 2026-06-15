@@ -13,7 +13,6 @@ import type {
   MistakePatternRepository,
   TransactionCoordinator,
   GradingEngine,
-  JobDispatcher,
   ReviewPromptGenerator,
 } from "./ports";
 
@@ -236,16 +235,6 @@ class MockGradingEngine implements GradingEngine {
   }
 }
 
-class MockJobDispatcher implements JobDispatcher {
-  triggered: string[] = [];
-  onTrigger?: (patternId: string) => void;
-
-  async triggerReviewPromptGeneration(patternId: string) {
-    this.triggered.push(patternId);
-    this.onTrigger?.(patternId);
-  }
-}
-
 class MockAttemptMemoryTransition {
   calls: AttemptMemoryTransitionInput[] = [];
   result: AttemptMemoryTransitionResult = {
@@ -398,7 +387,8 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
   let txCoordinator: MockTransactionCoordinator;
   let lessonRepo: MockLessonRepository;
   let grader: MockGradingEngine;
-  let dispatcher: MockJobDispatcher;
+  let notifyQueueCalls: number;
+  let notifyQueue: () => Promise<void>;
   let reviewGenerator: MockReviewPromptGenerator;
   let attemptTransition: MockAttemptMemoryTransition;
   let engine: DefaultLearnerMemoryEngine;
@@ -415,7 +405,10 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
     );
     lessonRepo = new MockLessonRepository();
     grader = new MockGradingEngine();
-    dispatcher = new MockJobDispatcher();
+    notifyQueueCalls = 0;
+    notifyQueue = async () => {
+      notifyQueueCalls++;
+    };
     reviewGenerator = new MockReviewPromptGenerator();
     attemptTransition = new MockAttemptMemoryTransition();
     engine = new DefaultLearnerMemoryEngine(
@@ -425,7 +418,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       txCoordinator,
       lessonRepo,
       grader,
-      dispatcher,
+      notifyQueue,
       reviewGenerator,
       getTextProcessor(),
       attemptTransition as any
@@ -536,7 +529,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         grade: grader.result,
       });
       expect(events).toEqual(["grade:outside-tx", "transition:in-tx"]);
-      expect(dispatcher.triggered.length).toBe(0);
+      expect(notifyQueueCalls).toBe(0);
     });
 
     it("dispatches the review prompt job only after the transaction completes", async () => {
@@ -552,11 +545,24 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       attemptTransition.onApply = () => {
         events.push("transition");
       };
-      dispatcher.onTrigger = () => {
+      const notifyQueueFn = async () => {
         events.push(
           txCoordinator.active ? "dispatch:in-tx" : "dispatch:after-tx"
         );
+        notifyQueueCalls++;
       };
+      engine = new DefaultLearnerMemoryEngine(
+        exerciseRepo,
+        attemptRepo,
+        mistakePatternRepo,
+        txCoordinator,
+        lessonRepo,
+        grader,
+        notifyQueueFn,
+        reviewGenerator,
+        getTextProcessor(),
+        attemptTransition as any
+      );
       attemptTransition.result = {
         ...attemptTransition.result,
         reviewPromptJob: { patternId: "pattern-42" },
@@ -569,7 +575,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         answer: "wrong text",
       });
 
-      expect(dispatcher.triggered).toEqual(["pattern-42"]);
+      expect(notifyQueueCalls).toBe(1);
       expect(events).toEqual(["grade", "transition", "dispatch:after-tx"]);
       expect(txCoordinator.events).toEqual(["tx:start", "tx:end"]);
     });
@@ -625,7 +631,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(updatedPattern.intervalDays).toBe(3); // Leitner progression 1 -> 3
       expect(updatedPattern.masteryState).toBe("active");
       expect(updatedPattern.dueAt.getTime()).toBeGreaterThan(Date.now());
-      expect(dispatcher.triggered).toContain(pattern.id);
+      expect(notifyQueueCalls).toBe(1);
     });
 
     it("constructs mockExercise with the pattern's reviewType and reviewChoices", async () => {
@@ -754,7 +760,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       tomorrow.setDate(tomorrow.getDate() + 1);
       expect(updatedPattern.dueAt.getDate()).toBe(tomorrow.getDate());
       // Re-generation of review prompt should not be triggered on failed reviews
-      expect(dispatcher.triggered).not.toContain(pattern.id);
+      expect(notifyQueueCalls).toBe(0);
     });
   });
 

@@ -1,6 +1,5 @@
 import { and, eq, sql as drizzleSql, lte, count, desc, asc } from "drizzle-orm";
 import { db, schema, sql as rawSql } from "@/db";
-import { notifyJobQueued } from "@/lib/jobs/trigger";
 import type { Exercise } from "@/domain/lesson/ports";
 import type { Attempt, UserError, ReviewAttempt } from "../types";
 import { MistakePattern } from "../mistake-pattern";
@@ -163,9 +162,6 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       .returning();
 
     const result = MistakePattern.reconstitute(rows[0]);
-    if (rows[0] && rows[0].reviewPromptStatus === "queued") {
-      await notifyJobQueued();
-    }
     return result;
   }
 
@@ -201,9 +197,6 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
           reviewPromptLockedBy: row.reviewPromptLockedBy,
         },
       });
-    if (row.reviewPromptStatus === "queued") {
-      await notifyJobQueued();
-    }
   }
 
   async claimReviewPromptJob(workerId: string): Promise<MistakePattern | null> {

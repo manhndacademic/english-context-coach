@@ -5,12 +5,12 @@ import {
   DrizzleTransactionCoordinator,
 } from "./adapters/drizzle-repositories";
 import { DefaultGradingEngine } from "./grading/engine";
-import { QueueJobDispatcherAdapter } from "./adapters/job-dispatcher";
 import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getLLMProvider } from "@/domain/ai";
 import { getTextProcessor } from "@/domain/text";
 import { getLessonRepository } from "@/domain/lesson";
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 import type { LearnerMemoryEngine } from "./types";
 import type {
   ExerciseRepository,
@@ -62,9 +62,6 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
     const lessonRepo = getLessonRepository();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
-    const dispatcher = new QueueJobDispatcherAdapter(() =>
-      getMistakePatternRepository()
-    );
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
     cachedEngine = new DefaultLearnerMemoryEngine(
       exerciseRepo,
@@ -73,7 +70,7 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
       txCoordinator,
       lessonRepo,
       grader,
-      dispatcher,
+      notifyJobQueued,
       reviewGenerator,
       getTextProcessor()
     );
@@ -108,7 +105,6 @@ export type {
   MistakePatternRepository,
   TransactionCoordinator,
   GradingEngine,
-  JobDispatcher,
   LearnerGradingResult,
 } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
