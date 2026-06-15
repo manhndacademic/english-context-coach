@@ -355,15 +355,21 @@ class MockGenerationEngine implements GenerationEngine {
 
   analysisError: Error | null = null;
   exercisesError: Error | null = null;
+  lastAnalysisUserId?: string;
+  lastAnalysisLessonId?: string;
+  lastExercisesUserId?: string;
+  lastExercisesLessonId?: string;
 
   async generateAnalysis(
     _sourceText: string,
     onThought?: any,
     _requestedMode?: string,
     _userHighlights?: string[],
-    _userId?: string,
-    _lessonId?: string
+    userId?: string,
+    lessonId?: string
   ) {
+    this.lastAnalysisUserId = userId;
+    this.lastAnalysisLessonId = lessonId;
     if (this.analysisError) throw this.analysisError;
     if (onThought) {
       await onThought("Thought 1");
@@ -374,9 +380,11 @@ class MockGenerationEngine implements GenerationEngine {
   async generateExercises(
     _analysis: any,
     onThought?: any,
-    _userId?: string,
-    _lessonId?: string
+    userId?: string,
+    lessonId?: string
   ) {
+    this.lastExercisesUserId = userId;
+    this.lastExercisesLessonId = lessonId;
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");
@@ -555,6 +563,38 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       const updatedLesson = repo.lessons.get("les-1");
       expect(updatedLesson.analysisStatus).toBe("pending");
       expect(repo.generationJobs.get("job-1").status).toBe("queued");
+    });
+
+    it("passes userId and lessonId to the generation engine", async () => {
+      const job = {
+        id: "job-1",
+        userId: "user-special-123",
+        sourceTextId: "st-1",
+        lessonId: "les-1",
+        status: "queued",
+        stage: "analysis",
+        attempts: 0,
+      };
+      repo.generationJobs.set(job.id, job);
+      const lesson = repo.lessons.get("les-1");
+      if (lesson) {
+        lesson.userId = "user-special-123";
+      }
+      const st = repo.sourceTexts.get("st-1");
+      if (st) {
+        st.userId = "user-special-123";
+      }
+
+      const result = await engine.processNext("worker-1");
+      expect(result.status).toBe("processed");
+      if (result.status === "processed") {
+        expect(result.success).toBe(true);
+      }
+
+      expect(genEngine.lastAnalysisUserId).toBe("user-special-123");
+      expect(genEngine.lastAnalysisLessonId).toBe("les-1");
+      expect(genEngine.lastExercisesUserId).toBe("user-special-123");
+      expect(genEngine.lastExercisesLessonId).toBe("les-1");
     });
   });
 
