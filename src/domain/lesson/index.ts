@@ -59,9 +59,6 @@ export type {
 } from "./ports";
 
 export { DrizzleLessonRepository } from "./adapters/drizzle-lesson-repo";
-export { DrizzleSourceTextRepository } from "./adapters/drizzle-source-text.repo";
-export { DrizzleGenerationJobRepository } from "./adapters/drizzle-generation-job.repo";
-export { DrizzleGenerationProgressRepository } from "./adapters/drizzle-generation-progress.repo";
 export { GeminiGenerationEngine } from "./adapters/gemini-generation";
 export { DefaultLessonGenerationEngine } from "./engine";
 
