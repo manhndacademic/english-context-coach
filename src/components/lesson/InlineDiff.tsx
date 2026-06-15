@@ -8,14 +8,19 @@ interface InlineDiffProps {
   corrected: string | null | undefined;
   /** Pre-computed diff spans from AI or DB; falls back to Myers LCS if absent */
   diffSpans?: DiffSpan[] | null;
-  /** If true, renders the "corrected" view (insert spans highlighted, deletes hidden) */
-  view?: "original" | "corrected";
+  /**
+   * - "unified": renders both delete and insert spans inline in sequence (default)
+   * - "original": renders equal spans and delete spans (inserts hidden)
+   * - "corrected": renders equal spans and insert spans (deletes hidden)
+   */
+  view?: "original" | "corrected" | "unified";
   className?: string;
 }
 
 /**
  * Renders an inline GitHub-style character diff between original and corrected text.
  *
+ * - "unified" view: renders both delete (red strikethrough) and insert (green bold) inline
  * - "original" view: equal spans in normal text, delete spans in red strikethrough
  * - "corrected" view: equal spans in normal text, insert spans in green bold
  * - If no diff (equal sentences): shows badge "✅ Không có lỗi"
@@ -24,7 +29,7 @@ export function InlineDiff({
   original,
   corrected,
   diffSpans,
-  view = "original",
+  view = "unified",
   className,
 }: InlineDiffProps) {
   // No correction or same text → no-error state
@@ -72,7 +77,10 @@ export function InlineDiff({
           );
         }
 
-        if (span.type === "delete" && view === "original") {
+        if (
+          span.type === "delete" &&
+          (view === "original" || view === "unified")
+        ) {
           return (
             <span
               key={i}
@@ -87,7 +95,10 @@ export function InlineDiff({
           );
         }
 
-        if (span.type === "insert" && view === "corrected") {
+        if (
+          span.type === "insert" &&
+          (view === "corrected" || view === "unified")
+        ) {
           return (
             <span
               key={i}
@@ -101,7 +112,7 @@ export function InlineDiff({
           );
         }
 
-        // Hide the opposite side's diff in each view
+        // Hide opposite side's diff in specific view modes
         return null;
       })}
     </span>

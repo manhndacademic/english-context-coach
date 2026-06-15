@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { renderRichText } from "@/lib/rich-text";
 import { InlineDiff } from "./InlineDiff";
 import type { DiffSpan } from "@/lib/ai/schemas";
@@ -22,6 +25,23 @@ export function SentenceBreakdownPanel({
   sentenceBreakdowns,
   mode = "grammar",
 }: SentenceBreakdownPanelProps) {
+  const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sentence-diff-view-mode");
+      if (saved === "unified" || saved === "split") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setViewMode(saved);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (newMode: "unified" | "split") => {
+    setViewMode(newMode);
+    localStorage.setItem("sentence-diff-view-mode", newMode);
+  };
+
   if (!sentenceBreakdowns.length) return null;
 
   if (mode === "standard") {
@@ -93,13 +113,40 @@ export function SentenceBreakdownPanel({
   // Grammar correction comparison view (default)
   return (
     <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
-      <h2 className="text-2xl font-bold text-text m-0">
-        So sánh sửa lỗi (Grammar &amp; Style Corrections)
-      </h2>
-      <p className="text-xs text-muted leading-relaxed m-0 -mt-2">
-        So sánh trực quan giữa văn bản gốc của bạn và đề xuất chỉnh sửa tự nhiên
-        hơn.
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-text m-0">
+            So sánh sửa lỗi (Grammar &amp; Style Corrections)
+          </h2>
+          <p className="text-xs text-muted leading-relaxed m-0 mt-1">
+            So sánh trực quan giữa văn bản gốc của bạn và đề xuất chỉnh sửa tự
+            nhiên hơn.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1 bg-surface-strong border border-border p-1 rounded-lg self-start sm:self-auto shrink-0 select-none">
+          <button
+            onClick={() => handleViewModeChange("unified")}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              viewMode === "unified"
+                ? "bg-surface text-accent shadow-sm border border-border/10"
+                : "text-muted hover:text-text"
+            }`}
+          >
+            Xem inline (Gọn gàng)
+          </button>
+          <button
+            onClick={() => handleViewModeChange("split")}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              viewMode === "split"
+                ? "bg-surface text-accent shadow-sm border border-border/10"
+                : "text-muted hover:text-text"
+            }`}
+          >
+            So sánh 2 cột
+          </button>
+        </div>
+      </div>
 
       <div className="grid gap-5">
         {sentenceBreakdowns.map((breakdown) => {
@@ -113,36 +160,53 @@ export function SentenceBreakdownPanel({
               className="border border-border rounded-md overflow-hidden bg-surface"
             >
               {hasCorrection ? (
-                /* Two-column diff view */
-                <div className="grid grid-cols-1 min-[580px]:grid-cols-2 border-b border-border bg-surface-strong">
-                  <div className="p-4 border-r border-border bg-danger-light text-danger">
-                    <div className="text-[11px] font-bold uppercase mb-2">
-                      Bản gốc (Original)
+                viewMode === "split" ? (
+                  /* Two-column diff view */
+                  <div className="grid grid-cols-1 min-[580px]:grid-cols-2 border-b border-border bg-surface-strong">
+                    <div className="p-4 border-r border-border bg-danger-light text-danger">
+                      <div className="text-[11px] font-bold uppercase mb-2">
+                        Bản gốc (Original)
+                      </div>
+                      <p className="m-0">
+                        <InlineDiff
+                          original={breakdown.sentence}
+                          corrected={breakdown.correctedSentenceEn}
+                          diffSpans={breakdown.diffSpans}
+                          view="original"
+                        />
+                      </p>
                     </div>
-                    <p className="m-0">
-                      <InlineDiff
-                        original={breakdown.sentence}
-                        corrected={breakdown.correctedSentenceEn}
-                        diffSpans={breakdown.diffSpans}
-                        view="original"
-                      />
-                    </p>
-                  </div>
 
-                  <div className="p-4 bg-success-light text-success">
-                    <div className="text-[11px] font-bold uppercase mb-2">
-                      Bản sửa đổi (Corrected)
+                    <div className="p-4 bg-success-light text-success">
+                      <div className="text-[11px] font-bold uppercase mb-2">
+                        Bản sửa đổi (Corrected)
+                      </div>
+                      <p className="m-0 font-bold">
+                        <InlineDiff
+                          original={breakdown.sentence}
+                          corrected={breakdown.correctedSentenceEn}
+                          diffSpans={breakdown.diffSpans}
+                          view="corrected"
+                        />
+                      </p>
                     </div>
-                    <p className="m-0 font-bold">
+                  </div>
+                ) : (
+                  /* Unified inline diff view */
+                  <div className="p-4 border-b border-border bg-surface-strong">
+                    <div className="text-[11px] font-bold uppercase mb-2 text-muted">
+                      Câu sửa lỗi (Unified Diff)
+                    </div>
+                    <p className="m-0 leading-relaxed font-serif">
                       <InlineDiff
                         original={breakdown.sentence}
                         corrected={breakdown.correctedSentenceEn}
                         diffSpans={breakdown.diffSpans}
-                        view="corrected"
+                        view="unified"
                       />
                     </p>
                   </div>
-                </div>
+                )
               ) : (
                 /* No-error single row */
                 <div className="p-4 border-b border-border bg-surface-strong flex items-center gap-3">

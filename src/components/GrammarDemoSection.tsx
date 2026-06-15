@@ -38,26 +38,25 @@ export function GrammarDemoSection() {
     return () => observer.disconnect();
   }, [hasStarted]);
 
-  // Step timeline: 0→1 (1s), 1→2 (1.8s), 2→3 (1.5s)
+  // Infinite Sequential timeline loop
+  // Step transition delays: 0->1 (0.9s), 1->2 (1.5s), 2->3 (1.6s), 3->0 (6.0s)
   useEffect(() => {
     if (!hasStarted) return;
-    const t1 = setTimeout(() => setStep(1), 900);
-    const t2 = setTimeout(() => setStep(2), 2400);
-    const t3 = setTimeout(() => setStep(3), 4000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [hasStarted]);
 
-  const handleReplay = () => {
-    setStep(0);
-    setTimeout(() => {
-      setHasStarted(false);
-      setTimeout(() => setHasStarted(true), 50);
-    }, 50);
-  };
+    if (step === 0) {
+      const t = setTimeout(() => setStep(1), 900);
+      return () => clearTimeout(t);
+    } else if (step === 1) {
+      const t = setTimeout(() => setStep(2), 1500);
+      return () => clearTimeout(t);
+    } else if (step === 2) {
+      const t = setTimeout(() => setStep(3), 1600);
+      return () => clearTimeout(t);
+    } else if (step === 3) {
+      const t = setTimeout(() => setStep(0), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [hasStarted, step]);
 
   return (
     <section
@@ -104,28 +103,30 @@ export function GrammarDemoSection() {
           </div>
 
           <div className="p-5 sm:p-6">
-            {/* Step 0 & 1: show original sentence */}
+            {/* Step 0 & 1 & 2: show original sentence or unified diff */}
             <div
               className={`transition-all duration-500 ${
                 step >= 0 ? "opacity-100" : "opacity-0"
               }`}
             >
               <div className="text-[11px] font-bold uppercase text-muted tracking-wider mb-2">
-                Câu tiếng Anh gốc
+                {step < 2
+                  ? "Câu tiếng Anh gốc"
+                  : "Sửa lỗi trực tiếp (Unified Diff)"}
               </div>
               <div
                 className={`font-serif text-base sm:text-lg leading-relaxed text-text p-4 rounded-lg border transition-all duration-500 ${
                   step === 1
                     ? "border-warning bg-warning-light animate-[shake_0.45s_ease-in-out]"
                     : step >= 2
-                      ? "border-danger/30 bg-danger-light/40"
+                      ? "border-accent/30 bg-surface-strong shadow-inner"
                       : "border-border bg-surface-strong"
                 }`}
               >
                 {step < 2 ? (
                   <span>&quot;{DEMO_ORIGINAL}&quot;</span>
                 ) : (
-                  // Show diff on original side
+                  // Show unified diff
                   <span>
                     &quot;
                     {DEMO_SPANS.map((span, i) => {
@@ -136,6 +137,15 @@ export function GrammarDemoSection() {
                           <span
                             key={i}
                             className="bg-danger-light dark:bg-[rgba(244,63,94,0.18)] text-danger dark:text-[#ff8585] line-through rounded-[3px] px-0.5 mx-[1px] transition-all duration-300"
+                          >
+                            {span.text}
+                          </span>
+                        );
+                      if (span.type === "insert")
+                        return (
+                          <span
+                            key={i}
+                            className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-0.5 mx-[1px] transition-all duration-300"
                           >
                             {span.text}
                           </span>
@@ -158,41 +168,6 @@ export function GrammarDemoSection() {
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-warning bg-warning-light border border-warning/20 px-2.5 py-1 rounded-full">
                   ⚠️ Lỗi ngữ pháp phát hiện
                 </span>
-              </div>
-            </div>
-
-            {/* Step 2+: corrected row */}
-            <div
-              className={`mt-4 transition-all duration-500 ${
-                step >= 2
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-3 pointer-events-none"
-              }`}
-            >
-              <div className="text-[11px] font-bold uppercase text-muted tracking-wider mb-2">
-                Bản sửa đổi (Corrected)
-              </div>
-              <div className="font-serif text-base sm:text-lg leading-relaxed p-4 rounded-lg border border-success/30 bg-success-light/50 font-semibold">
-                &quot;
-                {DEMO_SPANS.map((span, i) => {
-                  if (span.type === "equal")
-                    return (
-                      <span key={i} className="text-text">
-                        {span.text}
-                      </span>
-                    );
-                  if (span.type === "insert")
-                    return (
-                      <span
-                        key={i}
-                        className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-0.5 mx-[1px]"
-                      >
-                        {span.text}
-                      </span>
-                    );
-                  return null;
-                })}
-                &quot;
               </div>
             </div>
 
@@ -227,31 +202,6 @@ export function GrammarDemoSection() {
               </div>
             </div>
           </div>
-
-          {/* Replay button */}
-          {step >= 3 && (
-            <div className="px-5 pb-5 flex justify-end">
-              <button
-                onClick={handleReplay}
-                type="button"
-                className="text-xs text-muted hover:text-accent transition-colors font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-3.5 h-3.5"
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                Xem lại
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Legend */}
