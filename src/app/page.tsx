@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LandingTabs } from "@/components/landing-tabs";
+import { GrammarDemoSection } from "@/components/GrammarDemoSection";
 import {
   Sparkles,
   BrainCircuit,
@@ -335,6 +336,8 @@ export default async function HomePage() {
           </table>
         </div>
       </section>
+
+      <GrammarDemoSection />
 
       {/* Footer / CTA Section */}
       <footer className="flex flex-col gap-4 text-center mt-20 border-t border-border pt-10">

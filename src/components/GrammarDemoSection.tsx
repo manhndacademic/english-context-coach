@@ -1,0 +1,275 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+// Static diff data for the demo
+const DEMO_ORIGINAL =
+  "I'm waiting for my wife take a shower before going to bed.";
+
+// Pre-computed diff spans for the demo
+const DEMO_SPANS = [
+  { type: "equal" as const, text: "I'm waiting for my wife " },
+  { type: "delete" as const, text: "take" },
+  { type: "insert" as const, text: "to take" },
+  { type: "equal" as const, text: " a shower before going to bed." },
+];
+
+type AnimStep = 0 | 1 | 2 | 3;
+
+export function GrammarDemoSection() {
+  const [step, setStep] = useState<AnimStep>(0);
+  const [hasStarted, setHasStarted] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Auto-play when scrolled into view
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasStarted) {
+          setHasStarted(true);
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasStarted]);
+
+  // Step timeline: 0→1 (1s), 1→2 (1.8s), 2→3 (1.5s)
+  useEffect(() => {
+    if (!hasStarted) return;
+    const t1 = setTimeout(() => setStep(1), 900);
+    const t2 = setTimeout(() => setStep(2), 2400);
+    const t3 = setTimeout(() => setStep(3), 4000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [hasStarted]);
+
+  const handleReplay = () => {
+    setStep(0);
+    setTimeout(() => {
+      setHasStarted(false);
+      setTimeout(() => setHasStarted(true), 50);
+    }, 50);
+  };
+
+  return (
+    <section
+      ref={sectionRef}
+      className="mb-20 grid gap-8"
+      aria-label="Demo so sánh sửa lỗi"
+    >
+      <div className="text-center max-w-[600px] mx-auto">
+        <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
+          Xem demo trực tiếp
+        </span>
+        <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
+          Hiển thị lỗi chính xác từng ký tự
+        </h2>
+        <p className="text-sm md:text-base text-muted leading-relaxed">
+          Không gạch toàn bộ câu — hệ thống chỉ ra đúng chỗ cần sửa, giống
+          GitHub diff.
+        </p>
+      </div>
+
+      {/* Demo card */}
+      <div className="max-w-[780px] mx-auto w-full">
+        <div className="bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
+          {/* Window chrome bar */}
+          <div className="flex items-center gap-2 px-4 py-3 bg-surface-strong border-b border-border">
+            <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+            <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+            <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+            <span className="ml-3 text-xs text-muted font-mono">
+              English Context Coach — So sánh sửa lỗi
+            </span>
+          </div>
+
+          {/* Step indicator */}
+          <div className="flex gap-1.5 px-5 pt-4">
+            {([0, 1, 2, 3] as AnimStep[]).map((s) => (
+              <div
+                key={s}
+                className={`h-1 flex-1 rounded-full transition-all duration-500 ${
+                  step >= s ? "bg-accent" : "bg-border"
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="p-5 sm:p-6">
+            {/* Step 0 & 1: show original sentence */}
+            <div
+              className={`transition-all duration-500 ${
+                step >= 0 ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <div className="text-[11px] font-bold uppercase text-muted tracking-wider mb-2">
+                Câu tiếng Anh gốc
+              </div>
+              <div
+                className={`font-serif text-base sm:text-lg leading-relaxed text-text p-4 rounded-lg border transition-all duration-500 ${
+                  step === 1
+                    ? "border-warning bg-warning-light animate-[shake_0.45s_ease-in-out]"
+                    : step >= 2
+                      ? "border-danger/30 bg-danger-light/40"
+                      : "border-border bg-surface-strong"
+                }`}
+              >
+                {step < 2 ? (
+                  <span>&quot;{DEMO_ORIGINAL}&quot;</span>
+                ) : (
+                  // Show diff on original side
+                  <span>
+                    &quot;
+                    {DEMO_SPANS.map((span, i) => {
+                      if (span.type === "equal")
+                        return <span key={i}>{span.text}</span>;
+                      if (span.type === "delete")
+                        return (
+                          <span
+                            key={i}
+                            className="bg-danger-light dark:bg-[rgba(244,63,94,0.18)] text-danger dark:text-[#ff8585] line-through rounded-[3px] px-0.5 mx-[1px] transition-all duration-300"
+                          >
+                            {span.text}
+                          </span>
+                        );
+                      return null;
+                    })}
+                    &quot;
+                  </span>
+                )}
+              </div>
+
+              {/* Warning badge at step 1 */}
+              <div
+                className={`flex items-center gap-2 mt-2.5 transition-all duration-400 ${
+                  step === 1
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-1 pointer-events-none"
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-warning bg-warning-light border border-warning/20 px-2.5 py-1 rounded-full">
+                  ⚠️ Lỗi ngữ pháp phát hiện
+                </span>
+              </div>
+            </div>
+
+            {/* Step 2+: corrected row */}
+            <div
+              className={`mt-4 transition-all duration-500 ${
+                step >= 2
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-3 pointer-events-none"
+              }`}
+            >
+              <div className="text-[11px] font-bold uppercase text-muted tracking-wider mb-2">
+                Bản sửa đổi (Corrected)
+              </div>
+              <div className="font-serif text-base sm:text-lg leading-relaxed p-4 rounded-lg border border-success/30 bg-success-light/50 font-semibold">
+                &quot;
+                {DEMO_SPANS.map((span, i) => {
+                  if (span.type === "equal")
+                    return (
+                      <span key={i} className="text-text">
+                        {span.text}
+                      </span>
+                    );
+                  if (span.type === "insert")
+                    return (
+                      <span
+                        key={i}
+                        className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-0.5 mx-[1px]"
+                      >
+                        {span.text}
+                      </span>
+                    );
+                  return null;
+                })}
+                &quot;
+              </div>
+            </div>
+
+            {/* Step 3: explanation card */}
+            <div
+              className={`mt-4 transition-all duration-500 ${
+                step >= 3
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-3 pointer-events-none"
+              }`}
+            >
+              <div className="p-4 bg-surface border border-border rounded-lg grid gap-2">
+                <strong className="text-[11px] font-bold uppercase text-muted tracking-wider">
+                  Giải thích chi tiết:
+                </strong>
+                <p className="text-sm leading-relaxed text-text m-0">
+                  Lỗi ở chỗ{" "}
+                  <code className="text-xs bg-surface-strong border border-border rounded px-1.5 py-0.5 font-mono text-danger">
+                    wife take
+                  </code>
+                  . Sau{" "}
+                  <code className="text-xs bg-surface-strong border border-border rounded px-1.5 py-0.5 font-mono">
+                    wait for [object]
+                  </code>
+                  , cần dùng{" "}
+                  <code className="text-xs bg-success-light border border-success/20 rounded px-1.5 py-0.5 font-mono text-success">
+                    to + verb
+                  </code>{" "}
+                  (to take). Đây là cấu trúc{" "}
+                  <strong>wait for someone to do something</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Replay button */}
+          {step >= 3 && (
+            <div className="px-5 pb-5 flex justify-end">
+              <button
+                onClick={handleReplay}
+                type="button"
+                className="text-xs text-muted hover:text-accent transition-colors font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-3.5 h-3.5"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Xem lại
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-sm bg-danger-light border border-danger/20" />
+            Phần bị xóa (strikethrough)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-sm bg-success-light border border-success/20" />
+            Phần được thêm / sửa
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-sm bg-surface-strong border border-border" />
+            Không thay đổi
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}

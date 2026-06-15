@@ -79,6 +79,10 @@ export interface SentenceBreakdown {
   userId: string;
   sentence: string;
   correctedSentenceEn: string | null;
+  diffSpans: Array<{
+    type: "equal" | "delete" | "insert";
+    text: string;
+  }> | null;
   naturalMeaningVi: string;
   structureNotesVi: string;
   toneOrContextVi: string | null;
@@ -213,6 +217,7 @@ export interface SaveAnalysisInput {
   sentenceBreakdowns: Array<{
     sentence: string;
     correctedSentenceEn?: string;
+    diffSpans?: Array<{ type: "equal" | "delete" | "insert"; text: string }>;
     naturalMeaningVi: string;
     structureNotesVi: string;
     toneOrContextVi?: string;

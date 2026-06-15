@@ -69,9 +69,15 @@ export const keyPhraseSchema = z.object({
   difficulty: levelSchema,
 });
 
+export const diffSpanSchema = z.object({
+  type: z.enum(["equal", "delete", "insert"]),
+  text: z.string(),
+});
+
 export const sentenceBreakdownSchema = z.object({
   sentence: z.string().min(1),
   correctedSentenceEn: z.string().optional(),
+  diffSpans: z.array(diffSpanSchema).optional(),
   naturalMeaningVi: z.string().min(1),
   structureNotesVi: z.string().min(1),
   toneOrContextVi: z.string().optional(),
@@ -229,3 +235,4 @@ export type AnalysisResult = z.infer<typeof analysisSchema>;
 export type ExercisesResult = z.infer<typeof exercisesSchema>;
 export type GradingResult = z.infer<typeof gradingSchema>;
 export type ReviewPromptResult = z.infer<typeof reviewPromptSchema>;
+export type DiffSpan = z.infer<typeof diffSpanSchema>;

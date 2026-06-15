@@ -14,7 +14,7 @@ export const MIN_PASSWORD_LENGTH = 12;
 export const MIN_LESSON_ITEMS = 3;
 export const MAX_LESSON_ITEMS = 7;
 export const PROMPT_VERSIONS = {
-  analysis: "analysis-v2",
+  analysis: "analysis-v3",
   exercises: "exercises-v1",
   grading: "grading-v1",
   review_prompt: "review_prompt-v1",

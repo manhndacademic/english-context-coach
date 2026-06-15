@@ -27,6 +27,8 @@ export const analysisJsonShape = {
       sentence: "source sentence or coherent sentence fragment",
       correctedSentenceEn:
         "optional string: corrected English version of this sentence (only for fix_and_understand or naturalize_english modes)",
+      diffSpans:
+        "optional array: character-level diff between sentence and correctedSentenceEn. Each item: {type: 'equal'|'delete'|'insert', text: string}. Only for fix_and_understand or naturalize_english. Omit if no correction.",
       naturalMeaningVi: "natural Vietnamese meaning of this sentence",
       structureNotesVi:
         "Vietnamese explanation of grammar, reference, or structure that affects understanding",
@@ -81,7 +83,7 @@ export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
     "  - `unsupported`: Gibberish, too short, or meaningless input.",
     "Adapt your output fields dynamically based on the detected inputMode:",
     "  - For `not_english` / `unsupported`: Set `summaryVi` to a friendly warning/explanation in Vietnamese. Set `keyPhrases`, `lessonFocuses`, and `sentenceBreakdowns` to empty arrays (`[]`). Set `naturalTranslationVi` and `contextExplanationVi` to 'none'.",
-    "  - For `fix_and_understand` / `naturalize_english`: Show grammar corrections and explain why the original was wrong or awkward in `summaryVi`. In `sentenceBreakdowns`, compare the original sentences directly with the corrected English versions. Let `naturalTranslationVi` translate the corrected English.",
+    '  - For `fix_and_understand` / `naturalize_english`: Show grammar corrections and explain why the original was wrong or awkward in `summaryVi`. In `sentenceBreakdowns`, compare the original sentences directly with the corrected English versions. Let `naturalTranslationVi` translate the corrected English. For each corrected sentence, include a `diffSpans` array showing the character-level difference between `sentence` and `correctedSentenceEn`. Each span has `type` (\'equal\', \'delete\', or \'insert\') and `text`. Example: sentence=\'I want go home\', correctedSentenceEn=\'I want to go home\', diffSpans=[{"type":"equal","text":"I want "},{"type":"insert","text":"to "},{"type":"equal","text":"go home"}]. If the sentence has no error and equals correctedSentenceEn, emit diffSpans=[{"type":"equal","text":"<the full sentence>"}] or omit diffSpans entirely.',
     "  - For `developer_error_explanation`: Explain the developer error stack trace clearly in Vietnamese in `summaryVi` and common causes/resolutions in `contextExplanationVi`.",
     "Return strict JSON only. No markdown.",
     `Generate 1-${MAX_LESSON_ITEMS} distinct key phrases. Short source texts may have only 1-2 key phrases; do not add filler.`,

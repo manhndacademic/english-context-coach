@@ -159,9 +159,13 @@ This project uses **Bun** as its primary package manager, dependency resolver, a
 - **Run dev server**: `bun run dev`
 - **Run background worker**: `bun run worker`
 - **Run linting**: `bun run lint`
+- **Run type checking**: `bun run typecheck`
 - **Run tests**: `bun run test` (Vitest). Do not use raw `bun test` as the release gate because this repo uses Vitest APIs.
 - **Build production**: `bun run build`
-- **Database migrations/push**: `bun run db:push` / `bun run db:migrate`
+- **Database migrations/push**:
+  - Local sync during development: `bun run db:push`
+  - **MANDATORY for schema changes**: If you edit `src/db/schema.ts`, you **MUST** generate the SQL migration file by running `bun run db:generate`.
+  - Apply/Verify migrations: `bun run db:migrate` (if local DB was already updated with `db:push` and errors out, run `bun run docker:local:reset && bun run docker:local:up` to clear volumes, wait a few seconds, then verify with `bun run db:migrate`).
 
 ---
 
@@ -170,8 +174,10 @@ This project uses **Bun** as its primary package manager, dependency resolver, a
 To ensure high-quality code at all times, every coding agent **MUST** run the following verification checks and confirm they pass before declaring a task complete or submitting a PR:
 
 1.  **Linting**: Run `bun run lint` to verify there are no ESLint errors or style warnings.
-2.  **Testing**: Run `bun run test` to verify all automated unit/integration tests pass.
-3.  **Building**: Run `bun run build` to verify the Next.js production build succeeds without TypeScript or bundler errors.
+2.  **Type Checking**: Run `bun run typecheck` to verify there are no TypeScript compiler errors.
+3.  **Testing**: Run `bun run test` to verify all automated unit/integration tests pass.
+4.  **Building**: Run `bun run build` to verify the Next.js production build succeeds without TypeScript or bundler errors.
+5.  **Database Migrations**: If `src/db/schema.ts` is modified, verify that a migration file is generated (`bun run db:generate`) and applies successfully on a fresh database setup (`bun run db:migrate`).
 
 ---
 

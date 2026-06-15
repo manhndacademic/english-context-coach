@@ -53,6 +53,7 @@ export class GeminiGenerationEngine implements GenerationEngine {
       sentenceBreakdowns: result.sentenceBreakdowns.map((breakdown) => ({
         sentence: breakdown.sentence,
         correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
+        diffSpans: breakdown.diffSpans ?? undefined,
         naturalMeaningVi: breakdown.naturalMeaningVi,
         structureNotesVi: breakdown.structureNotesVi,
         toneOrContextVi: breakdown.toneOrContextVi ?? undefined,

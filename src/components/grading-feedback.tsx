@@ -200,10 +200,10 @@ export function GradingFeedback({
               <strong className="text-xs font-bold text-danger block">
                 Bẫy dịch từng từ (Literal Trap)
               </strong>
-              <p className="m-0 mt-1 text-sm md:text-base leading-relaxed">
-                Tránh dịch:{" "}
-                <span className="line-through opacity-80">
-                  &quot;{literalTranslationTrap}&quot;
+              <p className="m-0 mt-1.5 text-sm md:text-base leading-relaxed flex flex-wrap items-center gap-1.5">
+                <span className="text-muted">Tránh dịch:</span>
+                <span className="inline-flex items-center gap-1 bg-danger/10 dark:bg-danger/20 text-danger font-semibold px-2 py-0.5 rounded border border-danger/20 text-sm">
+                  ✗ &quot;{literalTranslationTrap}&quot;
                 </span>
               </p>
             </div>

@@ -246,6 +246,7 @@ export class DrizzleLessonRepository implements LessonRepository {
             userId,
             sentence: breakdown.sentence,
             correctedSentenceEn: breakdown.correctedSentenceEn ?? null,
+            diffSpans: breakdown.diffSpans ?? null,
             naturalMeaningVi: breakdown.naturalMeaningVi,
             structureNotesVi: breakdown.structureNotesVi,
             toneOrContextVi: breakdown.toneOrContextVi ?? null,
@@ -386,6 +387,11 @@ export class DrizzleLessonRepository implements LessonRepository {
         (breakdown: DbSentenceBreakdown) => ({
           sentence: breakdown.sentence,
           correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
+          diffSpans:
+            (breakdown.diffSpans as Array<{
+              type: "equal" | "delete" | "insert";
+              text: string;
+            }> | null) ?? undefined,
           naturalMeaningVi: breakdown.naturalMeaningVi,
           structureNotesVi: breakdown.structureNotesVi,
           toneOrContextVi: breakdown.toneOrContextVi ?? undefined,

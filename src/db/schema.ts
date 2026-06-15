@@ -292,6 +292,7 @@ export const sentenceBreakdowns = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     sentence: text("sentence").notNull(),
     correctedSentenceEn: text("corrected_sentence_en"),
+    diffSpans: jsonb("diff_spans"),
     naturalMeaningVi: text("natural_meaning_vi").notNull(),
     structureNotesVi: text("structure_notes_vi").notNull(),
     toneOrContextVi: text("tone_or_context_vi"),

@@ -1,5 +1,6 @@
 import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { SourceMeaningPanel } from "./SourceMeaningPanel";
+import type { DiffSpan } from "@/lib/ai/schemas";
 
 interface GrammarCorrectionViewProps {
   lesson: {
@@ -11,6 +12,7 @@ interface GrammarCorrectionViewProps {
     id: string;
     sentence: string;
     correctedSentenceEn: string | null;
+    diffSpans?: DiffSpan[] | null;
     naturalMeaningVi: string;
     structureNotesVi: string;
     toneOrContextVi: string | null;
