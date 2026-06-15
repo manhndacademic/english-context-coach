@@ -100,9 +100,25 @@ describe("GradingFeedback Component", () => {
     );
 
     expect(html).toContain("Đạt yêu cầu");
-    expect(html).toContain("Hoàn thành xuất sắc");
+    expect(html).toContain("Tốt lắm.");
     expect(html).toContain("Đáp án tự nhiên");
     expect(html).toContain("Natural correct answer");
-    expect(html).toContain("Lần ôn tiếp theo: 2026-06-20.");
+    expect(html).toContain("Lần ôn tiếp theo: 2026-06-20");
+  });
+
+  it("renders naturalAnswer as a suggestion when showSuggestion is true even if incorrect", () => {
+    const html = renderToStaticMarkup(
+      <GradingFeedback
+        type="exercise"
+        isCorrect={false}
+        feedbackVi="Sai ngữ pháp."
+        answer="Incorrect answer"
+        naturalAnswer="This is the correct natural answer."
+        showSuggestion={true}
+      />
+    );
+
+    expect(html).toContain("Gợi ý đáp án");
+    expect(html).toContain("This is the correct natural answer.");
   });
 });

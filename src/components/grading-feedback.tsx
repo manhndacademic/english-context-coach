@@ -23,6 +23,7 @@ interface GradingFeedbackProps {
   solved?: boolean;
   isSubjectiveType?: boolean;
   isRepeated?: boolean;
+  showSuggestion?: boolean;
   // Review specific
   nextReviewDate?: string | null;
   masteryState?: string | null;
@@ -39,6 +40,7 @@ export function GradingFeedback({
   solved,
   isSubjectiveType,
   isRepeated,
+  showSuggestion,
   nextReviewDate,
   masteryState,
 }: GradingFeedbackProps) {
@@ -173,6 +175,17 @@ export function GradingFeedback({
                 <div className="mt-3 p-3 px-4 rounded-md bg-success-light border-l-4 border-success text-left">
                   <strong className="text-xs font-bold text-success block">
                     Gợi ý
+                  </strong>
+                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
+                    {naturalAnswer}
+                  </p>
+                </div>
+              ) : null}
+
+              {naturalAnswer && !solved && showSuggestion ? (
+                <div className="mt-3 p-3 px-4 rounded-md bg-accent-light border-l-4 border-accent text-left">
+                  <strong className="text-xs font-bold text-accent block">
+                    Gợi ý đáp án
                   </strong>
                   <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
                     {naturalAnswer}

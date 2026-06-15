@@ -46,7 +46,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
         temperature: 0.1,
         topP: 0.8,
         systemInstruction:
-          "Return compact valid JSON only. Do not include markdown. Do not list multiple alternative answers unless explicitly requested. For grading, naturalAnswer must be exactly one best Vietnamese answer. Keep all fields concise and bounded.",
+          "Return compact valid JSON only. Do not include markdown. Do not list multiple alternative answers unless explicitly requested. For grading, naturalAnswer must be exactly one best answer in the expected target language (Vietnamese or English depending on the prompt). Keep all fields concise and bounded.",
       };
     case "analysis":
       return {

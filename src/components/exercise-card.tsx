@@ -82,6 +82,7 @@ export function ExerciseCard({
   const latest = attempts[0];
   const solved = Boolean(latest?.isCorrect);
   const needsRetry = Boolean(latest && !latest.isCorrect);
+  const showSuggestion = needsRetry && attempts.length >= 2;
   const [answer, setAnswer] = useState(
     latest && !latest.isCorrect ? latest.answer : ""
   );
@@ -345,6 +346,7 @@ export function ExerciseCard({
           solved={solved}
           isSubjectiveType={isSubjectiveType}
           isRepeated={isRepeated}
+          showSuggestion={showSuggestion}
         />
       ) : null}
     </article>
