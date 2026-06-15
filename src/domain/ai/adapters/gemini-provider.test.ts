@@ -1,9 +1,8 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { z } from "zod";
 import type { KeyResolver, AiRequestRecorder } from "../ports";
-import type { LLMClient } from "./resiliency-manager";
+import { GeminiLLMProvider } from "./gemini-provider";
 
-// Mock implementations
 class MockKeyResolver implements KeyResolver {
   keys: { key: string; id: string; isUserKey: boolean }[] = [];
   rateLimited = new Set<string>();
@@ -50,30 +49,11 @@ class MockAiRequestRecorder implements AiRequestRecorder {
   }
 }
 
-class MockLLMClient implements LLMClient {
-  calls: any[] = [];
-  responses: { text?: string; error?: Error }[] = [];
-
-  async call(options: any) {
-    this.calls.push(options);
-    const resp = this.responses.shift();
-    if (!resp) throw new Error("No mock response configured");
-    if (resp.error) throw resp.error;
-    return {
-      text: resp.text ?? "",
-      inputTokens: 10,
-      outputTokens: 20,
-    };
-  }
-}
-
-import { DefaultLLMResiliencyManager } from "./resiliency-manager";
-
-describe("DefaultLLMResiliencyManager", () => {
+describe("GeminiLLMProvider Resiliency", () => {
   let keyResolver: MockKeyResolver;
   let requestRecorder: MockAiRequestRecorder;
-  let manager: DefaultLLMResiliencyManager;
-  let client: MockLLMClient;
+  let responses: { text?: string; error?: Error }[] = [];
+  let calls: any[] = [];
 
   const schema = z.object({
     score: z.number(),
@@ -83,60 +63,75 @@ describe("DefaultLLMResiliencyManager", () => {
   beforeEach(() => {
     keyResolver = new MockKeyResolver();
     requestRecorder = new MockAiRequestRecorder();
-    manager = new DefaultLLMResiliencyManager(keyResolver, requestRecorder);
-    client = new MockLLMClient();
+    responses = [];
+    calls = [];
   });
+
+  const getProvider = () => {
+    return new GeminiLLMProvider(
+      keyResolver,
+      requestRecorder,
+      undefined,
+      async (callOpts) => {
+        calls.push(callOpts);
+        const resp = responses.shift();
+        if (!resp) throw new Error("No mock response configured");
+        if (resp.error) throw resp.error;
+        return {
+          text: resp.text ?? "",
+          inputTokens: 10,
+          outputTokens: 20,
+        };
+      }
+    );
+  };
 
   it("Test 1: Successful parse & return on first call", async () => {
     keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
-    client.responses.push({
+    responses.push({
       text: JSON.stringify({ score: 90, feedbackVi: "Tốt" }),
     });
 
-    const result = await manager.execute(
-      {
-        userId: "u-1",
-        purpose: "grading",
-        prompt: "Check",
-        promptVersion: "1",
-        schemaVersion: "grading",
-        schema,
-        modelKind: "fast",
-      },
-      client
-    );
+    const provider = getProvider();
+    const result = await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
 
     expect(result).toEqual({ score: 90, feedbackVi: "Tốt" });
-    expect(client.calls.length).toBe(1);
-    expect(client.calls[0].apiKey).toBe("k-1");
+    expect(calls.length).toBe(1);
+    expect(calls[0].apiKey).toBe("k-1");
   });
 
   it("Test 2: Malformed JSON triggers repair prompt and succeeds", async () => {
     keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
-    client.responses.push({
+    responses.push({
       text: "This is not JSON at all",
     });
-    client.responses.push({
+    responses.push({
       text: JSON.stringify({ score: 85, feedbackVi: "Sửa" }),
     });
 
-    const result = await manager.execute(
-      {
-        userId: "u-1",
-        purpose: "grading",
-        prompt: "Check",
-        promptVersion: "1",
-        schemaVersion: "grading",
-        schema,
-        modelKind: "fast",
-      },
-      client
-    );
+    const provider = getProvider();
+    const result = await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
 
     expect(result).toEqual({ score: 85, feedbackVi: "Sửa" });
-    expect(client.calls.length).toBe(2);
-    expect(client.calls[0].purpose).toBe("grading");
-    expect(client.calls[1].purpose).toBe("repair");
+    expect(calls.length).toBe(2);
+    expect(calls[0].purpose).toBe("grading");
+    expect(calls[1].purpose).toBe("repair");
   });
 
   it("Test 3: API key rate limit rotates keys", async () => {
@@ -145,30 +140,28 @@ describe("DefaultLLMResiliencyManager", () => {
 
     // First key call fails with rate limit error
     const rateLimitErr = new Error("RESOURCE_EXHAUSTED");
-    client.responses.push({ error: rateLimitErr });
+    responses.push({ error: rateLimitErr });
 
     // Second key call succeeds
-    client.responses.push({
+    responses.push({
       text: JSON.stringify({ score: 95, feedbackVi: "Tốt" }),
     });
 
-    const result = await manager.execute(
-      {
-        userId: "u-1",
-        purpose: "grading",
-        prompt: "Check",
-        promptVersion: "1",
-        schemaVersion: "grading",
-        schema,
-        modelKind: "fast",
-      },
-      client
-    );
+    const provider = getProvider();
+    const result = await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
 
     expect(result).toEqual({ score: 95, feedbackVi: "Tốt" });
-    expect(client.calls.length).toBe(2);
-    expect(client.calls[0].apiKey).toBe("k-1");
-    expect(client.calls[1].apiKey).toBe("k-2");
+    expect(calls.length).toBe(2);
+    expect(calls[0].apiKey).toBe("k-1");
+    expect(calls[1].apiKey).toBe("k-2");
     expect(keyResolver.rateLimited.has("key-1")).toBe(true);
   });
 
@@ -178,40 +171,49 @@ describe("DefaultLLMResiliencyManager", () => {
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
-    const customManager = new DefaultLLMResiliencyManager(
-      keyResolver,
-      requestRecorder,
-      customPool
-    );
 
     keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
     keyResolver.ignoreRateLimitInResolution = true;
 
     // k-1 fails on model-fast-1 with rate limit
-    client.responses.push({ error: new Error("RESOURCE_EXHAUSTED") });
+    responses.push({ error: new Error("RESOURCE_EXHAUSTED") });
 
     // k-1 succeeds on model-fast-2
-    client.responses.push({
+    responses.push({
       text: JSON.stringify({ score: 100, feedbackVi: "Tốt" }),
     });
 
-    const result = await customManager.execute(
-      {
-        userId: "u-1",
-        purpose: "grading",
-        prompt: "Check",
-        promptVersion: "1",
-        schemaVersion: "grading",
-        schema,
-        modelKind: "fast",
-      },
-      client
+    const provider = new GeminiLLMProvider(
+      keyResolver,
+      requestRecorder,
+      customPool,
+      async (callOpts) => {
+        calls.push(callOpts);
+        const resp = responses.shift();
+        if (!resp) throw new Error("No mock response configured");
+        if (resp.error) throw resp.error;
+        return {
+          text: resp.text ?? "",
+          inputTokens: 10,
+          outputTokens: 20,
+        };
+      }
     );
 
+    const result = await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
+
     expect(result).toEqual({ score: 100, feedbackVi: "Tốt" });
-    expect(client.calls.length).toBe(2);
-    expect(client.calls[0].model).toBe("model-fast-1");
-    expect(client.calls[1].model).toBe("model-fast-2");
+    expect(calls.length).toBe(2);
+    expect(calls[0].model).toBe("model-fast-1");
+    expect(calls[1].model).toBe("model-fast-2");
     expect(customPool.getCooldowns().map((c) => c.model)).toContain(
       "model-fast-1"
     );
@@ -219,22 +221,20 @@ describe("DefaultLLMResiliencyManager", () => {
 
   it("Test 5: Metrics recorded with estimated costs", async () => {
     keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
-    client.responses.push({
+    responses.push({
       text: JSON.stringify({ score: 90, feedbackVi: "Tốt" }),
     });
 
-    await manager.execute(
-      {
-        userId: "u-1",
-        purpose: "grading",
-        prompt: "Check",
-        promptVersion: "1",
-        schemaVersion: "grading",
-        schema,
-        modelKind: "fast",
-      },
-      client
-    );
+    const provider = getProvider();
+    await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
 
     expect(requestRecorder.recorded.length).toBe(1);
     const recorded = requestRecorder.recorded[0];

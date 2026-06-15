@@ -4,12 +4,19 @@ import { getLogger } from "@/lib/logger";
 import type { LLMProvider, KeyResolver, AiRequestRecorder } from "../ports";
 import { DrizzleKeyResolver } from "./key-resolver";
 import { DrizzleAiRequestRecorder } from "./ai-request-recorder";
-import { providerRotationPool } from "./model-pool";
+import { SCHEMA_VERSIONS } from "@/domain/constants";
+import { hashCanonicalPayload } from "@/lib/crypto";
+import { ProviderRotationPool, providerRotationPool } from "./model-pool";
 import {
-  DefaultLLMResiliencyManager,
-  LLMResiliencyManager,
-} from "./resiliency-manager";
-import { getGeminiThinkingLevel, zodToGeminiSchema } from "./gemini-utils";
+  getGeminiThinkingLevel,
+  zodToGeminiSchema,
+  extractJson,
+  coerceJsonForSchema,
+  isRateLimitError,
+  isInvalidKeyError,
+  AiError,
+  estimateCost,
+} from "./gemini-utils";
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
 
@@ -77,12 +84,17 @@ export { parseApiKeys } from "./key-resolver";
 
 export class GeminiLLMProvider implements LLMProvider {
   constructor(
-    keyResolver: KeyResolver = new DrizzleKeyResolver(),
-    requestRecorder: AiRequestRecorder = new DrizzleAiRequestRecorder(),
-    private readonly resiliencyManager: LLMResiliencyManager = new DefaultLLMResiliencyManager(
-      keyResolver,
-      requestRecorder
-    )
+    private readonly keyResolver: KeyResolver = new DrizzleKeyResolver(),
+    private readonly requestRecorder: AiRequestRecorder = new DrizzleAiRequestRecorder(),
+    private readonly modelPool: ProviderRotationPool = providerRotationPool,
+    private readonly callRawOverride?: (options: {
+      apiKey: string;
+      model: string;
+      prompt: string;
+      purpose: AiPurpose;
+      zodSchema?: z.ZodTypeAny;
+      onThought?: (text: string) => Promise<void>;
+    }) => Promise<{ text: string; inputTokens: number; outputTokens: number }>
   ) {}
 
   private async callGeminiRaw(options: {
@@ -93,6 +105,16 @@ export class GeminiLLMProvider implements LLMProvider {
     zodSchema?: z.ZodTypeAny;
     onThought?: (text: string) => Promise<void>;
   }): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+    if (this.callRawOverride) {
+      return this.callRawOverride({
+        apiKey: options.apiKey,
+        model: options.model,
+        prompt: options.prompt,
+        purpose: options.purpose,
+        zodSchema: options.zodSchema,
+        onThought: options.onThought,
+      });
+    }
     const globalThinkingLevel = getGeminiThinkingLevel();
     const thinkingLevel = providerRotationPool.getThinkingLevel(
       options.model,
@@ -177,17 +199,211 @@ export class GeminiLLMProvider implements LLMProvider {
     modelKind: "analysis" | "fast";
     onThought?: (text: string) => Promise<void>;
   }): Promise<T> {
-    return this.resiliencyManager.execute(options, {
-      call: async (callOpts) => {
-        return this.callGeminiRaw({
-          apiKey: callOpts.apiKey,
-          model: callOpts.model,
-          prompt: callOpts.prompt,
-          purpose: callOpts.purpose as AiPurpose,
-          zodSchema: callOpts.zodSchema,
-          onThought: callOpts.onThought,
-        });
-      },
+    const payloadHash = hashCanonicalPayload({
+      prompt: options.prompt,
+      promptVersion: options.promptVersion,
+      schemaVersion:
+        SCHEMA_VERSIONS[options.schemaVersion as keyof typeof SCHEMA_VERSIONS],
     });
+    const startedAt = Date.now();
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
+    const models = this.modelPool.getModels(options.modelKind);
+    const exhaustedModels = new Set<string>();
+    let resolvedModel = this.modelPool.getNextAvailable(options.modelKind);
+    let status: "succeeded" | "failed" = "failed";
+    let errorClass: string | null = null;
+    let errorMessage: string | null = null;
+
+    try {
+      for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
+        const model = this.modelPool.getNextAvailable(
+          options.modelKind,
+          exhaustedModels
+        );
+        exhaustedModels.add(model);
+        resolvedModel = model;
+
+        try {
+          const result = await this.executeWithModel(
+            model,
+            options,
+            (inTokens, outTokens) => {
+              totalInputTokens += inTokens;
+              totalOutputTokens += outTokens;
+            }
+          );
+          this.modelPool.clearCooldown(model);
+          status = "succeeded";
+          return result;
+        } catch (err: any) {
+          const isRateLimit =
+            isRateLimitError(err) ||
+            err.code === "all_keys_failed" ||
+            err.message?.includes("No keys available");
+
+          if (isRateLimit && modelIdx < models.length - 1) {
+            this.modelPool.markRateLimited(model);
+            continue; // rotates to next model
+          }
+          throw err;
+        }
+      }
+
+      throw new AiError(
+        `All models in the ${options.modelKind} pool are rate-limited or unavailable.`,
+        "all_models_failed"
+      );
+    } catch (error) {
+      errorClass =
+        error instanceof AiError
+          ? error.code
+          : error instanceof Error
+            ? error.name
+            : "unknown";
+      errorMessage = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      const latencyMs = Date.now() - startedAt;
+      await this.requestRecorder.recordRequest({
+        userId: options.userId,
+        lessonId: options.lessonId,
+        purpose: options.purpose,
+        provider: "gemini",
+        model: resolvedModel,
+        promptVersion: options.promptVersion,
+        schemaVersion:
+          SCHEMA_VERSIONS[
+            options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+          ],
+        payloadHash,
+        status,
+        latencyMs,
+        inputTokens: totalInputTokens || null,
+        outputTokens: totalOutputTokens || null,
+        costMicros: estimateCost(
+          resolvedModel,
+          totalInputTokens,
+          totalOutputTokens
+        ),
+        errorClass,
+        errorMessage,
+      });
+    }
+  }
+
+  private async executeWithModel<T>(
+    model: string,
+    options: {
+      userId?: string;
+      purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+      prompt: string;
+      promptVersion: string;
+      schemaVersion: string;
+      schema: z.ZodType<T>;
+      onThought?: (text: string) => Promise<void>;
+    },
+    accumulateTokens: (inTokens: number, outTokens: number) => void
+  ): Promise<T> {
+    const excludedKeyIds = new Set<string>();
+    let attempts = 0;
+    const maxKeyAttempts = 5;
+
+    while (attempts < maxKeyAttempts) {
+      attempts++;
+      const resolved = await this.keyResolver.resolveApiKeyWithExclusions(
+        options.userId,
+        excludedKeyIds
+      );
+      const { key, id: keyId, isUserKey } = resolved;
+
+      try {
+        const callResult = await this.callGeminiRaw({
+          apiKey: key,
+          model,
+          prompt: options.prompt,
+          purpose: options.purpose,
+          zodSchema: options.schema,
+          onThought: options.onThought,
+        });
+        accumulateTokens(callResult.inputTokens, callResult.outputTokens);
+
+        let rawText = callResult.text;
+        let extracted = extractJson(rawText);
+        try {
+          const coerced = coerceJsonForSchema(
+            JSON.parse(extracted),
+            options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+          );
+          const parsed = options.schema.safeParse(coerced);
+          if (parsed.success) {
+            if (keyId && !isUserKey) {
+              await this.keyResolver.restoreKeyToActive(keyId);
+            }
+            return parsed.data;
+          }
+        } catch {
+          // JSON parse failure or coercion failure -> trigger repair
+        }
+
+        // Trigger repair flow
+        const { repairPrompt } = await import("@/lib/ai/prompts");
+        const repairResult = await this.callGeminiRaw({
+          apiKey: key,
+          model,
+          prompt: repairPrompt(rawText, options.schemaVersion),
+          purpose: "repair",
+          zodSchema: options.schema,
+        });
+        accumulateTokens(repairResult.inputTokens, repairResult.outputTokens);
+
+        const repairedExtracted = extractJson(repairResult.text);
+        const coercedRepaired = coerceJsonForSchema(
+          JSON.parse(repairedExtracted),
+          options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+        );
+
+        if (keyId && !isUserKey) {
+          await this.keyResolver.restoreKeyToActive(keyId);
+        }
+
+        return options.schema.parse(coercedRepaired);
+      } catch (err: any) {
+        if (keyId) {
+          excludedKeyIds.add(keyId);
+          if (!isUserKey) {
+            if (isRateLimitError(err)) {
+              await this.keyResolver.markKeyRateLimited(
+                keyId,
+                err.message || "Rate limit exceeded"
+              );
+            } else if (isInvalidKeyError(err)) {
+              await this.keyResolver.markKeyInvalid(
+                keyId,
+                err.message || "Invalid API key"
+              );
+            }
+          } else {
+            logger.warn(
+              `User custom API key ${keyId} failed: ${err.message || err}`
+            );
+          }
+        } else {
+          throw err;
+        }
+
+        if (attempts >= maxKeyAttempts) {
+          throw new AiError(
+            isUserKey
+              ? `Custom User API Key failed: ${err.message || err}`
+              : `All API keys exhausted for model "${model}". Last error: ${err.message || err}`,
+            isUserKey ? "user_key_failed" : "all_keys_failed"
+          );
+        }
+      }
+    }
+
+    throw new AiError("AI provider error: request failed.", "unknown");
   }
 }
