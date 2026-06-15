@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DrizzleAdminMetricsRepository } from "./drizzle-admin-metrics";
+import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
 
 function makeSchemaProxy(): any {
   const handler: ProxyHandler<object> = {
@@ -42,6 +43,7 @@ describe("DrizzleAdminMetricsRepository", () => {
       select: vi.fn(),
     };
     repository = new DrizzleAdminMetricsRepository(mockDbClient);
+    DrizzleKeyResolver.resetEnvKeysForTest();
   });
 
   it("getOverallAiStats - returns parsed results", async () => {
@@ -103,6 +105,44 @@ describe("DrizzleAdminMetricsRepository", () => {
 
     const result = await repository.getApiKeysStatusCounts();
     expect(result).toEqual(mockRow);
+  });
+
+  it("getApiKeysStatusCounts - aggregates database keys with environment keys correctly", async () => {
+    const originalEnv = process.env.GEMINI_API_KEYS;
+    process.env.GEMINI_API_KEYS = "key1,key2,key3";
+
+    // Simulate key2 is rate-limited, key3 is invalid
+    await new DrizzleKeyResolver().markKeyRateLimited(
+      "env-key-1",
+      "rate limit"
+    );
+    await new DrizzleKeyResolver().markKeyInvalid("env-key-2", "invalid");
+
+    // Database mock keys
+    const mockRow = {
+      active: 2,
+      rateLimited: 1,
+      invalid: 1,
+      total: 4,
+    };
+    mockDbClient.select.mockReturnValueOnce(mockChain([mockRow]));
+
+    const result = await repository.getApiKeysStatusCounts();
+
+    // envKeys total = 3: 1 active, 1 rate-limited, 1 invalid
+    // Expected active = db(2) + env(1) = 3
+    // Expected rateLimited = db(1) + env(1) = 2
+    // Expected invalid = db(1) + env(1) = 2
+    // Expected total = db(4) + env(3) = 7
+    expect(result).toEqual({
+      active: 3,
+      rateLimited: 2,
+      invalid: 2,
+      total: 7,
+    });
+
+    // Clean up env vars
+    process.env.GEMINI_API_KEYS = originalEnv;
   });
 
   it("getActiveUserCount - queries all tables and returns distinct user count", async () => {

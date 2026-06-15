@@ -29,6 +29,48 @@ export class DrizzleKeyResolver implements KeyResolver {
     DrizzleKeyResolver.envKeyInvalid.clear();
   }
 
+  static getEnvKeysStatus(): {
+    active: number;
+    rateLimited: number;
+    invalid: number;
+    total: number;
+  } {
+    let envKeys: string[] = [];
+    if (process.env.GEMINI_API_KEYS) {
+      envKeys = parseApiKeys(process.env.GEMINI_API_KEYS);
+    }
+    if (envKeys.length === 0 && process.env.GEMINI_API_KEY) {
+      envKeys = parseApiKeys(process.env.GEMINI_API_KEY);
+    }
+
+    const now = Date.now();
+    let active = 0;
+    let rateLimited = 0;
+    let invalid = 0;
+
+    for (let index = 0; index < envKeys.length; index++) {
+      const keyId = `env-key-${index}`;
+      if (DrizzleKeyResolver.envKeyInvalid.has(keyId)) {
+        invalid++;
+      } else {
+        const cooldownUntil =
+          DrizzleKeyResolver.envKeyCooldowns.get(keyId) ?? 0;
+        if (now < cooldownUntil) {
+          rateLimited++;
+        } else {
+          active++;
+        }
+      }
+    }
+
+    return {
+      active,
+      rateLimited,
+      invalid,
+      total: envKeys.length,
+    };
+  }
+
   async resolveApiKeyWithExclusions(
     userId?: string,
     excludedKeyIds?: Set<string>
