@@ -1,29 +1,18 @@
 import type { Metadata } from "next";
-import { Roboto, Lora } from "next/font/google";
 import "./globals.css";
-
-
-const roboto = Roboto({
-  weight: ["300", "400", "500", "700", "900"],
-  subsets: ["vietnamese", "latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const lora = Lora({
-  subsets: ["vietnamese", "latin"],
-  variable: "--font-serif",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "English Context Coach",
   description: "Context-aware English learning for Vietnamese learners.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="vi" className={`${roboto.variable} ${lora.variable}`} suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -44,10 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
-

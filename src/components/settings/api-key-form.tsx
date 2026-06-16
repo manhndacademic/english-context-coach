@@ -1,57 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { saveUserApiKeyAction } from "@/app/actions/settings";
+import { useRef, useState, useTransition } from "react";
 import {
-  KeyRound,
-  ShieldCheck,
+  addUserApiKeyAction,
+  deleteUserApiKeyAction,
+  disableUserApiKeyAction,
+  enableUserApiKeyAction,
+  reverifyUserApiKeyAction,
+} from "@/app/actions/settings";
+import {
   AlertCircle,
-  Loader2,
   CheckCircle2,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  RefreshCw,
+  Power,
+  PowerOff,
 } from "lucide-react";
 
-interface ApiKeyFormProps {
-  initialHasCustomKey: boolean;
+export interface UserApiKeyListItem {
+  id: string;
+  name: string;
+  provider: string;
+  status: string;
+  errorMessage: string | null;
+  lastUsedAt: Date | null;
+  createdAt: Date;
 }
 
-export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
-  const [hasKey, setHasKey] = useState(initialHasCustomKey);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+interface ApiKeyFormProps {
+  keys: UserApiKeyListItem[];
+  legacyHasCustomKey: boolean;
+}
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
+function badgeClass(status: string) {
+  if (status === "active")
+    return "bg-success-light border-success text-success";
+  if (status === "rate_limited")
+    return "bg-warning-light border-warning text-warning";
+  if (status === "invalid") return "bg-danger-light border-danger text-danger";
+  return "bg-background border-border text-muted";
+}
 
-    const formData = new FormData(e.currentTarget);
-    const keyVal = formData.get("apiKey") as string;
+function formatDate(value: Date | null) {
+  if (!value) return "—";
+  return value.toLocaleDateString("vi-VN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-    try {
-      const result = await saveUserApiKeyAction(null, formData);
-      if (result && "error" in result) {
-        setError(result.error as string);
-      } else {
-        setSuccess(true);
-        if (keyVal.trim() === "") {
-          setHasKey(false);
-        } else {
-          setHasKey(true);
-        }
-        // Clear input field
-        const input = e.currentTarget.querySelector(
-          "#apiKey"
-        ) as HTMLTextAreaElement;
-        if (input) input.value = "";
+export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  async function submitAction(
+    action: (prev: unknown, formData: FormData) => Promise<any>,
+    formData: FormData,
+    successText: string
+  ) {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await action(null, formData);
+      if (result?.error) setMessage({ type: "error", text: result.error });
+      else {
+        setMessage({ type: "success", text: successText });
+        formRef.current?.reset();
       }
-    } catch (err: any) {
-      setError(err.message || "Đã xảy ra lỗi không xác định.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+  }
 
   return (
     <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-6">
@@ -61,83 +86,192 @@ export function ApiKeyForm({ initialHasCustomKey }: ApiKeyFormProps) {
         </div>
         <div>
           <h1 className="text-2xl font-bold font-serif mb-1.5 text-text m-0">
-            Cấu hình API Key cá nhân
+            API Key cá nhân
           </h1>
           <p className="text-muted text-sm leading-relaxed m-0">
-            Nhập API Key của riêng bạn từ Google AI Studio để tránh giới hạn
-            lượt dùng chung của hệ thống.
+            Lưu nhiều Gemini API keys riêng, xoay vòng tự động trước khi dùng
+            key hệ thống.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-5">
-        <div className="grid gap-2">
-          <label htmlFor="apiKey" className="text-sm font-semibold text-text">
-            Google Gemini API Key(s)
-          </label>
-          <div className="relative flex items-start">
-            <textarea
-              id="apiKey"
-              name="apiKey"
-              placeholder={
-                hasKey
-                  ? "Đã lưu API Keys. Nhập lại danh sách mới để ghi đè (các key cách nhau bởi dấu phẩy hoặc xuống dòng), hoặc bỏ trống để xóa."
-                  : "Nhập một hoặc nhiều API Keys (cách nhau bởi dấu phẩy hoặc xuống dòng)..."
-              }
-              disabled={loading}
-              className="w-full min-h-[90px] p-3 pr-10 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none disabled:opacity-60 resize-y leading-relaxed"
-            />
-            {loading && (
-              <span className="absolute right-3.5 top-3.5 text-muted animate-spin">
-                <Loader2 size={18} />
-              </span>
-            )}
-          </div>
-
-          {error && (
-            <span className="text-danger text-xs flex items-start gap-1.5 font-medium mt-1">
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              {error}
-            </span>
+      {message && (
+        <div
+          className={`text-sm flex items-start gap-2 rounded-md border p-3 ${message.type === "success" ? "text-success border-success bg-success-light" : "text-danger border-danger bg-danger-light"}`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle2 size={16} />
+          ) : (
+            <AlertCircle size={16} />
           )}
-
-          {success && (
-            <span className="text-success text-xs flex items-center gap-1.5 font-medium mt-1">
-              <CheckCircle2 size={14} /> Lưu cấu hình thành công!
-            </span>
-          )}
-
-          {hasKey && !error && !success && (
-            <span className="text-success text-xs flex items-center gap-1.5 font-medium mt-1">
-              <ShieldCheck size={14} /> Bạn đã cấu hình API Key cá nhân. Nhập
-              danh sách key mới để thay đổi/bổ sung (xoay vòng ngẫu nhiên), hoặc
-              bỏ trống và lưu để xóa.
-            </span>
-          )}
-
-          {!hasKey && !error && !success && (
-            <span className="text-muted text-xs flex items-center gap-1.5 mt-1">
-              <AlertCircle size={14} /> Bạn có thể lấy API Key miễn phí từ{" "}
-              <a
-                href="https://aistudio.google.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent underline font-semibold focus:outline-none"
-              >
-                Google AI Studio
-              </a>
-              .
-            </span>
-          )}
+          {message.text}
         </div>
+      )}
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-border">
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-6 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
+      <div className="overflow-x-auto border border-border rounded-lg">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-background text-muted text-xs uppercase">
+            <tr>
+              <th className="p-3">Tên</th>
+              <th className="p-3">Provider</th>
+              <th className="p-3">Trạng thái</th>
+              <th className="p-3">Dùng gần nhất</th>
+              <th className="p-3">Tạo lúc</th>
+              <th className="p-3 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {keys.map((key) => (
+              <tr key={key.id}>
+                <td className="p-3 font-semibold text-text">{key.name}</td>
+                <td className="p-3 text-muted">{key.provider}</td>
+                <td className="p-3">
+                  <span
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-bold ${badgeClass(key.status)}`}
+                  >
+                    {key.status}
+                  </span>
+                </td>
+                <td className="p-3 text-muted text-xs">
+                  {formatDate(key.lastUsedAt)}
+                </td>
+                <td className="p-3 text-muted text-xs">
+                  {formatDate(key.createdAt)}
+                </td>
+                <td className="p-3 text-right">
+                  <div className="inline-flex gap-2">
+                    <form
+                      action={(fd) =>
+                        submitAction(
+                          reverifyUserApiKeyAction,
+                          fd,
+                          "Đã xác thực lại key."
+                        )
+                      }
+                    >
+                      <input type="hidden" name="keyId" value={key.id} />
+                      <button
+                        className="p-1.5 border border-border rounded-md text-accent"
+                        title="Xác thực lại"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    </form>
+                    {key.status === "disabled" ? (
+                      <form
+                        action={(fd) =>
+                          submitAction(
+                            enableUserApiKeyAction,
+                            fd,
+                            "Đã bật key."
+                          )
+                        }
+                      >
+                        <input type="hidden" name="keyId" value={key.id} />
+                        <button
+                          className="p-1.5 border border-border rounded-md text-success"
+                          title="Bật"
+                        >
+                          <Power size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <form
+                        action={(fd) =>
+                          submitAction(
+                            disableUserApiKeyAction,
+                            fd,
+                            "Đã tắt key."
+                          )
+                        }
+                      >
+                        <input type="hidden" name="keyId" value={key.id} />
+                        <button
+                          className="p-1.5 border border-border rounded-md text-warning"
+                          title="Tắt"
+                        >
+                          <PowerOff size={14} />
+                        </button>
+                      </form>
+                    )}
+                    <form
+                      action={(fd) =>
+                        submitAction(deleteUserApiKeyAction, fd, "Đã xóa key.")
+                      }
+                    >
+                      <input type="hidden" name="keyId" value={key.id} />
+                      <button
+                        className="p-1.5 border border-border rounded-md text-danger"
+                        title="Xóa"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {keys.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-muted">
+                  Chưa có key cá nhân nào.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {legacyHasCustomKey && keys.length === 0 && (
+        <p className="text-xs text-warning flex gap-2 m-0">
+          <ShieldCheck size={14} /> Bạn vẫn có key cũ trong hệ thống legacy; app
+          sẽ fallback để không gián đoạn. Hãy thêm lại key vào danh sách mới khi
+          thuận tiện.
+        </p>
+      )}
+
+      <form
+        ref={formRef}
+        action={(fd) =>
+          submitAction(addUserApiKeyAction, fd, "Đã xác thực và thêm key.")
+        }
+        className="grid gap-4 border-t border-border pt-5"
+      >
+        <h2 className="text-lg font-bold m-0 text-text">Thêm Gemini API Key</h2>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr] gap-3">
+          <input
+            name="name"
+            placeholder="Tên gợi nhớ"
+            required
+            disabled={isPending}
+            className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
+          />
+          <input
+            name="apiKey"
+            type="password"
+            placeholder="AIzaSy..."
+            required
+            disabled={isPending}
+            className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
+          />
+          <select
+            name="provider"
+            disabled={isPending}
+            className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
           >
-            {loading ? "Đang xác thực & lưu..." : "Lưu cấu hình"}
+            <option value="gemini">Google Gemini</option>
+          </select>
+        </div>
+        <div className="flex justify-between items-center gap-3 flex-wrap">
+          <p className="text-muted text-xs m-0">
+            Không hiển thị lại raw key sau khi lưu. Tối đa 10 keys/user.
+          </p>
+          <button
+            disabled={isPending}
+            className="inline-flex items-center gap-2 min-h-11 rounded-md px-5 bg-accent text-white font-semibold text-sm disabled:opacity-60"
+          >
+            {isPending && <Loader2 size={16} className="animate-spin" />} Xác
+            thực & thêm key
           </button>
         </div>
       </form>

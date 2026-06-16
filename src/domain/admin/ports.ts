@@ -48,6 +48,13 @@ export interface AdminMetricsRepository {
     failed: number;
   }>;
 
+  getDigestStatsByDate(digestDate: string): Promise<{
+    sent: number;
+    skipped: number;
+    failed: number;
+    enabledUsers: number;
+  }>;
+
   getTopUsersByResourceUsage(limit: number): Promise<
     Array<{
       userId: string | null;

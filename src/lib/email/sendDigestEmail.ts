@@ -15,16 +15,27 @@ export interface DigestEmailPayload {
   items: DigestEmailItem[]; // up to 5 items to preview
 }
 
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function buildHtml(payload: DigestEmailPayload): string {
   const { userName, dueCount, items } = payload;
-  const greeting = userName ? `Xin chào ${userName}! 👋` : "Xin chào! 👋";
+  const greeting = userName
+    ? `Xin chào ${escapeHtml(userName)}! 👋`
+    : "Xin chào! 👋";
   const itemsHtml = items
     .map(
       (item) => `
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
-            <div style="font-family:Georgia,serif;font-weight:700;font-size:16px;color:#065f46;">${item.phrase}</div>
-            <div style="font-size:14px;color:#6b7280;margin-top:3px;">${item.meaningVi}</div>
+            <div style="font-family:Georgia,serif;font-weight:700;font-size:16px;color:#065f46;">${escapeHtml(item.phrase)}</div>
+            <div style="font-size:14px;color:#6b7280;margin-top:3px;">${escapeHtml(item.meaningVi)}</div>
           </td>
         </tr>`
     )

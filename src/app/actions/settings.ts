@@ -2,17 +2,33 @@
 
 import { revalidatePath } from "next/cache";
 import { getKeyResolver } from "@/domain/ai";
-import { encryptApiKey } from "@/lib/crypto";
+import { decryptApiKey, encryptApiKey, sha256 } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { requireUser } from "@/lib/auth/guards";
 import { GoogleGenAI } from "@google/genai";
 import { db, schema } from "@/db";
-import { and, eq, gt, sql, desc } from "drizzle-orm";
+import { and, eq, gt, sql, desc, count } from "drizzle-orm";
 import { z } from "zod";
 
-const saveUserApiKeySchema = z.object({
-  apiKey: z.string().trim(),
-});
+const GEMINI_TEST_MODEL = "gemini-3.1-flash-lite";
+const MAX_USER_KEYS = 10;
+
+async function verifyGeminiApiKey(apiKey: string): Promise<string | null> {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    await ai.models.generateContent({
+      model: GEMINI_TEST_MODEL,
+      contents: "ping",
+    });
+    return null;
+  } catch (error) {
+    return error instanceof Error
+      ? error.message
+      : "Không thể xác thực API Key với Gemini.";
+  }
+}
+
+const saveUserApiKeySchema = z.object({ apiKey: z.string().trim() });
 
 export const saveUserApiKeyAction = validatedAction(
   saveUserApiKeySchema,
@@ -23,33 +39,160 @@ export const saveUserApiKeyAction = validatedAction(
         .split(/[,\n]+/)
         .map((k) => k.trim())
         .filter(Boolean);
-
       if (rawKeys.length > 0) {
-        try {
-          // Validate each key in parallel
-          await Promise.all(
-            rawKeys.map(async (key) => {
-              const ai = new GoogleGenAI({ apiKey: key });
-              await ai.models.generateContent({
-                model: "gemini-3.1-flash-lite",
-                contents: "ping",
-              });
-            })
-          );
-        } catch (e: any) {
-          return {
-            error: `Xác thực API Key thất bại: ${e.message || e}`,
-          } as any;
-        }
-        const encryptedKeys = rawKeys.map((k) => encryptApiKey(k));
-        encryptedKey = JSON.stringify(encryptedKeys);
+        const errors = await Promise.all(rawKeys.map(verifyGeminiApiKey));
+        const firstError = errors.find(Boolean);
+        if (firstError)
+          return { error: `Xác thực API Key thất bại: ${firstError}` } as any;
+        encryptedKey = JSON.stringify(rawKeys.map((k) => encryptApiKey(k)));
       }
     }
-
     await getKeyResolver().saveUserApiKey(user.id, encryptedKey);
-
     revalidatePath("/settings");
     return { success: true } as any;
+  }
+);
+
+const userKeyIdSchema = z.object({
+  keyId: z.string().uuid("ID API Key không hợp lệ"),
+});
+const addUserApiKeySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Tên key là bắt buộc")
+    .max(80, "Tên key quá dài"),
+  apiKey: z.string().trim().min(1, "API Key là bắt buộc"),
+  provider: z.literal("gemini").default("gemini"),
+});
+
+export const addUserApiKeyAction = validatedAction(
+  addUserApiKeySchema,
+  async (data, user) => {
+    const [{ value: existingCount }] = await db
+      .select({ value: count() })
+      .from(schema.userAiApiKeys)
+      .where(eq(schema.userAiApiKeys.userId, user.id));
+    if (existingCount >= MAX_USER_KEYS) {
+      return {
+        error: `Bạn chỉ có thể lưu tối đa ${MAX_USER_KEYS} API keys.`,
+      } as any;
+    }
+
+    const fingerprint = sha256(`${data.provider}:${data.apiKey}`);
+    const [duplicate] = await db
+      .select({ id: schema.userAiApiKeys.id })
+      .from(schema.userAiApiKeys)
+      .where(
+        and(
+          eq(schema.userAiApiKeys.userId, user.id),
+          eq(schema.userAiApiKeys.keyFingerprint, fingerprint)
+        )
+      )
+      .limit(1);
+    if (duplicate) return { error: "Key này đã tồn tại." } as any;
+
+    const verifyError = await verifyGeminiApiKey(data.apiKey);
+    if (verifyError)
+      return { error: `Xác thực API Key thất bại: ${verifyError}` } as any;
+
+    await db.insert(schema.userAiApiKeys).values({
+      userId: user.id,
+      provider: data.provider,
+      name: data.name,
+      encryptedKey: encryptApiKey(data.apiKey),
+      keyFingerprint: fingerprint,
+      status: "active",
+    });
+    revalidatePath("/settings");
+    return { success: true } as any;
+  }
+);
+
+export const deleteUserApiKeyAction = validatedAction(
+  userKeyIdSchema,
+  async (data, user) => {
+    await db
+      .delete(schema.userAiApiKeys)
+      .where(
+        and(
+          eq(schema.userAiApiKeys.id, data.keyId),
+          eq(schema.userAiApiKeys.userId, user.id)
+        )
+      );
+    revalidatePath("/settings");
+    return { success: true } as any;
+  }
+);
+
+export const disableUserApiKeyAction = validatedAction(
+  userKeyIdSchema,
+  async (data, user) => {
+    await db
+      .update(schema.userAiApiKeys)
+      .set({ status: "disabled", updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.userAiApiKeys.id, data.keyId),
+          eq(schema.userAiApiKeys.userId, user.id)
+        )
+      );
+    revalidatePath("/settings");
+    return { success: true } as any;
+  }
+);
+
+export const enableUserApiKeyAction = validatedAction(
+  userKeyIdSchema,
+  async (data, user) => {
+    await db
+      .update(schema.userAiApiKeys)
+      .set({
+        status: "active",
+        errorMessage: null,
+        rateLimitedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.userAiApiKeys.id, data.keyId),
+          eq(schema.userAiApiKeys.userId, user.id)
+        )
+      );
+    revalidatePath("/settings");
+    return { success: true } as any;
+  }
+);
+
+export const reverifyUserApiKeyAction = validatedAction(
+  userKeyIdSchema,
+  async (data, user) => {
+    const [keyRow] = await db
+      .select()
+      .from(schema.userAiApiKeys)
+      .where(
+        and(
+          eq(schema.userAiApiKeys.id, data.keyId),
+          eq(schema.userAiApiKeys.userId, user.id)
+        )
+      )
+      .limit(1);
+    if (!keyRow) return { error: "Không tìm thấy API Key." } as any;
+    const rawKey = decryptApiKey(keyRow.encryptedKey);
+    const verifyError = await verifyGeminiApiKey(rawKey);
+    await db
+      .update(schema.userAiApiKeys)
+      .set({
+        status: verifyError ? "invalid" : "active",
+        errorMessage: verifyError,
+        rateLimitedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.userAiApiKeys.id, keyRow.id));
+    revalidatePath("/settings");
+    return verifyError
+      ? ({ error: `Xác thực API Key thất bại: ${verifyError}` } as any)
+      : ({ success: true } as any);
   }
 );
 
@@ -59,7 +202,7 @@ export async function getUsageStatsAction(
   const user = await requireUser();
 
   const now = new Date();
-  let since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // default 7 days
+  let since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   if (timeframe === "today") {
     since = new Date(now);
     since.setHours(0, 0, 0, 0);
@@ -67,7 +210,6 @@ export async function getUsageStatsAction(
     since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
-  // 1. Summary stats
   const [summaryResult] = await db
     .select({
       totalRequests: sql<number>`count(*)::int`,
@@ -86,18 +228,9 @@ export async function getUsageStatsAction(
 
   const totalRequests = summaryResult?.totalRequests ?? 0;
   const succeededRequests = summaryResult?.succeededRequests ?? 0;
-  const successRate =
-    totalRequests > 0
-      ? Math.round((succeededRequests / totalRequests) * 100)
-      : 100;
   const totalInputTokens = summaryResult?.totalInputTokens ?? 0;
   const totalOutputTokens = summaryResult?.totalOutputTokens ?? 0;
-  const totalTokens = totalInputTokens + totalOutputTokens;
-  const avgLatencySec = summaryResult?.avgLatencyMs
-    ? parseFloat((summaryResult.avgLatencyMs / 1000).toFixed(1))
-    : 0;
 
-  // 2. Daily metrics for chart
   const dailyDb = await db
     .select({
       dateStr: sql<string>`to_char(created_at, 'YYYY-MM-DD')`,
@@ -115,7 +248,6 @@ export async function getUsageStatsAction(
     .groupBy(sql`to_char(created_at, 'YYYY-MM-DD')`)
     .orderBy(sql`to_char(created_at, 'YYYY-MM-DD') asc`);
 
-  // Fill in missing dates to ensure chart is smooth and doesn't have gaps
   const daily: Array<{
     date: string;
     requests: number;
@@ -123,7 +255,6 @@ export async function getUsageStatsAction(
     outputTokens: number;
   }> = [];
   const dailyMap = new Map(dailyDb.map((d) => [d.dateStr, d]));
-
   const daysCount = timeframe === "today" ? 1 : timeframe === "7days" ? 7 : 30;
   for (let i = daysCount - 1; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
@@ -137,7 +268,6 @@ export async function getUsageStatsAction(
     });
   }
 
-  // 3. Recent requests log (last 5)
   const recent = await db
     .select({
       id: schema.aiRequests.id,
@@ -153,14 +283,35 @@ export async function getUsageStatsAction(
     .orderBy(desc(schema.aiRequests.createdAt))
     .limit(5);
 
+  const [keyCounts] = await db
+    .select({
+      active: sql<number>`sum(case when status = 'active' then 1 else 0 end)::int`,
+      invalid: sql<number>`sum(case when status = 'invalid' then 1 else 0 end)::int`,
+      rateLimited: sql<number>`sum(case when status = 'rate_limited' then 1 else 0 end)::int`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(schema.userAiApiKeys)
+    .where(eq(schema.userAiApiKeys.userId, user.id));
+
   return {
     summary: {
       totalRequests,
-      successRate,
-      totalTokens,
+      successRate:
+        totalRequests > 0
+          ? Math.round((succeededRequests / totalRequests) * 100)
+          : 100,
+      totalTokens: totalInputTokens + totalOutputTokens,
       inputTokens: totalInputTokens,
       outputTokens: totalOutputTokens,
-      avgLatencySec,
+      avgLatencySec: summaryResult?.avgLatencyMs
+        ? parseFloat((summaryResult.avgLatencyMs / 1000).toFixed(1))
+        : 0,
+      personalKeys: {
+        total: keyCounts?.total ?? 0,
+        active: keyCounts?.active ?? 0,
+        invalid: keyCounts?.invalid ?? 0,
+        rateLimited: keyCounts?.rateLimited ?? 0,
+      },
     },
     daily,
     recent,

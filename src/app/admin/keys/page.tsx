@@ -1,19 +1,16 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { db, schema } from "@/db";
 import { desc } from "drizzle-orm";
-import {
-  addSystemApiKeyAction,
-  reverifySystemApiKeyAction,
-} from "@/app/actions/admin-keys";
+import { reverifySystemApiKeyAction } from "@/app/actions/admin-keys";
 import {
   KeyRound,
-  Plus,
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
   XCircle,
 } from "lucide-react";
 import { DeleteKeyButton } from "@/components/admin/delete-key-button";
+import { AddSystemKeyForm } from "@/components/admin/add-system-key-form";
 
 export default async function AdminKeysPage() {
   await requireAdmin();
@@ -62,75 +59,7 @@ export default async function AdminKeysPage() {
         </div>
       </div>
 
-      {/* Add New Key Form */}
-      <section className="bg-surface border border-border rounded-lg p-5 sm:p-6 shadow-sm grid gap-4">
-        <h2 className="text-lg font-bold text-text flex items-center gap-2 m-0">
-          <Plus size={18} className="text-accent" /> Thêm API Key mới vào hệ
-          thống
-        </h2>
-
-        <form
-          action={addSystemApiKeyAction}
-          className="grid grid-cols-1 sm:grid-cols-[1.5fr_2fr_1fr_auto] gap-3 items-end"
-        >
-          <div className="grid gap-1">
-            <label
-              htmlFor="name"
-              className="text-xs font-bold text-muted uppercase"
-            >
-              Tên gợi nhớ
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              required
-              placeholder="Ví dụ: Gemini Studio Key 1"
-              className="min-h-10 px-3 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <div className="grid gap-1">
-            <label
-              htmlFor="apiKey"
-              className="text-xs font-bold text-muted uppercase"
-            >
-              Google AI Studio API Key
-            </label>
-            <input
-              type="password"
-              id="apiKey"
-              name="apiKey"
-              required
-              placeholder="AIzaSy..."
-              className="min-h-10 px-3 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <div className="grid gap-1">
-            <label
-              htmlFor="provider"
-              className="text-xs font-bold text-muted uppercase"
-            >
-              Nhà cung cấp
-            </label>
-            <select
-              id="provider"
-              name="provider"
-              className="min-h-10 px-3 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none"
-            >
-              <option value="gemini">Google Gemini</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 min-h-10 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover cursor-pointer"
-          >
-            Thêm Key
-          </button>
-        </form>
-      </section>
+      <AddSystemKeyForm />
 
       {/* Keys List Table */}
       <section className="bg-surface border border-border rounded-lg p-5 sm:p-6 shadow-sm">
@@ -179,7 +108,7 @@ export default async function AdminKeysPage() {
                             <input type="hidden" name="keyId" value={key.id} />
                             <button
                               type="submit"
-                              title="Kích hoạt lại key"
+                              title="Xác thực lại key"
                               className="p-1.5 rounded-md border border-border bg-surface text-accent hover:bg-accent-light transition-all cursor-pointer"
                             >
                               <RefreshCw size={14} />
