@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LandingTabs } from "@/components/landing-tabs";
 import { GrammarDemoSection } from "@/components/GrammarDemoSection";
+import { ComparisonSection } from "@/components/landing/ComparisonSection";
+import { MistakeMemorySection } from "@/components/landing/MistakeMemorySection";
+import { ProductDemoSection } from "@/components/landing/ProductDemoSection";
 import {
   Sparkles,
   BrainCircuit,
@@ -47,20 +50,20 @@ export default async function HomePage() {
           <span>Học từ lỗi sai thực tế của bạn</span>
         </div>
         <h1 className="text-[32px] md:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.1] text-text">
-          Hiểu tiếng Anh thật trong công việc và học tập.
+          Hiểu đúng tiếng Anh trong công việc, không dịch từng chữ.
         </h1>
         <p className="text-base md:text-lg lg:text-[19px] leading-relaxed text-muted max-w-[650px] mx-auto">
-          Dán email, tài liệu API, GitHub issues hoặc bất kỳ đoạn tiếng Anh nào.
-          Hệ thống giúp bạn hiểu đúng nghĩa ngữ cảnh, phát hiện bẫy dịch từng
-          chữ, luyện tập tức thì và ghi nhớ lỗi cá nhân để không bao giờ mắc
-          lại.
+          Dán email, GitHub issue, tài liệu API, Slack message hoặc bất kỳ đoạn
+          tiếng Anh nào. English Context Coach giúp bạn hiểu nghĩa thật trong
+          ngữ cảnh, phát hiện bẫy dịch từng chữ, tạo bài tập và ghi nhớ lỗi sai
+          để bạn không lặp lại.
         </p>
         <div className="flex flex-col min-[480px]:flex-row gap-3 justify-center mt-3 w-full min-[480px]:w-auto">
           <Link
             href="/register"
             className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)]"
           >
-            Trải nghiệm ngay miễn phí <ArrowRight size={16} />
+            Dùng thử miễn phí <ArrowRight size={16} />
           </Link>
           <Link
             href="/login"
@@ -158,6 +161,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <ProductDemoSection />
+
       {/* Product Flow Section */}
       <section className="mb-20 grid gap-8">
         <div className="text-center max-w-[600px] mx-auto">
@@ -247,113 +252,27 @@ export default async function HomePage() {
         <LandingTabs />
       </section>
 
-      {/* Differentiation Area */}
-      <section className="p-4 min-[860px]:p-10 rounded-lg bg-surface border border-border shadow-md grid gap-8">
-        <div className="text-center max-w-[600px] mx-auto">
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
-            Sự khác biệt
-          </span>
-          <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
-            Khác biệt gì với ChatGPT / Claude?
-          </h2>
-          <p className="text-sm md:text-base text-muted leading-relaxed">
-            Các mô hình AI giải thích rất tốt, nhưng không giúp bạn nhớ và tiến
-            bộ lâu dài.
-          </p>
-        </div>
+      <MistakeMemorySection />
 
-        <div className="w-full overflow-x-auto [touch-action:manipulation] -webkit-overflow-scrolling-touch mt-4 rounded-md border border-border">
-          <table className="w-full border-collapse text-sm min-w-[600px]">
-            <thead>
-              <tr>
-                <th
-                  className="bg-surface-strong font-bold text-text text-left p-3 px-4 border-b border-border"
-                  style={{ width: "30%" }}
-                >
-                  Tính năng
-                </th>
-                <th
-                  className="bg-surface-strong font-bold text-text text-left p-3 px-4 border-b border-border"
-                  style={{ width: "35%" }}
-                >
-                  ChatGPT / Dịch thuật thông thường
-                </th>
-                <th
-                  className="bg-surface-strong text-accent font-extrabold text-left p-3 px-4 border-b border-border"
-                  style={{ width: "35%" }}
-                >
-                  English Context Coach
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left font-semibold">
-                  Phân tích ngữ cảnh chuyên biệt
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left">
-                  Dịch thô hoặc giải thích dài dòng bằng tiếng Anh
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left text-accent font-semibold">
-                  Chỉ ra bẫy dịch từng chữ, giải thích ngắn gọn bằng tiếng Việt
-                </td>
-              </tr>
-              <tr>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left font-semibold">
-                  Học đi đôi với hành
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left">
-                  Chỉ đọc lời giải, không có bài tập kiểm tra lại
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left text-accent font-semibold">
-                  Biến tài liệu vừa dán thành bài tập thực hành ngay lập tức
-                </td>
-              </tr>
-              <tr>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left font-semibold">
-                  Ghi nhớ lỗi sai cá nhân
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left">
-                  Hỏi xong trôi đi, không lưu giữ lịch sử điểm yếu
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left text-accent font-semibold">
-                  Tự động nhận diện mẫu lỗi lặp lại và lưu vào bộ nhớ lỗi
-                </td>
-              </tr>
-              <tr>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left font-semibold">
-                  Chu kỳ ôn tập (Spaced Repetition)
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left">
-                  Không có cơ chế nhắc nhở ôn tập chủ động
-                </td>
-                <td className="leading-relaxed p-3 px-4 border-b border-border text-left text-accent font-semibold">
-                  Tự động tạo câu hỏi ôn tập mới dựa trên lỗi cũ theo chu kỳ
-                  thông minh
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <ComparisonSection />
 
       <GrammarDemoSection />
 
       {/* Footer / CTA Section */}
       <footer className="flex flex-col gap-4 text-center mt-20 border-t border-border pt-10">
         <h2 className="text-[28px] font-extrabold m-0 text-text">
-          Bắt đầu làm chủ tiếng Anh công việc của bạn
+          Thử với một đoạn tiếng Anh bạn đang đọc hôm nay.
         </h2>
         <p className="text-sm leading-relaxed max-w-[500px] mx-auto m-0 text-muted">
-          Đừng để email, tài liệu kỹ thuật hay tin nhắn của đồng nghiệp quốc tế
-          làm bạn hiểu nhầm.
+          Email, tài liệu API, Slack message, GitHub issue, paper — đoạn nào
+          cũng được.
         </p>
         <div>
           <Link
             href="/register"
             className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-8 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] min-w-[200px]"
           >
-            Đăng ký tài khoản miễn phí
+            Dùng thử miễn phí
           </Link>
         </div>
         <p className="text-muted text-xs mt-3">

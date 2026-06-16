@@ -4,61 +4,119 @@ import { useState } from "react";
 
 type TabKey = "dev" | "business" | "academic";
 
+const tabs = {
+  dev: {
+    label: "Developer English",
+    title: "English for Software Developers",
+    copy: "Đọc hiểu tài liệu API, GitHub issues, PR comments, error messages và blog công nghệ một cách chính xác. Tự tin giao tiếp và làm việc trong dự án toàn cầu.",
+    bullets: [
+      "Tránh bẫy dịch từng từ của các thuật ngữ chuyên ngành (như deprecated, breaking change, payload).",
+      "Hiểu đúng lỗi hệ thống (error messages) và tìm ra giải pháp nhanh hơn thay vì dịch thô.",
+      "Học từ chính các tài liệu thực tế bạn đang làm việc hàng ngày.",
+    ],
+    example:
+      "This endpoint is deprecated and will be removed in a future release.",
+    trap: "deprecated",
+    trapWrong: "Bị phản đối / Bị chê",
+    trapCorrect:
+      "Không khuyến khích dùng nữa, sắp bị gỡ bỏ (hạn chế dùng cho code mới)",
+  },
+  business: {
+    label: "Business English",
+    title: "Business & Workplace English",
+    copy: "Nắm bắt chính xác nội dung email, tin nhắn Slack và các yêu cầu từ quản lý hoặc đối tác. Hiểu rõ sắc thái lịch sự hoặc từ chối mềm dẻo.",
+    bullets: [
+      "Hiểu đúng các phrasal verbs công sở phổ biến (như push back, follow up, circle back).",
+      "Nắm bắt đúng tone giọng (polite request, escalation, gentle reminder) để ứng xử phù hợp.",
+      "Viết phản hồi ngắn gọn, tự nhiên, chuẩn phong cách chuyên nghiệp.",
+    ],
+    example: "Could you take a look at the proposal when you get a chance?",
+    trap: "take a look",
+    trapWrong: "Lấy một cái nhìn",
+    trapCorrect: "Xem giúp / kiểm tra giúp (yêu cầu công việc lịch sự)",
+  },
+  academic: {
+    label: "Academic English",
+    title: "Academic & General Reading",
+    copy: "Gỡ rối các câu dài phức tạp trong tài liệu nghiên cứu, giáo trình và bài viết chuyên sâu. Nắm vững cấu trúc câu và các từ nối quan trọng.",
+    bullets: [
+      "Làm chủ các từ nối tương phản hoặc logic phức tạp (như whereas, albeit, despite, nevertheless).",
+      "Phân tích cấu trúc câu dài nhiều mệnh đề để hiểu đúng ý chính.",
+      "Tiết kiệm thời gian đọc tài liệu học thuật mà không bị lạc lối trong từ vựng.",
+    ],
+    example:
+      "The test coverage was improved, albeit at the cost of execution speed.",
+    trap: "albeit",
+    trapWrong: "Tất cả mặc dù / Dù cho",
+    trapCorrect: "Mặc dù / Dù là (dùng để giảm nhẹ hoặc bổ sung ý ngược lại)",
+  },
+};
+
+function UseCaseSample({ tabKey }: { tabKey: TabKey }) {
+  const item = tabs[tabKey];
+
+  return (
+    <div className="bg-surface-strong border border-border rounded-md p-5 font-serif text-sm md:text-base leading-relaxed shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
+      <strong className="block text-[12px] text-muted uppercase mb-2 tracking-wider">
+        Ví dụ thực tế
+      </strong>
+      <p className="m-0 mb-4 italic text-base text-accent-strong">
+        &quot;{item.example}&quot;
+      </p>
+
+      <div className="grid gap-2 text-sm font-sans">
+        <div>
+          <span className="block text-[11px] font-bold uppercase text-muted">
+            Cụm từ
+          </span>
+          <strong className="text-text">{item.trap}</strong>
+        </div>
+        <div className="rounded-sm bg-danger-light border-l-[3px] border-danger px-3 py-2">
+          <span className="block text-[11px] font-bold uppercase text-danger">
+            Dễ hiểu nhầm
+          </span>
+          <span className="text-danger line-through">{item.trapWrong}</span>
+        </div>
+        <div className="rounded-sm bg-success-light border-l-[3px] border-success px-3 py-2">
+          <span className="block text-[11px] font-bold uppercase text-success">
+            Nghĩa ngữ cảnh
+          </span>
+          <span className="font-semibold text-success">{item.trapCorrect}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LandingTabs() {
   const [activeTab, setActiveTab] = useState<TabKey>("dev");
-
-  const tabs = {
-    dev: {
-      label: "Developer English",
-      title: "English for Software Developers",
-      copy: "Đọc hiểu tài liệu API, GitHub issues, PR comments, error messages và blog công nghệ một cách chính xác. Tự tin giao tiếp và làm việc trong dự án toàn cầu.",
-      bullets: [
-        "Tránh bẫy dịch từng từ của các thuật ngữ chuyên ngành (như deprecated, breaking change, payload).",
-        "Hiểu đúng lỗi hệ thống (error messages) và tìm ra giải pháp nhanh hơn thay vì dịch thô.",
-        "Học từ chính các tài liệu thực tế bạn đang làm việc hàng ngày.",
-      ],
-      example:
-        "This endpoint is deprecated and will be removed in a future release.",
-      trap: "deprecated",
-      trapWrong: "Bị phản đối / Bị chê",
-      trapCorrect:
-        "Không khuyến khích dùng nữa, sắp bị gỡ bỏ (hạn chế dùng cho code mới)",
-    },
-    business: {
-      label: "Business English",
-      title: "Business & Workplace English",
-      copy: "Nắm bắt chính xác nội dung email, tin nhắn Slack và các yêu cầu từ quản lý hoặc đối tác. Hiểu rõ sắc thái lịch sự hoặc từ chối mềm dẻo.",
-      bullets: [
-        "Hiểu đúng các phrasal verbs công sở phổ biến (như push back, follow up, circle back).",
-        "Nắm bắt đúng tone giọng (polite request, escalation, gentle reminder) để ứng xử phù hợp.",
-        "Viết phản hồi ngắn gọn, tự nhiên, chuẩn phong cách chuyên nghiệp.",
-      ],
-      example: "Could you take a look at the proposal when you get a chance?",
-      trap: "take a look",
-      trapWrong: "Lấy một cái nhìn",
-      trapCorrect: "Xem giúp / kiểm tra giúp (yêu cầu công việc lịch sự)",
-    },
-    academic: {
-      label: "Academic English",
-      title: "Academic & General Reading",
-      copy: "Gỡ rối các câu dài phức tạp trong tài liệu nghiên cứu, giáo trình và bài viết chuyên sâu. Nắm vững cấu trúc câu và các từ nối quan trọng.",
-      bullets: [
-        "Làm chủ các từ nối tương phản hoặc logic phức tạp (như whereas, albeit, despite, nevertheless).",
-        "Phân tích cấu trúc câu dài nhiều mệnh đề để hiểu đúng ý chính.",
-        "Tiết kiệm thời gian đọc tài liệu học thuật mà không bị lạc lối trong từ vựng.",
-      ],
-      example:
-        "The test coverage was improved, albeit at the cost of execution speed.",
-      trap: "albeit",
-      trapWrong: "Tất cả mặc dù / Dù cho",
-      trapCorrect: "Mặc dù / Dù là (dùng để giảm nhẹ hoặc bổ sung ý ngược lại)",
-    },
-  };
-
   const current = tabs[activeTab];
 
   return (
-    <div className="bg-surface border border-border rounded-lg overflow-hidden shadow-md">
+    <>
+      <div className="grid gap-4 md:hidden">
+        {(Object.keys(tabs) as TabKey[]).map((key) => (
+          <article
+            key={key}
+            className="bg-surface border border-border rounded-lg p-5 shadow-md grid gap-4"
+          >
+            <div className="grid gap-2">
+              <span className="inline-flex w-fit rounded-full bg-accent-light border border-border-glow text-accent px-2.5 py-1 text-xs font-bold">
+                {tabs[key].label}
+              </span>
+              <h3 className="text-xl font-extrabold m-0 text-text">
+                {tabs[key].title}
+              </h3>
+              <p className="text-sm leading-relaxed text-muted m-0">
+                {tabs[key].copy}
+              </p>
+            </div>
+            <UseCaseSample tabKey={key} />
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-surface border border-border rounded-lg overflow-hidden shadow-md">
       <div className="flex border-b border-border bg-surface-strong overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
         {(Object.keys(tabs) as TabKey[]).map((key) => (
           <button
@@ -92,47 +150,10 @@ export function LandingTabs() {
           </ul>
         </div>
         <div className="min-w-0 w-full">
-          <div className="bg-surface-strong border border-border rounded-md p-5 font-serif text-sm md:text-base leading-relaxed shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
-            <strong className="block text-[12px] text-muted uppercase mb-2 tracking-wider">
-              Ví dụ thực tế
-            </strong>
-            <p className="m-0 mb-4 italic text-base text-accent-strong">
-              &quot;{current.example}&quot;
-            </p>
-
-            <div className="w-full overflow-x-auto mt-4 rounded border border-border">
-              <table className="w-full border-collapse text-sm min-w-[500px]">
-                <thead>
-                  <tr>
-                    <th className="bg-surface-strong font-bold text-text text-left p-2.5 border-b border-border w-[30%]">
-                      Cụm từ
-                    </th>
-                    <th className="bg-surface-strong font-bold text-danger text-left p-2.5 border-b border-border w-[35%]">
-                      Dịch từng chữ
-                    </th>
-                    <th className="bg-surface-strong font-bold text-success text-left p-2.5 border-b border-border w-[35%]">
-                      Nghĩa ngữ cảnh
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2.5 border-b border-border text-left font-bold">
-                      {current.trap}
-                    </td>
-                    <td className="p-2.5 border-b border-border text-left text-danger line-through">
-                      {current.trapWrong}
-                    </td>
-                    <td className="p-2.5 border-b border-border text-left font-semibold text-success">
-                      {current.trapCorrect}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <UseCaseSample tabKey={activeTab} />
         </div>
       </div>
     </div>
+    </>
   );
 }

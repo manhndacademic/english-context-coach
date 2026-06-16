@@ -66,14 +66,14 @@ export function GrammarDemoSection() {
     >
       <div className="text-center max-w-[600px] mx-auto">
         <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
-          Xem demo trực tiếp
+          Tính năng phụ
         </span>
         <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
-          Hiển thị lỗi chính xác từng ký tự
+          Khi lỗi là grammar, app chỉ rõ điểm cần sửa
         </h2>
         <p className="text-sm md:text-base text-muted leading-relaxed">
-          Không gạch toàn bộ câu — hệ thống chỉ ra đúng chỗ cần sửa, giống
-          GitHub diff.
+          Grammar không phải trọng tâm duy nhất, nhưng khi câu sai cấu trúc, app
+          vẫn chỉ ra đúng chỗ cần sửa thay vì gạch cả câu.
         </p>
       </div>
 
