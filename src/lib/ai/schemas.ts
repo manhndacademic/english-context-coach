@@ -101,7 +101,7 @@ export const analysisSchema = z.object({
   summaryVi: z.string().min(1),
   naturalTranslationVi: z.string().min(1),
   contextExplanationVi: z.string().min(1),
-  sentenceBreakdowns: z.array(sentenceBreakdownSchema).min(0).max(12),
+  sentenceBreakdowns: z.array(sentenceBreakdownSchema).min(0).max(30),
   keyPhrases: z.array(keyPhraseSchema).min(0).max(7),
   lessonFocuses: z.array(lessonFocusSchema).min(0).max(3),
 });
