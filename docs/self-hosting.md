@@ -44,6 +44,9 @@ Open the `.env` file and configure the values:
 | `WORKER_CONCURRENCY`                | Number of background tasks processed concurrently.    | Defaults to `1` (Recommended for small RAM servers)                                                                                                    |
 | `ENCRYPTION_SECRET`                 | Secret key for encrypting API keys in database.       | Generate using: `openssl rand -hex 16` (Must be at least 32 characters)                                                                                |
 | `ADMIN_EMAIL`                       | Email of the admin user to be automatically promoted. | e.g. `your.email@gmail.com`                                                                                                                            |
+| `NEXT_PUBLIC_BASE_URL`              | Public base URL of the app (used in email links).     | e.g. `https://english.domain.com`                                                                                                                      |
+| `GMAIL_USER`                        | Gmail address used to send daily digest emails.       | e.g. `your-gmail@gmail.com`                                                                                                                            |
+| `GMAIL_APP_PASSWORD`                | Google App Password for SMTP authentication.          | See instructions in Section 8                                                                                                                          |
 
 ---
 
@@ -364,3 +367,28 @@ To access the LLM metrics dashboard (`/admin`) and set up system API key rotatio
 3. Navigate to **Quản trị** > **Vòng xoay API Keys** (`/admin/keys`).
 4. Add your Google AI Studio keys one by one. They will be stored securely using `AES-256-GCM` encryption.
 5. The system will automatically cycle through these keys and handle cooldowns if any key hits Google's rate limits.
+
+---
+
+## 8. Daily Email Digest (SMTP) Configuration
+
+To enable the daily vocabulary review digest email, the application uses **Nodemailer** configured with **Gmail SMTP**.
+
+### Google Account / App Password Setup
+
+For security reasons, Google does not allow using your regular account password for SMTP. You must generate a dedicated **App Password**:
+
+1. Go to your [Google Account Settings](https://myaccount.google.com/).
+2. Navigate to **Security** on the left menu.
+3. Under _How you sign in to Google_, make sure **2-Step Verification** is enabled.
+4. Search for or go directly to **App Passwords** (`https://myaccount.google.com/apppasswords`).
+5. Enter a name for the app (e.g. `English Context Coach`) and click **Create**.
+6. Copy the generated **16-character password** (e.g., `abcd efgh ijkl mnop` - remove any spaces when pasting it).
+7. Configure the following variables in your `.env` file:
+   ```env
+   NEXT_PUBLIC_BASE_URL=https://english.domain.com
+   GMAIL_USER=your-email-address@gmail.com
+   GMAIL_APP_PASSWORD=abcdefghijklmnop
+   ```
+
+_Note: For self-hosted instances with higher email volumes, you can modify `src/lib/email/sendDigestEmail.ts` to use other SMTP providers (e.g., Resend, Postmark, or SendGrid)._
