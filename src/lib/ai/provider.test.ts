@@ -129,7 +129,7 @@ describe("Gemini Purpose Generation Config Limits", () => {
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
     ).toBe(2200);
-    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(700);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(1500);
     expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(1200);
   });
 
@@ -157,7 +157,7 @@ describe("Gemini Purpose Generation Config Limits", () => {
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
     ).toBe(2200);
-    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(700);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(1500);
     expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(1200);
   });
 });

@@ -3,14 +3,27 @@ import { AppHeader } from "@/components/app-header";
 import { ReviewSession } from "./session";
 import { getMistakePatternRepository } from "@/domain/memory";
 
-export default async function ReviewPage() {
+interface PageProps {
+  searchParams: Promise<{ patternId?: string }>;
+}
+
+export default async function ReviewPage({ searchParams }: PageProps) {
+  const { patternId } = await searchParams;
   const user = await requireUser();
   const repo = getMistakePatternRepository();
-  const rawPatterns = await repo.findDueMistakePatterns(
-    user.id,
-    new Date(),
-    20
-  );
+
+  let rawPatterns;
+  if (patternId) {
+    const specificPattern = await repo.findMistakePattern(patternId, user.id);
+    if (specificPattern && specificPattern.reviewPromptStatus === "succeeded") {
+      rawPatterns = [specificPattern];
+    } else {
+      rawPatterns = await repo.findDueMistakePatterns(user.id, new Date(), 20);
+    }
+  } else {
+    rawPatterns = await repo.findDueMistakePatterns(user.id, new Date(), 20);
+  }
+
   const patterns = rawPatterns.map((p) => p.toPlainObject());
 
   return (

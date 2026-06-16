@@ -42,7 +42,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_GRADING",
-          700
+          1500
         ),
         temperature: 0.1,
         topP: 0.8,

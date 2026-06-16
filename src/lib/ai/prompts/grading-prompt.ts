@@ -1,15 +1,15 @@
 export const gradingJsonShape = {
   score: "integer 0-100",
   isCorrect: "boolean",
-  feedbackVi: "Vietnamese feedback, max 1-2 short sentences, max 300 chars",
+  feedbackVi: "Vietnamese feedback, max 1-2 short sentences, max 200 chars",
   naturalAnswer:
-    "exactly ONE best correct answer in the expected target language (English or Vietnamese depending on context) for this context, max 300 chars; never list alternatives",
+    "exactly ONE best correct answer in the expected target language (English or Vietnamese depending on context) for this context, max 200 chars; never list alternatives",
   literalTranslationTrap:
-    "optional short literal translation trap only when truly needed, max 300 chars (else null)",
+    "optional short literal translation trap only when truly needed, max 200 chars (else null)",
   feedbackDetails:
-    "null if isCorrect is true. Else object containing short bounded strings: whatWasWrong, whyItWasWrong, correctUnderstanding, mistakeType, nextPracticeItem, detailedExplanation (max 800 chars)",
+    "null if isCorrect is true. Else object containing short bounded strings: whatWasWrong (max 200 chars), whyItWasWrong (max 300 chars), correctUnderstanding (max 300 chars), mistakeType (max 100 chars), nextPracticeItem (max 200 chars or null), detailedExplanation (max 400 chars)",
   error:
-    "null if isCorrect is true. Else object containing: shouldSave, confidence, errorType, explanationVi, targetItem",
+    "null if isCorrect is true. Else object containing: shouldSave, confidence, errorType, explanationVi (max 300 chars), targetItem (max 150 chars)",
 };
 
 export function gradingPrompt(input: {
@@ -42,8 +42,8 @@ export function gradingPrompt(input: {
     "  - Set 'isCorrect' to false.",
     "  - Provide exactly one concise 'naturalAnswer' in the expected target language.",
     "  - If they fell into a literal/word-by-word translation trap, specify it briefly in 'literalTranslationTrap'.",
-    "  - Populate feedbackDetails with: whatWasWrong (max 300 chars), whyItWasWrong (max 500 chars), correctUnderstanding (max 500 chars), mistakeType (max 100 chars), nextPracticeItem (max 300 chars or null), detailedExplanation (max 800 chars).",
-    "  - Populate the 'error' object only for a real misunderstanding worth saving. Set shouldSave and confidence (0-100). Keep explanationVi max 500 chars and targetItem max 200 chars.",
+    "  - Populate feedbackDetails with: whatWasWrong (max 200 chars), whyItWasWrong (max 300 chars), correctUnderstanding (max 300 chars), mistakeType (max 100 chars), nextPracticeItem (max 200 chars or null), detailedExplanation (max 400 chars).",
+    "  - Populate the 'error' object only for a real misunderstanding worth saving. Set shouldSave and confidence (0-100). Keep explanationVi max 300 chars and targetItem max 150 chars.",
     "JSON shape:",
     JSON.stringify(gradingJsonShape),
     `Prompt VI: ${input.promptVi}`,

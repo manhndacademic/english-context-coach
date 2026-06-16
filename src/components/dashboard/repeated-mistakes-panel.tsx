@@ -45,7 +45,7 @@ export function RepeatedMistakesPanel({
                 </span>
                 {pattern.reviewPromptStatus === "succeeded" ? (
                   <Link
-                    href="/review"
+                    href={`/review?patternId=${pattern.id}`}
                     className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
                   >
                     Ôn tập <ArrowRight size={10} />
