@@ -21,6 +21,7 @@ interface StandardLessonLayoutProps {
   user: {
     email: string;
     role: string;
+    image?: string | null;
   };
   lessonData: {
     lesson: {
@@ -113,7 +114,11 @@ export function StandardLessonLayout({
 
   return (
     <>
-      <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <AppHeader
+        email={user.email}
+        isAdmin={user.role === "admin"}
+        image={user.image}
+      />
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <LessonHeader lesson={lesson} progress={progress} now={now} />
 

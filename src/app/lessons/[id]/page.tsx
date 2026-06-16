@@ -29,7 +29,11 @@ export default async function LessonPage({
   if (isNotEnglishOrUnsupported) {
     return (
       <>
-        <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+        <AppHeader
+          email={user.email}
+          isAdmin={user.role === "admin"}
+          image={user.image}
+        />
         <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
           <section className="border-l-4 border-warning bg-warning-light p-6 rounded-lg grid gap-5 border border-y-border border-r-border shadow-md">
             <div className="flex flex-wrap items-center gap-2 text-warning font-bold text-lg">
@@ -61,7 +65,7 @@ export default async function LessonPage({
 
   return (
     <StandardLessonLayout
-      user={{ email: user.email, role: user.role }}
+      user={{ email: user.email, role: user.role, image: user.image }}
       lessonData={lessonData}
       now={now}
     />

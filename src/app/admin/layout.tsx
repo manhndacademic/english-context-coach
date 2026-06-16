@@ -15,6 +15,7 @@ export default async function AdminLayout({
       <AppHeader
         email={user.email}
         isAdmin={true}
+        image={user.image}
         maxWidthClass="max-w-[1440px]"
       />
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">

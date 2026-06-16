@@ -15,7 +15,11 @@ export default async function ReviewPage() {
 
   return (
     <>
-      <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <AppHeader
+        email={user.email}
+        isAdmin={user.role === "admin"}
+        image={user.image}
+      />
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <div className="max-w-2xl mx-auto w-full flex flex-col gap-6">
           <div className="text-center sm:text-left">

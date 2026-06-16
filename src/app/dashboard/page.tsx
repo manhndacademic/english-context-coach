@@ -63,7 +63,11 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <AppHeader
+        email={user.email}
+        isAdmin={user.role === "admin"}
+        image={user.image}
+      />
       <main className="max-w-275 mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <div className="grid grid-cols-1 min-[860px]:grid-cols-[1.4fr_0.8fr] gap-layout-gap items-start">
           <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">

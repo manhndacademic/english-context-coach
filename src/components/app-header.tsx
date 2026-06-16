@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
@@ -16,10 +17,12 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 export function AppHeader({
   email,
   isAdmin,
+  image,
   maxWidthClass = "max-w-[1100px]",
 }: {
   email?: string | null;
   isAdmin?: boolean;
+  image?: string | null;
   maxWidthClass?: string;
 }) {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
@@ -163,10 +166,19 @@ export function AppHeader({
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-sm border border-accent/20 cursor-pointer shadow-sm hover:bg-accent/20 hover:scale-105 transition-all select-none focus:outline-none"
+                className="w-8 h-8 rounded-full overflow-hidden bg-accent-light text-accent flex items-center justify-center font-bold text-sm border border-accent/20 cursor-pointer shadow-sm hover:bg-accent/20 hover:scale-105 transition-all select-none focus:outline-none"
                 aria-label="Menu người dùng"
               >
-                {email[0].toUpperCase()}
+                {image ? (
+                  <img
+                    src={image}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  email[0].toUpperCase()
+                )}
               </button>
 
               {dropdownOpen && (
@@ -188,8 +200,7 @@ export function AppHeader({
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-text hover:bg-surface-strong transition-colors cursor-pointer"
                   >
-                    <Settings size={14} className="text-muted" /> Cài đặt API
-                    Key
+                    <Settings size={14} className="text-muted" /> Cài đặt
                   </Link>
 
                   {isAdmin && (

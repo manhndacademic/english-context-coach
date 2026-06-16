@@ -151,6 +151,11 @@ export async function runWorker(
     log.error("[DigestWorker] Global worker error:", err);
   });
 
+  // Trigger an initial scan on startup to process any stale queued jobs in PostgreSQL
+  notifyJobQueued().catch((err) => {
+    log.error(`[WorkerDaemon] Failed to trigger initial scan on startup:`, err);
+  });
+
   log.info(`BullMQ Worker Daemon is active and listening to Redis.`);
 
   return {

@@ -28,7 +28,11 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <AppHeader email={user.email} isAdmin={user.role === "admin"} />
+      <AppHeader
+        email={user.email}
+        isAdmin={user.role === "admin"}
+        image={user.image}
+      />
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <ApiKeyForm initialHasCustomKey={hasCustomKey} />
 
