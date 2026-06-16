@@ -93,6 +93,17 @@ export async function addPhrasesToReviewQueue(
     `[addPhrasesToReviewQueue] Inserted ${toInsert.length} phrase-sourced SRS cards for user ${userId}. Skipped ${phrases.length - toInsert.length} duplicates.`
   );
 
+  // Notify review worker to start generating review prompts for the newly inserted cards
+  try {
+    const { notifyJobQueued } = await import("@/lib/jobs/trigger");
+    await notifyJobQueued();
+  } catch (notifyErr) {
+    log.error(
+      `[addPhrasesToReviewQueue] Failed to trigger notifyJobQueued:`,
+      notifyErr
+    );
+  }
+
   return {
     inserted: toInsert.length,
     skipped: phrases.length - toInsert.length,

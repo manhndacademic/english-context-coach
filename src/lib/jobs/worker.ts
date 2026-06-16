@@ -5,6 +5,7 @@ import { getLearnerMemoryEngine } from "@/domain/memory";
 import { getLogger } from "@/lib/logger";
 import { digestQueue, DIGEST_JOB_NAME } from "./digestQueue";
 import { runDigestWorker } from "./digestWorker";
+import { notifyJobQueued } from "./trigger";
 
 const log = getLogger("c.c.worker.WorkerDaemon");
 
@@ -48,10 +49,16 @@ export async function runWorker(
       const result = await lessonEngine.processNext(workerId);
       if (result.status === "idle") {
         log.info(`[LessonWorker] Idle: No lesson jobs found in PostgreSQL.`);
-      } else if (result.status === "processed" && !result.success) {
-        log.warn(
-          `[LessonWorker] Job finished with failed status in PostgreSQL.`
-        );
+      } else {
+        if (result.status === "failed" || !result.success) {
+          log.warn(
+            `[LessonWorker] Job finished with failed status in PostgreSQL.`
+          );
+        }
+        // Self-draining queue: if we just processed a job, check if there are more
+        notifyJobQueued().catch((err) => {
+          log.error(`[LessonWorker] Failed to trigger follow-up job:`, err);
+        });
       }
     },
     {
@@ -71,10 +78,16 @@ export async function runWorker(
         log.info(
           `[ReviewWorker] Idle: No review prompt jobs found in PostgreSQL.`
         );
-      } else if (result.status === "processed" && !result.success) {
-        log.warn(
-          `[ReviewWorker] Job finished with failed status in PostgreSQL.`
-        );
+      } else {
+        if (result.status === "failed" || !result.success) {
+          log.warn(
+            `[ReviewWorker] Job finished with failed status in PostgreSQL.`
+          );
+        }
+        // Self-draining queue: if we just processed a job, check if there are more
+        notifyJobQueued().catch((err) => {
+          log.error(`[ReviewWorker] Failed to trigger follow-up job:`, err);
+        });
       }
     },
     {
