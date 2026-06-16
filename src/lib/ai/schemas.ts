@@ -189,17 +189,17 @@ export const exercisesSchema = z.object({
 export const gradingSchema = z.object({
   score: z.number().int().min(0).max(100),
   isCorrect: z.boolean(),
-  feedbackVi: z.string().min(1).max(300),
-  naturalAnswer: z.string().min(1).max(300).nullable().optional(),
-  literalTranslationTrap: z.string().min(1).max(300).nullable().optional(),
+  feedbackVi: z.string().min(1).max(3000),
+  naturalAnswer: z.string().min(1).max(3000).nullable().optional(),
+  literalTranslationTrap: z.string().min(1).max(3000).nullable().optional(),
   feedbackDetails: z
     .object({
-      whatWasWrong: z.string().min(1).max(300),
-      whyItWasWrong: z.string().min(1).max(500),
-      correctUnderstanding: z.string().min(1).max(500),
-      mistakeType: z.string().min(1).max(100),
-      nextPracticeItem: z.string().min(1).max(300).nullable().optional(),
-      detailedExplanation: z.string().min(1).max(800),
+      whatWasWrong: z.string().min(1).max(3000),
+      whyItWasWrong: z.string().min(1).max(5000),
+      correctUnderstanding: z.string().min(1).max(5000),
+      mistakeType: z.string().min(1).max(1000),
+      nextPracticeItem: z.string().min(1).max(3000).nullable().optional(),
+      detailedExplanation: z.string().min(1).max(8000),
     })
     .nullable()
     .optional(),
@@ -208,8 +208,8 @@ export const gradingSchema = z.object({
       shouldSave: z.boolean(),
       confidence: z.number().int().min(0).max(100),
       errorType: errorTypeSchema.nullable().optional(),
-      explanationVi: z.string().min(1).max(500).nullable().optional(),
-      targetItem: z.string().min(1).max(200).nullable().optional(),
+      explanationVi: z.string().min(1).max(5000).nullable().optional(),
+      targetItem: z.string().min(1).max(3000).nullable().optional(),
     })
     .nullable()
     .optional(),

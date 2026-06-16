@@ -200,6 +200,53 @@ describe("AI Key Rotation & Error Handling", () => {
     expect(updatedUser.customGeminiApiKey).toBe(encryptedKey);
   });
 
+  it("should not exclude keys or mark them rate-limited on JSON schema validation errors", async () => {
+    // Clean keys and insert a valid-looking system key in DB
+    await db.delete(schema.aiApiKeys);
+    const [systemKey] = await db
+      .insert(schema.aiApiKeys)
+      .values({
+        name: "Mocked System Key",
+        provider: "gemini",
+        encryptedKey: encryptApiKey("AIzaSyMockedSystemKey"),
+        status: "active",
+      })
+      .returning();
+
+    // Mock callGeminiRaw to succeed but return invalid JSON
+    const rawSpy = vi
+      .spyOn(provider as any, "callGeminiRaw")
+      .mockResolvedValue({
+        text: '{"wrong_fields": true}',
+        inputTokens: 10,
+        outputTokens: 10,
+      });
+
+    const options = {
+      userId: testUser.id,
+      purpose: "grading" as const,
+      prompt: "Hello",
+      promptVersion: "1.0",
+      schemaVersion: "grading" as const,
+      schema: z.object({ score: z.number(), isCorrect: z.boolean() }),
+      modelKind: "fast" as const,
+    };
+
+    // It should fail due to validation error (after repair also returns wrong_fields)
+    await expect(provider.generateJson(options)).rejects.toThrow();
+
+    // Verify raw API was called
+    expect(rawSpy).toHaveBeenCalled();
+
+    // Check that the system key was NOT marked rate-limited or invalid in DB
+    const [keyInDb] = await db
+      .select()
+      .from(schema.aiApiKeys)
+      .where(eq(schema.aiApiKeys.id, systemKey.id));
+
+    expect(keyInDb.status).toBe("active");
+  });
+
   describe("parseApiKeys", () => {
     it("should handle undefined and empty strings", () => {
       expect(parseApiKeys(undefined)).toEqual([]);

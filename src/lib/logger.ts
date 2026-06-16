@@ -3,7 +3,7 @@
  * Format: YYYY-MM-DD HH:mm:ss.SSS  LEVEL PID --- [  ThreadName] LoggerName : Message
  */
 
-const useColors = 
+const useColors =
   typeof process !== "undefined" &&
   process.stdout?.isTTY &&
   !process.env.NO_COLOR &&
@@ -18,9 +18,29 @@ const COLORS = {
   RED: "\x1b[31m",
   CYAN: "\x1b[36m",
   MAGENTA: "\x1b[35m",
+  BLUE: "\x1b[34m",
+  GRAY: "\x1b[90m",
 };
 
-export type LogLevel = "INFO" | "WARN" | "ERROR";
+export type LogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
+
+export const LOG_LEVELS = {
+  TRACE: 0,
+  DEBUG: 1,
+  INFO: 2,
+  WARN: 3,
+  ERROR: 4,
+};
+
+export function getCurrentLogLevel() {
+  const envLevel = process.env.LOG_LEVEL?.toUpperCase();
+  if (envLevel && envLevel in LOG_LEVELS) {
+    return LOG_LEVELS[envLevel as keyof typeof LOG_LEVELS];
+  }
+  return process.env.NODE_ENV !== "production"
+    ? LOG_LEVELS.DEBUG
+    : LOG_LEVELS.INFO;
+}
 
 export class Logger {
   private loggerName: string;
@@ -41,7 +61,7 @@ export class Logger {
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
     const ms = String(now.getMilliseconds()).padStart(3, "0");
-    
+
     const ts = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
     return useColors ? `${COLORS.DIM}${ts}${COLORS.RESET}` : ts;
   }
@@ -49,9 +69,16 @@ export class Logger {
   private formatLevel(level: LogLevel): string {
     let coloredLevel = level.padEnd(5);
     if (useColors) {
-      if (level === "INFO") coloredLevel = `${COLORS.GREEN}${coloredLevel}${COLORS.RESET}`;
-      else if (level === "WARN") coloredLevel = `${COLORS.YELLOW}${coloredLevel}${COLORS.RESET}`;
-      else if (level === "ERROR") coloredLevel = `${COLORS.RED}${coloredLevel}${COLORS.RESET}`;
+      if (level === "TRACE")
+        coloredLevel = `${COLORS.GRAY}${coloredLevel}${COLORS.RESET}`;
+      else if (level === "DEBUG")
+        coloredLevel = `${COLORS.BLUE}${coloredLevel}${COLORS.RESET}`;
+      else if (level === "INFO")
+        coloredLevel = `${COLORS.GREEN}${coloredLevel}${COLORS.RESET}`;
+      else if (level === "WARN")
+        coloredLevel = `${COLORS.YELLOW}${coloredLevel}${COLORS.RESET}`;
+      else if (level === "ERROR")
+        coloredLevel = `${COLORS.RED}${coloredLevel}${COLORS.RESET}`;
     }
     return coloredLevel;
   }
@@ -67,7 +94,28 @@ export class Logger {
     return useColors ? `${COLORS.CYAN}${padded}${COLORS.RESET}` : padded;
   }
 
+  trace(message: string, thread?: string) {
+    if (LOG_LEVELS.TRACE < getCurrentLogLevel()) return;
+    const ts = this.formatTimestamp();
+    const levelStr = this.formatLevel("TRACE");
+    const pid = process.pid.toString().padStart(5);
+    const th = this.formatThread(thread);
+    const name = this.formatLoggerName();
+    console.debug(`${ts}  ${levelStr} ${pid} --- [${th}] ${name} : ${message}`);
+  }
+
+  debug(message: string, thread?: string) {
+    if (LOG_LEVELS.DEBUG < getCurrentLogLevel()) return;
+    const ts = this.formatTimestamp();
+    const levelStr = this.formatLevel("DEBUG");
+    const pid = process.pid.toString().padStart(5);
+    const th = this.formatThread(thread);
+    const name = this.formatLoggerName();
+    console.debug(`${ts}  ${levelStr} ${pid} --- [${th}] ${name} : ${message}`);
+  }
+
   info(message: string, thread?: string) {
+    if (LOG_LEVELS.INFO < getCurrentLogLevel()) return;
     const ts = this.formatTimestamp();
     const levelStr = this.formatLevel("INFO");
     const pid = process.pid.toString().padStart(5);
@@ -77,6 +125,7 @@ export class Logger {
   }
 
   warn(message: string, thread?: string) {
+    if (LOG_LEVELS.WARN < getCurrentLogLevel()) return;
     const ts = this.formatTimestamp();
     const levelStr = this.formatLevel("WARN");
     const pid = process.pid.toString().padStart(5);
@@ -86,12 +135,13 @@ export class Logger {
   }
 
   error(message: string, error?: unknown, thread?: string) {
+    if (LOG_LEVELS.ERROR < getCurrentLogLevel()) return;
     const ts = this.formatTimestamp();
     const levelStr = this.formatLevel("ERROR");
     const pid = process.pid.toString().padStart(5);
     const th = this.formatThread(thread);
     const name = this.formatLoggerName();
-    
+
     let errorSuffix = "";
     if (error !== undefined) {
       if (error instanceof Error) {
@@ -101,7 +151,9 @@ export class Logger {
       }
     }
 
-    console.error(`${ts}  ${levelStr} ${pid} --- [${th}] ${name} : ${message}${errorSuffix}`);
+    console.error(
+      `${ts}  ${levelStr} ${pid} --- [${th}] ${name} : ${message}${errorSuffix}`
+    );
   }
 }
 
@@ -114,13 +166,15 @@ export function parseDbDate(dateVal: unknown): Date | null {
   const d = new Date(dateVal as any);
   if (isNaN(d.getTime())) return null;
 
-  return new Date(Date.UTC(
-    d.getFullYear(),
-    d.getMonth(),
-    d.getDate(),
-    d.getHours(),
-    d.getMinutes(),
-    d.getSeconds(),
-    d.getMilliseconds()
-  ));
+  return new Date(
+    Date.UTC(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours(),
+      d.getMinutes(),
+      d.getSeconds(),
+      d.getMilliseconds()
+    )
+  );
 }

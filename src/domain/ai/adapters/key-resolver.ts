@@ -116,6 +116,9 @@ export class DrizzleKeyResolver implements KeyResolver {
           .update(schema.userAiApiKeys)
           .set({ lastUsedAt: new Date(), updatedAt: new Date() })
           .where(eq(schema.userAiApiKeys.id, picked.id));
+        logger.debug(
+          `[KeyResolver] Selected user custom API key keyId=${picked.id}`
+        );
         return { key, id: picked.id, isUserKey: true };
       }
 
@@ -145,11 +148,17 @@ export class DrizzleKeyResolver implements KeyResolver {
               candidateKeys[Math.floor(Math.random() * candidateKeys.length)];
             const key = decryptApiKey(picked.encKey);
             if (key) {
+              logger.debug(
+                `[KeyResolver] Selected legacy user custom API key keyId=${picked.id}`
+              );
               return { key, id: picked.id, isUserKey: true };
             }
           } else if (encryptedKeys.length > 0) {
             const key = decryptApiKey(encryptedKeys[0]);
             if (key) {
+              logger.debug(
+                "[KeyResolver] Selected legacy user custom API key keyId=user-key-0 (fallback)"
+              );
               return { key, id: "user-key-0", isUserKey: true };
             }
           }
@@ -194,6 +203,9 @@ export class DrizzleKeyResolver implements KeyResolver {
       const picked = activeKeys[Math.floor(Math.random() * activeKeys.length)];
       try {
         const key = decryptApiKey(picked.encryptedKey);
+        logger.debug(
+          `[KeyResolver] Selected database system key keyId=${picked.id} name=${picked.name}`
+        );
         return { key, id: picked.id, isUserKey: false };
       } catch (e) {
         logger.error(`Failed to decrypt system key ${picked.name}:`, e);
@@ -230,6 +242,9 @@ export class DrizzleKeyResolver implements KeyResolver {
       if (activeEnvKeys.length > 0) {
         const picked =
           activeEnvKeys[Math.floor(Math.random() * activeEnvKeys.length)];
+        logger.debug(
+          `[KeyResolver] Selected environment fallback API key keyId=${picked.id}`
+        );
         return { key: picked.key, id: picked.id, isUserKey: false };
       }
     }

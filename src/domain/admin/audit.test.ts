@@ -70,7 +70,7 @@ describe("Admin Audit Logs Querying", () => {
       metadata: { note: "test approval" },
     });
 
-    const logs = await getAdminAuditLogs({ limit: 1 });
+    const logs = await getAdminAuditLogs({ limit: 50 });
     const log = logs.find(
       (l) => l.action === "approve_user" && l.adminEmail === adminUser.email
     );

@@ -82,6 +82,11 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
 
 export { parseApiKeys } from "./key-resolver";
 
+function maskApiKey(key: string): string {
+  if (!key) return "empty";
+  return key.slice(0, 4) + "...";
+}
+
 export class GeminiLLMProvider implements LLMProvider {
   constructor(
     private readonly keyResolver: KeyResolver = new DrizzleKeyResolver(),
@@ -312,75 +317,169 @@ export class GeminiLLMProvider implements LLMProvider {
 
     while (attempts < maxKeyAttempts) {
       attempts++;
+      logger.debug(
+        `[GeminiProvider] Attempt ${attempts}: resolving key for model ${model} with exclusions: [${Array.from(
+          excludedKeyIds
+        ).join(", ")}]`
+      );
       const resolved = await this.keyResolver.resolveApiKeyWithExclusions(
         options.userId,
         excludedKeyIds,
         model
       );
       const { key, id: keyId, isUserKey } = resolved;
+      logger.debug(
+        `[GeminiProvider] Resolved key ID ${keyId || "env_key"} (${
+          isUserKey ? "user" : "system"
+        }), masked: ${maskApiKey(key)}`
+      );
+      let apiCallFailed = false;
 
       try {
-        const callResult = await this.callGeminiRaw({
-          apiKey: key,
-          model,
-          prompt: options.prompt,
-          purpose: options.purpose,
-          zodSchema: options.schema,
-          onThought: options.onThought,
-        });
+        let callResult;
+        try {
+          logger.trace(
+            `[GeminiProvider] Raw prompt sent to model ${model} for purpose ${
+              options.purpose
+            }:\n${options.prompt}`
+          );
+          callResult = await this.callGeminiRaw({
+            apiKey: key,
+            model,
+            prompt: options.prompt,
+            purpose: options.purpose,
+            zodSchema: options.schema,
+            onThought: options.onThought,
+          });
+        } catch (err) {
+          apiCallFailed = true;
+          throw err;
+        }
         accumulateTokens(callResult.inputTokens, callResult.outputTokens);
 
         let rawText = callResult.text;
+        logger.trace(
+          `[GeminiProvider] Raw text response received from model ${model} for purpose ${
+            options.purpose
+          }:\n${rawText}`
+        );
         let extracted = extractJson(rawText);
+        let parsed = null;
         try {
           const coerced = coerceJsonForSchema(
             JSON.parse(extracted),
             options.schemaVersion as keyof typeof SCHEMA_VERSIONS
           );
-          const parsed = options.schema.safeParse(coerced);
+          parsed = options.schema.safeParse(coerced);
           if (parsed.success) {
             if (keyId && !isUserKey) {
               await this.keyResolver.restoreKeyToActive(keyId);
             }
+            logger.debug(
+              `[GeminiProvider] Successful validation on first attempt for key ID ${
+                keyId || "env_key"
+              }`
+            );
             return parsed.data;
+          } else {
+            logger.warn(
+              `[GeminiProvider] First attempt response validation failed for purpose ${
+                options.purpose
+              }. Errors: ${JSON.stringify(parsed.error.errors)}`
+            );
           }
-        } catch {
-          // JSON parse failure or coercion failure -> trigger repair
+        } catch (parseErr: any) {
+          logger.warn(
+            `[GeminiProvider] First attempt JSON parsing/coercion failed for purpose ${
+              options.purpose
+            }: ${parseErr.message || parseErr}`
+          );
         }
 
         // Trigger repair flow
         const { repairPrompt } = await import("@/lib/ai/prompts");
-        const repairResult = await this.callGeminiRaw({
-          apiKey: key,
-          model,
-          prompt: repairPrompt(rawText, options.schemaVersion),
-          purpose: "repair",
-          zodSchema: options.schema,
-        });
+        const repairPromptText = repairPrompt(rawText, options.schemaVersion);
+        logger.debug(
+          `[GeminiProvider] Triggering repair flow using key ID ${keyId || "env_key"}`
+        );
+        logger.trace(
+          `[GeminiProvider] Raw repair prompt sent:\n${repairPromptText}`
+        );
+        let repairResult;
+        try {
+          repairResult = await this.callGeminiRaw({
+            apiKey: key,
+            model,
+            prompt: repairPromptText,
+            purpose: "repair",
+            zodSchema: options.schema,
+          });
+        } catch (err) {
+          apiCallFailed = true;
+          throw err;
+        }
         accumulateTokens(repairResult.inputTokens, repairResult.outputTokens);
 
-        const repairedExtracted = extractJson(repairResult.text);
-        const coercedRepaired = coerceJsonForSchema(
-          JSON.parse(repairedExtracted),
-          options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+        logger.trace(
+          `[GeminiProvider] Raw repair text response received:\n${repairResult.text}`
         );
+        const repairedExtracted = extractJson(repairResult.text);
+        let coercedRepaired;
+        try {
+          coercedRepaired = coerceJsonForSchema(
+            JSON.parse(repairedExtracted),
+            options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+          );
+        } catch (parseErr: any) {
+          logger.error(
+            `[GeminiProvider] Repaired response JSON parsing failed: ${
+              parseErr.message || parseErr
+            }`
+          );
+          throw parseErr;
+        }
 
         if (keyId && !isUserKey) {
           await this.keyResolver.restoreKeyToActive(keyId);
         }
 
-        return options.schema.parse(coercedRepaired);
+        try {
+          const finalData = options.schema.parse(coercedRepaired);
+          logger.debug(
+            `[GeminiProvider] Successful validation on repaired response for key ID ${
+              keyId || "env_key"
+            }`
+          );
+          return finalData;
+        } catch (zodErr: any) {
+          logger.error(
+            `[GeminiProvider] Repaired response validation failed. Errors: ${JSON.stringify(
+              zodErr.errors
+            )}. Coerced: ${JSON.stringify(coercedRepaired)}`
+          );
+          throw zodErr;
+        }
       } catch (err: any) {
-        if (keyId) {
+        if (keyId && apiCallFailed) {
           excludedKeyIds.add(keyId);
           if (!isUserKey) {
             if (isRateLimitError(err)) {
+              logger.warn(
+                `[GeminiProvider] Marking key ID ${keyId} rate-limited: ${
+                  err.message || err
+                }`
+              );
               await this.keyResolver.markKeyRateLimited(
                 keyId,
                 err.message || "Rate limit exceeded",
                 model
               );
             } else if (isInvalidKeyError(err)) {
+              logger.error(
+                `[GeminiProvider] Marking key ID ${keyId} invalid: ${
+                  err.message || err
+                }`
+              );
               await this.keyResolver.markKeyInvalid(
                 keyId,
                 err.message || "Invalid API key"
@@ -391,8 +490,12 @@ export class GeminiLLMProvider implements LLMProvider {
               `User custom API key ${keyId} failed: ${err.message || err}`
             );
           }
-        } else {
-          throw err;
+        } else if (!apiCallFailed) {
+          logger.warn(
+            `[GeminiProvider] Gemini API call succeeded but parsing/validation failed on key ID ${
+              keyId || "env_key"
+            }. Error: ${err.message || err}. Key is kept active.`
+          );
         }
 
         if (attempts >= maxKeyAttempts) {

@@ -222,7 +222,7 @@ describe("AI schemas", () => {
       score: 80,
       isCorrect: true,
       feedbackVi: "Ổn rồi.",
-      naturalAnswer: "a".repeat(301),
+      naturalAnswer: "a".repeat(3001),
     });
 
     expect(result.success).toBe(false);
