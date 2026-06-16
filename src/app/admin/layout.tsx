@@ -1,7 +1,13 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import Link from "next/link";
-import { LayoutDashboard, KeyRound, ArrowLeft, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  KeyRound,
+  ArrowLeft,
+  Users,
+  FileText,
+} from "lucide-react";
 
 export default async function AdminLayout({
   children,
@@ -42,6 +48,12 @@ export default async function AdminLayout({
               className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold rounded-md transition-all text-text hover:bg-surface-strong"
             >
               <Users size={16} className="text-muted" /> Quản lý người dùng
+            </Link>
+            <Link
+              href="/admin/audit-logs"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold rounded-md transition-all text-text hover:bg-surface-strong"
+            >
+              <FileText size={16} className="text-muted" /> Nhật ký hoạt động
             </Link>
             <hr className="border-border my-2" />
             <Link

@@ -59,7 +59,8 @@ export interface AdminMetricsRepository {
     Array<{
       userId: string | null;
       email: string | null;
-      customKeyConfigured: boolean;
+      personalKeyCount: number;
+      activePersonalKeyCount: number;
       totalRequests: number;
       totalTokens: number;
       totalCostUsd: number;

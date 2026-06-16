@@ -25,36 +25,6 @@ function currentVnDigestDate(now = new Date()): string {
   return vnTime.toISOString().slice(0, 10);
 }
 
-async function upsertDigestLog(input: {
-  userId: string;
-  digestDate: string;
-  status: "sent" | "skipped" | "failed";
-  dueCount: number;
-  errorMessage?: string | null;
-  sentAt?: Date | null;
-}) {
-  await db
-    .insert(emailDigestLogs)
-    .values({
-      userId: input.userId,
-      digestDate: input.digestDate,
-      status: input.status,
-      dueCount: input.dueCount,
-      errorMessage: input.errorMessage ?? null,
-      sentAt: input.sentAt ?? null,
-    })
-    .onConflictDoUpdate({
-      target: [emailDigestLogs.userId, emailDigestLogs.digestDate],
-      set: {
-        status: input.status,
-        dueCount: input.dueCount,
-        errorMessage: input.errorMessage ?? null,
-        sentAt: input.sentAt ?? null,
-        updatedAt: new Date(),
-      },
-    });
-}
-
 export async function runDigestWorker(): Promise<{
   processed: number;
   sent: number;
@@ -91,25 +61,42 @@ export async function runDigestWorker(): Promise<{
 
   for (const user of eligibleUsers) {
     results.processed++;
+    let currentDueCount = 0;
     try {
-      const [existingLog] = await db
-        .select({ status: emailDigestLogs.status })
-        .from(emailDigestLogs)
-        .where(
-          and(
-            eq(emailDigestLogs.userId, user.id),
-            eq(emailDigestLogs.digestDate, digestDate)
-          )
-        )
-        .limit(1);
-      if (existingLog?.status === "sent") {
+      // 1. Atomically try to claim this user + date
+      // We insert a row with status 'processing'.
+      // If a row already exists:
+      //   - If status is 'failed', we can retry (update to 'processing' and clear error).
+      //   - If status is 'sent', 'processing', or 'skipped', we must not process (skip).
+      const [claimedLog] = await db
+        .insert(emailDigestLogs)
+        .values({
+          userId: user.id,
+          digestDate,
+          status: "processing",
+          dueCount: 0,
+        })
+        .onConflictDoUpdate({
+          target: [emailDigestLogs.userId, emailDigestLogs.digestDate],
+          set: {
+            status: "processing",
+            errorMessage: null,
+            updatedAt: new Date(),
+          },
+          where: eq(emailDigestLogs.status, "failed"),
+        })
+        .returning();
+
+      if (!claimedLog) {
+        // Claim failed because it was already sent, processing, or skipped.
         results.skipped++;
         log.info(
-          `[DigestWorker] Digest already sent for user ${user.id} on ${digestDate}. Skipping.`
+          `[DigestWorker] Digest for user ${user.id} on ${digestDate} is already sent, processing, or skipped. Skipping.`
         );
         continue;
       }
 
+      // 2. Count due items
       const [{ value: dueCount }] = await db
         .select({ value: count() })
         .from(mistakePatterns)
@@ -121,18 +108,29 @@ export async function runDigestWorker(): Promise<{
           )
         );
 
-      if (!dueCount || dueCount === 0) {
-        await upsertDigestLog({
-          userId: user.id,
-          digestDate,
-          status: "skipped",
-          dueCount: 0,
-        });
+      currentDueCount = dueCount ?? 0;
+
+      if (currentDueCount === 0) {
+        // No due items. Mark as skipped so we don't send anything.
+        await db
+          .update(emailDigestLogs)
+          .set({
+            status: "skipped",
+            dueCount: 0,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(emailDigestLogs.userId, user.id),
+              eq(emailDigestLogs.digestDate, digestDate)
+            )
+          );
         log.info(`[DigestWorker] No due items for user ${user.id}. Skipping.`);
         results.skipped++;
         continue;
       }
 
+      // 3. Retrieve preview items and send email
       const previewItems = await db
         .select({
           phrase: mistakePatterns.normalizedPhrase,
@@ -152,31 +150,50 @@ export async function runDigestWorker(): Promise<{
       await sendDigestEmail({
         to: user.email,
         userName: user.name,
-        dueCount,
+        dueCount: currentDueCount,
         items: previewItems,
       });
-      await upsertDigestLog({
-        userId: user.id,
-        digestDate,
-        status: "sent",
-        dueCount,
-        sentAt: new Date(),
-      });
+
+      // 4. Mark as sent
+      await db
+        .update(emailDigestLogs)
+        .set({
+          status: "sent",
+          dueCount: currentDueCount,
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(emailDigestLogs.userId, user.id),
+            eq(emailDigestLogs.digestDate, digestDate)
+          )
+        );
 
       results.sent++;
       log.info(
-        `[DigestWorker] Sent digest to ${user.email} with ${dueCount} due items`
+        `[DigestWorker] Sent digest to ${user.email} with ${currentDueCount} due items`
       );
     } catch (err) {
       results.errors++;
       const message = err instanceof Error ? err.message : String(err);
-      await upsertDigestLog({
-        userId: user.id,
-        digestDate,
-        status: "failed",
-        dueCount: 0,
-        errorMessage: message,
-      });
+
+      // Update status to failed so it can be retried later
+      await db
+        .update(emailDigestLogs)
+        .set({
+          status: "failed",
+          dueCount: currentDueCount,
+          errorMessage: message,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(emailDigestLogs.userId, user.id),
+            eq(emailDigestLogs.digestDate, digestDate)
+          )
+        );
+
       log.error(
         `[DigestWorker] Failed to send digest to ${user.email}:`,
         err instanceof Error ? err : new Error(String(err))

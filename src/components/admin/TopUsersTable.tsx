@@ -4,7 +4,8 @@ interface TopUsersTableProps {
   topUsers: Array<{
     userId: string | null;
     email: string | null;
-    customKeyConfigured: boolean;
+    personalKeyCount: number;
+    activePersonalKeyCount: number;
     totalRequests: number;
     totalTokens: number;
     totalCostUsd: number;
@@ -42,13 +43,19 @@ export function TopUsersTable({ topUsers }: TopUsersTableProps) {
                         : "System / Anon")}
                   </td>
                   <td className="py-3 px-4">
-                    {u.customKeyConfigured ? (
-                      <span className="bg-success-light border border-success text-success text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        Yes
-                      </span>
+                    {u.personalKeyCount > 0 ? (
+                      u.activePersonalKeyCount > 0 ? (
+                        <span className="bg-success-light border border-success text-success text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          Có key ({u.activePersonalKeyCount} active)
+                        </span>
+                      ) : (
+                        <span className="bg-warning-light border border-warning text-warning text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          Có key (0 active)
+                        </span>
+                      )
                     ) : (
                       <span className="bg-surface-strong border border-border text-muted text-[10px] px-2 py-0.5 rounded-full">
-                        No
+                        Không dùng key
                       </span>
                     )}
                   </td>

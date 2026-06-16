@@ -6,25 +6,8 @@ import { eq } from "drizzle-orm";
 import { decryptApiKey, encryptApiKey } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { recordAdminAuditLog } from "@/domain/admin/audit";
-import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-
-const GEMINI_TEST_MODEL = "gemini-3.1-flash-lite";
-
-async function verifyGeminiApiKey(apiKey: string): Promise<string | null> {
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    await ai.models.generateContent({
-      model: GEMINI_TEST_MODEL,
-      contents: "ping",
-    });
-    return null;
-  } catch (error) {
-    return error instanceof Error
-      ? error.message
-      : "Không thể xác thực API Key với Gemini.";
-  }
-}
+import { verifyGeminiApiKey } from "@/domain/ai/adapters/gemini-utils";
 
 const addSystemApiKeySchema = z.object({
   name: z.string().trim().min(1, "Tên gợi nhớ là bắt buộc"),
@@ -70,14 +53,23 @@ const deleteSystemApiKeySchema = z.object({
 export const deleteSystemApiKeyAction = validatedAction(
   deleteSystemApiKeySchema,
   async (data, user) => {
-    await db
+    const deleted = await db
       .delete(schema.aiApiKeys)
-      .where(eq(schema.aiApiKeys.id, data.keyId));
+      .where(eq(schema.aiApiKeys.id, data.keyId))
+      .returning();
+
+    if (deleted.length === 0) {
+      return {
+        error: "Không tìm thấy API Key hệ thống hoặc đã bị xóa.",
+      } as any;
+    }
+
     await recordAdminAuditLog({
       adminUserId: user.id,
       targetResourceType: "system_api_key",
       targetResourceId: data.keyId,
       action: "delete_system_api_key",
+      metadata: { name: deleted[0].name, provider: deleted[0].provider },
     });
     revalidatePath("/admin/keys");
     return { success: true } as any;

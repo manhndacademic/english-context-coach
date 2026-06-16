@@ -195,6 +195,15 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                       </form>
                     )}
                     <form
+                      onSubmit={(e) => {
+                        if (
+                          !confirm(
+                            "Bạn có chắc chắn muốn xóa API Key này không? Hành động này không thể hoàn tác."
+                          )
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
                       action={(fd) =>
                         submitAction(deleteUserApiKeyAction, fd, "Đã xóa key.")
                       }

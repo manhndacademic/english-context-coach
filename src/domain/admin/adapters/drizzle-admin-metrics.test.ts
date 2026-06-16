@@ -29,6 +29,7 @@ function mockChain(result: any) {
     groupBy: () => chain,
     leftJoin: () => chain,
     innerJoin: () => chain,
+    as: () => chain,
     then: (onfulfilled: any) => Promise.resolve(result).then(onfulfilled),
   };
   return chain;
@@ -175,12 +176,14 @@ describe("DrizzleAdminMetricsRepository", () => {
       {
         userId: "user-1",
         email: "user1@example.com",
-        customKeyConfigured: false,
+        personalKeyCount: 0,
+        activePersonalKeyCount: 0,
         totalRequests: 15,
         totalTokens: 5000,
         totalCostUsd: 0.05,
       },
     ];
+    mockDbClient.select.mockReturnValueOnce(mockChain([]));
     mockDbClient.select.mockReturnValueOnce(mockChain(mockRows));
 
     const result = await repository.getTopUsersByResourceUsage(10);

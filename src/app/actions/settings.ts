@@ -5,28 +5,12 @@ import { getKeyResolver } from "@/domain/ai";
 import { decryptApiKey, encryptApiKey, sha256 } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { requireUser } from "@/lib/auth/guards";
-import { GoogleGenAI } from "@google/genai";
 import { db, schema } from "@/db";
 import { and, eq, gt, sql, desc, count } from "drizzle-orm";
 import { z } from "zod";
+import { verifyGeminiApiKey } from "@/domain/ai/adapters/gemini-utils";
 
-const GEMINI_TEST_MODEL = "gemini-3.1-flash-lite";
 const MAX_USER_KEYS = 10;
-
-async function verifyGeminiApiKey(apiKey: string): Promise<string | null> {
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    await ai.models.generateContent({
-      model: GEMINI_TEST_MODEL,
-      contents: "ping",
-    });
-    return null;
-  } catch (error) {
-    return error instanceof Error
-      ? error.message
-      : "Không thể xác thực API Key với Gemini.";
-  }
-}
 
 const saveUserApiKeySchema = z.object({ apiKey: z.string().trim() });
 
@@ -112,14 +96,18 @@ export const addUserApiKeyAction = validatedAction(
 export const deleteUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    await db
+    const deleted = await db
       .delete(schema.userAiApiKeys)
       .where(
         and(
           eq(schema.userAiApiKeys.id, data.keyId),
           eq(schema.userAiApiKeys.userId, user.id)
         )
-      );
+      )
+      .returning();
+    if (deleted.length === 0) {
+      return { error: "Không tìm thấy API Key hoặc không có quyền." } as any;
+    }
     revalidatePath("/settings");
     return { success: true } as any;
   }
@@ -128,7 +116,7 @@ export const deleteUserApiKeyAction = validatedAction(
 export const disableUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    await db
+    const updated = await db
       .update(schema.userAiApiKeys)
       .set({ status: "disabled", updatedAt: new Date() })
       .where(
@@ -136,7 +124,11 @@ export const disableUserApiKeyAction = validatedAction(
           eq(schema.userAiApiKeys.id, data.keyId),
           eq(schema.userAiApiKeys.userId, user.id)
         )
-      );
+      )
+      .returning();
+    if (updated.length === 0) {
+      return { error: "Không tìm thấy API Key hoặc không có quyền." } as any;
+    }
     revalidatePath("/settings");
     return { success: true } as any;
   }
@@ -145,6 +137,40 @@ export const disableUserApiKeyAction = validatedAction(
 export const enableUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
+    const [keyRow] = await db
+      .select()
+      .from(schema.userAiApiKeys)
+      .where(
+        and(
+          eq(schema.userAiApiKeys.id, data.keyId),
+          eq(schema.userAiApiKeys.userId, user.id)
+        )
+      )
+      .limit(1);
+
+    if (!keyRow) {
+      return { error: "Không tìm thấy API Key hoặc không có quyền." } as any;
+    }
+
+    const rawKey = decryptApiKey(keyRow.encryptedKey);
+    const verifyError = await verifyGeminiApiKey(rawKey);
+
+    if (verifyError) {
+      await db
+        .update(schema.userAiApiKeys)
+        .set({
+          status: "invalid",
+          errorMessage: verifyError,
+          rateLimitedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.userAiApiKeys.id, keyRow.id));
+      revalidatePath("/settings");
+      return {
+        error: `Không thể kích hoạt. Xác thực API Key thất bại: ${verifyError}`,
+      } as any;
+    }
+
     await db
       .update(schema.userAiApiKeys)
       .set({
@@ -153,12 +179,8 @@ export const enableUserApiKeyAction = validatedAction(
         rateLimitedAt: null,
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(schema.userAiApiKeys.id, data.keyId),
-          eq(schema.userAiApiKeys.userId, user.id)
-        )
-      );
+      .where(eq(schema.userAiApiKeys.id, keyRow.id));
+
     revalidatePath("/settings");
     return { success: true } as any;
   }
@@ -177,7 +199,9 @@ export const reverifyUserApiKeyAction = validatedAction(
         )
       )
       .limit(1);
-    if (!keyRow) return { error: "Không tìm thấy API Key." } as any;
+    if (!keyRow) {
+      return { error: "Không tìm thấy API Key hoặc không có quyền." } as any;
+    }
     const rawKey = decryptApiKey(keyRow.encryptedKey);
     const verifyError = await verifyGeminiApiKey(rawKey);
     await db

@@ -154,21 +154,37 @@ export class DrizzleAdminMetricsRepository implements AdminMetricsRepository {
   }
 
   async getTopUsersByResourceUsage(limit: number) {
+    const keyCountsSubquery = this.dbClient
+      .select({
+        userId: schema.userAiApiKeys.userId,
+        personalKeyCount: sql<number>`count(*)::int`,
+        activePersonalKeyCount: sql<number>`count(case when ${schema.userAiApiKeys.status} = 'active' then 1 end)::int`,
+      })
+      .from(schema.userAiApiKeys)
+      .groupBy(schema.userAiApiKeys.userId)
+      .as("keys_subquery");
+
     return this.dbClient
       .select({
         userId: schema.aiRequests.userId,
         email: schema.users.email,
-        customKeyConfigured: sql<boolean>`case when ${schema.users.customGeminiApiKey} is not null then true else false end`,
-        totalRequests: sql<number>`count(*)::int`,
+        personalKeyCount: sql<number>`coalesce(${keyCountsSubquery.personalKeyCount}, 0)::int`,
+        activePersonalKeyCount: sql<number>`coalesce(${keyCountsSubquery.activePersonalKeyCount}, 0)::int`,
+        totalRequests: sql<number>`count(${schema.aiRequests.id})::int`,
         totalTokens: sql<number>`sum(coalesce(${schema.aiRequests.inputTokens}, 0) + coalesce(${schema.aiRequests.outputTokens}, 0))::int`,
         totalCostUsd: sql<number>`sum(coalesce(${schema.aiRequests.costMicros}, 0))::double precision / 1000000`,
       })
       .from(schema.aiRequests)
       .leftJoin(schema.users, eq(schema.aiRequests.userId, schema.users.id))
+      .leftJoin(
+        keyCountsSubquery,
+        eq(schema.aiRequests.userId, keyCountsSubquery.userId)
+      )
       .groupBy(
         schema.aiRequests.userId,
         schema.users.email,
-        schema.users.customGeminiApiKey
+        keyCountsSubquery.personalKeyCount,
+        keyCountsSubquery.activePersonalKeyCount
       )
       .orderBy(desc(sql`sum(coalesce(${schema.aiRequests.costMicros}, 0))`))
       .limit(limit);

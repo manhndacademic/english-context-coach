@@ -31,7 +31,9 @@ vi.mock("@google/genai", () => {
         models: {
           generateContent: vi.fn().mockImplementation(() => {
             if (config.apiKey === "invalid-fake-key") {
-              throw new Error("API key not valid");
+              const err: any = new Error("API_KEY_INVALID");
+              err.status = 400;
+              throw err;
             }
             return { text: "OK" };
           }),
@@ -87,7 +89,8 @@ describe("Settings Actions", () => {
 
       const result = await saveUserApiKeyAction(null, formData);
       expect(result).toEqual({
-        error: "Xác thực API Key thất bại: API key not valid",
+        error:
+          "Xác thực API Key thất bại: API Key không hợp lệ hoặc không có quyền truy cập. Vui lòng kiểm tra lại.",
       });
 
       // Verify DB still does not have custom key
