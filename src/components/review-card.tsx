@@ -294,6 +294,7 @@ export function ReviewCard({
           nextReviewDate={nextReviewDate}
           masteryState={state.masteryState}
           isSubjectiveType={!isChoiceType}
+          score={state.score ?? undefined}
         />
       ) : null}
     </article>

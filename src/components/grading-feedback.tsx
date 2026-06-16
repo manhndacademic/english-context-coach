@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronUp, ChevronDown, AlertCircle } from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
 import { WordDiff } from "@/components/lesson/WordDiff";
+import confetti from "canvas-confetti";
 
 interface GradingFeedbackProps {
   type: "exercise" | "review";
@@ -28,6 +29,7 @@ interface GradingFeedbackProps {
   // Review specific
   nextReviewDate?: string | null;
   masteryState?: string | null;
+  score?: number;
 }
 
 export function GradingFeedback({
@@ -44,9 +46,66 @@ export function GradingFeedback({
   showSuggestion,
   nextReviewDate,
   masteryState,
+  score,
 }: GradingFeedbackProps) {
   const [showExplainMore, setShowExplainMore] = useState(false);
   const isReview = type === "review";
+
+  useEffect(() => {
+    if (isCorrect && score !== undefined && score >= 70) {
+      let particleCount = 50;
+      if (score >= 95) {
+        particleCount = 130;
+      } else if (score >= 85) {
+        particleCount = 90;
+      }
+
+      // Left corner burst
+      confetti({
+        particleCount,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.85 },
+      });
+
+      // Right corner burst
+      confetti({
+        particleCount,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.85 },
+      });
+
+      // Extra bursts for high scores
+      if (score >= 85) {
+        setTimeout(() => {
+          confetti({
+            particleCount: Math.round(particleCount * 0.7),
+            angle: 60,
+            spread: 60,
+            origin: { x: 0.05, y: 0.75 },
+          });
+          confetti({
+            particleCount: Math.round(particleCount * 0.7),
+            angle: 120,
+            spread: 60,
+            origin: { x: 0.95, y: 0.75 },
+          });
+        }, 200);
+      }
+
+      if (score >= 95) {
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 90,
+            spread: 80,
+            origin: { x: 0.5, y: 0.65 },
+          });
+        }, 400);
+      }
+    }
+  }, [isCorrect, score]);
 
   const outerClassName = isReview
     ? `animate-slide-in-up grid gap-2 border-t border-border pt-4 mt-2 rounded-xl p-5 border ${

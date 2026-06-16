@@ -352,6 +352,7 @@ export function ExerciseCard({
           isSubjectiveType={isSubjectiveType}
           isRepeated={isRepeated}
           showSuggestion={showSuggestion}
+          score={latest.score ?? undefined}
         />
       ) : null}
     </article>
