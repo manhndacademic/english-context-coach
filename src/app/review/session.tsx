@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 
 export function ReviewSession({
   patterns,
+  lessonsMap = {},
 }: {
   patterns: MistakePatternPlain[];
+  lessonsMap?: Record<string, Array<{ id: string; title: string | null }>>;
 }) {
   const router = useRouter();
   const [sessionPatterns] = useState<MistakePatternPlain[]>(() => patterns);
@@ -75,6 +77,11 @@ export function ReviewSession({
       <ReviewCard
         key={currentPattern.id}
         pattern={currentPattern}
+        lessons={
+          lessonsMap[
+            `${currentPattern.conceptKey}_${currentPattern.errorType}`
+          ] || []
+        }
         onComplete={handleComplete}
       />
     </div>

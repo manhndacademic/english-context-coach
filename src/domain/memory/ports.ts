@@ -67,6 +67,7 @@ export interface MistakePatternRepository {
     dueAt: Date,
     limit: number
   ): Promise<MistakePattern[]>;
+  findAllMistakePatterns(userId: string): Promise<MistakePattern[]>;
   getDashboardMetrics(
     userId: string,
     dueAt: Date

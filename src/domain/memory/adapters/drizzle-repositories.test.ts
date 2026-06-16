@@ -192,4 +192,36 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
       expect(result.reviewSuccessRate).toBe(0);
     });
   });
+
+  describe("findAllMistakePatterns", () => {
+    it("should query all patterns ordered by updatedAt desc", async () => {
+      const dbResult = [
+        {
+          id: "pattern-1",
+          userId: "user-1",
+          conceptKey: "concept-1",
+          normalizedPhrase: "test phrase 1",
+          category: "idiom",
+          errorType: "literal_translation",
+          meaningVi: "nghĩa 1",
+          safeReviewPromptVi: "câu ôn tập 1",
+          occurrenceCount: 1,
+          intervalDays: 0,
+          easeFactor: 2.5,
+          repetitions: 0,
+          masteryState: "active",
+          dueAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      mockDbClient.select.mockReturnValueOnce(mockChain(dbResult));
+
+      const result = await repository.findAllMistakePatterns("user-1");
+      expect(result.length).toBe(1);
+      expect(result[0].id).toBe("pattern-1");
+      expect(mockDbClient.select).toHaveBeenCalled();
+    });
+  });
 });

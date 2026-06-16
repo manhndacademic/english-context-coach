@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useMemo } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   Loader2,
@@ -8,6 +9,7 @@ import {
   HelpCircle,
   History,
   CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import {
   submitReviewAttemptAction,
@@ -30,9 +32,11 @@ function formatReviewDate(value?: string) {
 
 export function ReviewCard({
   pattern,
+  lessons,
   onComplete,
 }: {
   pattern: MistakePatternPlain;
+  lessons?: Array<{ id: string; title: string | null }>;
   onComplete: () => void;
 }) {
   const [answer, setAnswer] = useState("");
@@ -105,6 +109,27 @@ export function ReviewCard({
           )}
         </div>
       </div>
+
+      {lessons && lessons.length > 0 && (
+        <div className="flex flex-col gap-1 bg-surface-strong/60 p-2.5 rounded-lg border border-border text-xs">
+          <span className="text-[10px] text-muted font-bold tracking-wider uppercase flex items-center gap-1">
+            <ExternalLink size={10} /> Gặp lỗi này trong các bài học:
+          </span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-1">
+            {lessons.map((l) => (
+              <Link
+                key={l.id}
+                href={`/lessons/${l.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-0.5 text-accent hover:underline font-bold"
+              >
+                {l.title || "Bài học gốc"}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {disclosure.showPreAnswerPrompt ? (
         <div className="rounded-lg p-4 bg-surface-strong border border-border text-sm leading-relaxed flex flex-col gap-1.5">

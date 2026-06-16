@@ -270,6 +270,15 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     return rows.map((r: any) => MistakePattern.reconstitute(r));
   }
 
+  async findAllMistakePatterns(userId: string): Promise<MistakePattern[]> {
+    const rows = await this.dbClient
+      .select()
+      .from(schema.mistakePatterns)
+      .where(eq(schema.mistakePatterns.userId, userId))
+      .orderBy(desc(schema.mistakePatterns.updatedAt));
+    return rows.map((r: any) => MistakePattern.reconstitute(r));
+  }
+
   async getDashboardMetrics(
     userId: string,
     dueAt: Date
