@@ -254,7 +254,7 @@ export default async function HistoryPage() {
                       )}
 
                       <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-border/50">
-                        <span className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none">
+                        <span className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none whitespace-nowrap">
                           {p.errorType.replaceAll("_", " ")}
                         </span>
 

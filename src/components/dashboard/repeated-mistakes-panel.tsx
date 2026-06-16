@@ -41,7 +41,7 @@ export function RepeatedMistakesPanel({
                 Nghĩa đúng: {pattern.meaningVi}
               </span>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none">
+                <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none whitespace-nowrap">
                   {pattern.errorType.replaceAll("_", " ")}
                 </span>
                 {pattern.reviewPromptStatus === "succeeded" ? (

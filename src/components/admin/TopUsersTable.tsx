@@ -45,16 +45,16 @@ export function TopUsersTable({ topUsers }: TopUsersTableProps) {
                   <td className="py-3 px-4">
                     {u.personalKeyCount > 0 ? (
                       u.activePersonalKeyCount > 0 ? (
-                        <span className="bg-success-light border border-success text-success text-[10px] px-2 py-0.5 rounded-full font-bold">
+                        <span className="bg-success-light border border-success text-success text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
                           Có key ({u.activePersonalKeyCount} active)
                         </span>
                       ) : (
-                        <span className="bg-warning-light border border-warning text-warning text-[10px] px-2 py-0.5 rounded-full font-bold">
+                        <span className="bg-warning-light border border-warning text-warning text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
                           Có key (0 active)
                         </span>
                       )
                     ) : (
-                      <span className="bg-surface-strong border border-border text-muted text-[10px] px-2 py-0.5 rounded-full">
+                      <span className="bg-surface-strong border border-border text-muted text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
                         Không dùng key
                       </span>
                     )}
