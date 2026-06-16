@@ -104,7 +104,8 @@ export async function runDigestWorker(): Promise<{
           and(
             eq(mistakePatterns.userId, user.id),
             eq(mistakePatterns.masteryState, "active"),
-            lte(mistakePatterns.dueAt, now)
+            lte(mistakePatterns.dueAt, now),
+            eq(mistakePatterns.reviewPromptStatus, "succeeded")
           )
         );
 
@@ -141,7 +142,8 @@ export async function runDigestWorker(): Promise<{
           and(
             eq(mistakePatterns.userId, user.id),
             eq(mistakePatterns.masteryState, "active"),
-            lte(mistakePatterns.dueAt, now)
+            lte(mistakePatterns.dueAt, now),
+            eq(mistakePatterns.reviewPromptStatus, "succeeded")
           )
         )
         .orderBy(asc(mistakePatterns.dueAt))

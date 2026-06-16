@@ -7,6 +7,7 @@ import {
 } from "@/domain/memory";
 import { validatedAction } from "@/lib/action-builder";
 import { z } from "zod";
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -87,6 +88,7 @@ export const retryReviewPromptGenerationAction = validatedAction(
       reviewPromptError: null,
     });
     await repo.saveMistakePattern(pattern);
+    await notifyJobQueued();
 
     revalidatePath("/dashboard");
   }

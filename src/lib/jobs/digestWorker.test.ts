@@ -77,7 +77,7 @@ describe("DigestWorker Race Condition & Claiming", () => {
       safeReviewPromptVi: "prompt",
       dueAt: new Date(Date.now() - 3600000), // due 1 hour ago
       masteryState: "active",
-      reviewPromptStatus: "queued",
+      reviewPromptStatus: "succeeded",
     });
 
     // Pre-insert a log with 'processing' status
@@ -109,7 +109,7 @@ describe("DigestWorker Race Condition & Claiming", () => {
       safeReviewPromptVi: "prompt",
       dueAt: new Date(Date.now() - 3600000), // due 1 hour ago
       masteryState: "active",
-      reviewPromptStatus: "queued",
+      reviewPromptStatus: "succeeded",
     });
 
     // Pre-insert a log with 'skipped' status
@@ -139,7 +139,7 @@ describe("DigestWorker Race Condition & Claiming", () => {
       safeReviewPromptVi: "prompt",
       dueAt: new Date(Date.now() - 3600000), // due 1 hour ago
       masteryState: "active",
-      reviewPromptStatus: "queued",
+      reviewPromptStatus: "succeeded",
     });
 
     // Pre-insert a log with 'failed' status
@@ -161,5 +161,36 @@ describe("DigestWorker Race Condition & Claiming", () => {
       .from(schema.emailDigestLogs)
       .where(eq(schema.emailDigestLogs.userId, testUser.id));
     expect(log.status).toBe("sent");
+  });
+
+  it("skips user if they have due items but reviewPromptStatus is not 'succeeded'", async () => {
+    // Setup 1 due item but with queued status
+    await db.insert(schema.mistakePatterns).values({
+      userId: testUser.id,
+      conceptKey: "test-concept",
+      errorType: "literal_translation",
+      category: "general_phrase",
+      normalizedPhrase: "test phrase",
+      meaningVi: "nghĩa test",
+      safeReviewPromptVi: "prompt",
+      dueAt: new Date(Date.now() - 3600000), // due 1 hour ago
+      masteryState: "active",
+      reviewPromptStatus: "queued",
+    });
+
+    const results = await runDigestWorker();
+
+    // Since reviewPromptStatus is "queued", dueCount is 0, so it skips the user
+    expect(results.skipped).toBe(1);
+    expect(results.sent).toBe(0);
+    expect(sendDigestEmail).not.toHaveBeenCalled();
+
+    // Verify the log entry is marked as skipped
+    const [log] = await db
+      .select()
+      .from(schema.emailDigestLogs)
+      .where(eq(schema.emailDigestLogs.userId, testUser.id));
+    expect(log.status).toBe("skipped");
+    expect(log.dueCount).toBe(0);
   });
 });
