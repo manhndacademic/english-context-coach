@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronUp, ChevronDown, AlertCircle } from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
+import { WordDiff } from "@/components/lesson/WordDiff";
 
 interface GradingFeedbackProps {
   type: "exercise" | "review";
@@ -131,6 +132,17 @@ export function GradingFeedback({
             </div>
           ) : null}
 
+          {isSubjectiveType && naturalAnswer ? (
+            <div className="p-3 bg-surface border border-border rounded-lg text-sm text-text">
+              <strong className="text-xs text-muted font-bold block mb-1">
+                So sánh lỗi:
+              </strong>
+              <div className="mt-1 font-semibold">
+                <WordDiff original={answer} corrected={naturalAnswer} />
+              </div>
+            </div>
+          ) : null}
+
           {/* Explain More toggler */}
           <div className="border border-border rounded-lg bg-surface/50 overflow-hidden transition-all duration-200 mt-1">
             <button
@@ -166,7 +178,11 @@ export function GradingFeedback({
                 Đáp án tự nhiên
               </strong>
               <div className="text-sm leading-relaxed m-0 text-text font-semibold">
-                {renderRichText(naturalAnswer || "")}
+                {isSubjectiveType && !isCorrect ? (
+                  <WordDiff original={answer} corrected={naturalAnswer} />
+                ) : (
+                  renderRichText(naturalAnswer || "")
+                )}
               </div>
             </div>
           ) : (
@@ -187,9 +203,15 @@ export function GradingFeedback({
                   <strong className="text-xs font-bold text-accent block">
                     Gợi ý đáp án
                   </strong>
-                  <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
-                    {naturalAnswer}
-                  </p>
+                  {isSubjectiveType ? (
+                    <div className="mt-1 font-semibold">
+                      <WordDiff original={answer} corrected={naturalAnswer} />
+                    </div>
+                  ) : (
+                    <p className="m-0 mt-1 text-sm md:text-base leading-relaxed font-semibold">
+                      {naturalAnswer}
+                    </p>
+                  )}
                 </div>
               ) : null}
             </>

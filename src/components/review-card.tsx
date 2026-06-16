@@ -268,6 +268,7 @@ export function ReviewCard({
           naturalAnswer={naturalAnswer}
           nextReviewDate={nextReviewDate}
           masteryState={state.masteryState}
+          isSubjectiveType={!isChoiceType}
         />
       ) : null}
     </article>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCharDiff, isNoDiff } from "./diff";
+import { computeCharDiff, computeWordDiff, isNoDiff } from "./diff";
 
 describe("computeCharDiff", () => {
   it("returns single equal span when strings are identical", () => {
@@ -125,5 +125,79 @@ describe("isNoDiff", () => {
         { type: "equal", text: "abc" },
       ])
     ).toBe(false);
+  });
+});
+
+describe("computeWordDiff", () => {
+  it("returns single equal span when strings are identical", () => {
+    const result = computeWordDiff("tự nhiên hơn", "tự nhiên hơn");
+    expect(result).toEqual([{ type: "equal", text: "tự nhiên hơn" }]);
+  });
+
+  it("returns single equal span when corrected is null", () => {
+    const result = computeWordDiff("xin chào", null);
+    expect(result).toEqual([{ type: "equal", text: "xin chào" }]);
+  });
+
+  it("returns single equal span when corrected is undefined", () => {
+    const result = computeWordDiff("xin chào", undefined);
+    expect(result).toEqual([{ type: "equal", text: "xin chào" }]);
+  });
+
+  it("detects a substituted word: 'gặp rắc rối' → 'dính vào rắc rối'", () => {
+    const result = computeWordDiff("gặp rắc rối", "dính vào rắc rối");
+    // 'gặp' is deleted, 'dính vào' is inserted, 'rắc rối' is equal
+    const deleteSpan = result.find((s) => s.type === "delete");
+    const insertSpan = result.find((s) => s.type === "insert");
+    const equalSpan = result.find((s) => s.type === "equal");
+    expect(deleteSpan).toBeDefined();
+    expect(insertSpan).toBeDefined();
+    expect(equalSpan?.text).toContain("rắc rối");
+    // Reconstructing original (delete + equal)
+    const original = result
+      .filter((s) => s.type !== "insert")
+      .map((s) => s.text)
+      .join("");
+    expect(original.trim()).toBe("gặp rắc rối");
+    // Reconstructing corrected (insert + equal)
+    const corrected = result
+      .filter((s) => s.type !== "delete")
+      .map((s) => s.text)
+      .join("");
+    expect(corrected.trim()).toBe("dính vào rắc rối");
+  });
+
+  it("detects a word added at the end", () => {
+    const result = computeWordDiff("tôi thích", "tôi thích cà phê");
+    const insertSpan = result.find((s) => s.type === "insert");
+    expect(insertSpan?.text.trim()).toBe("cà phê");
+    const original = result
+      .filter((s) => s.type !== "insert")
+      .map((s) => s.text)
+      .join("");
+    expect(original.trim()).toBe("tôi thích");
+  });
+
+  it("detects a word deleted at the start", () => {
+    const result = computeWordDiff("rất thú vị", "thú vị");
+    const deleteSpan = result.find((s) => s.type === "delete");
+    expect(deleteSpan?.text.trim()).toBe("rất");
+    const corrected = result
+      .filter((s) => s.type !== "delete")
+      .map((s) => s.text)
+      .join("");
+    expect(corrected.trim()).toBe("thú vị");
+  });
+
+  it("merges consecutive spans of same type", () => {
+    const result = computeWordDiff("a b c", "a x c");
+    for (let i = 0; i < result.length - 1; i++) {
+      expect(result[i].type).not.toBe(result[i + 1].type);
+    }
+  });
+
+  it("handles empty corrected string — treated as no correction (same as null)", () => {
+    const result = computeWordDiff("xin chào", "");
+    expect(result).toEqual([{ type: "equal", text: "xin chào" }]);
   });
 });

@@ -121,4 +121,86 @@ describe("GradingFeedback Component", () => {
     expect(html).toContain("Gợi ý đáp án");
     expect(html).toContain("This is the correct natural answer.");
   });
+
+  describe("WordDiff integration for subjective exercises/reviews", () => {
+    it("renders WordDiff when incorrect, isSubjectiveType=true, and naturalAnswer exists (no feedbackDetails)", () => {
+      const html = renderToStaticMarkup(
+        <GradingFeedback
+          type="exercise"
+          isCorrect={false}
+          feedbackVi="Sai dịch."
+          answer="I like cat"
+          naturalAnswer="I like cats"
+          isSubjectiveType={true}
+          showSuggestion={true}
+        />
+      );
+
+      // Should render WordDiff spans
+      expect(html).toContain('data-diff-type="equal"');
+      expect(html).toContain('data-diff-type="delete"');
+      expect(html).toContain('data-diff-type="insert"');
+      expect(html).toContain("cat");
+      expect(html).toContain("cats");
+    });
+
+    it("renders WordDiff in a 'So sánh lỗi' block when incorrect, isSubjectiveType=true, and feedbackDetails exists", () => {
+      const feedbackDetails = {
+        whatWasWrong: "Thiếu danh từ số nhiều.",
+        whyItWasWrong: "Cat cần s.",
+        correctUnderstanding: "I like cats.",
+      };
+
+      const html = renderToStaticMarkup(
+        <GradingFeedback
+          type="exercise"
+          isCorrect={false}
+          feedbackVi="Sai dịch."
+          answer="I like cat"
+          naturalAnswer="I like cats"
+          isSubjectiveType={true}
+          feedbackDetails={feedbackDetails}
+        />
+      );
+
+      expect(html).toContain("So sánh lỗi");
+      expect(html).toContain('data-diff-type="equal"');
+      expect(html).toContain('data-diff-type="delete"');
+      expect(html).toContain('data-diff-type="insert"');
+    });
+
+    it("renders plain naturalAnswer (no diff spans) when correct, isSubjectiveType=true", () => {
+      const html = renderToStaticMarkup(
+        <GradingFeedback
+          type="exercise"
+          isCorrect={true}
+          feedbackVi="Chính xác."
+          answer="I like cats"
+          naturalAnswer="I like cats"
+          isSubjectiveType={true}
+          solved={true}
+        />
+      );
+
+      // Should not contain diff marker attributes
+      expect(html).not.toContain("data-diff-type=");
+      expect(html).toContain("I like cats");
+    });
+
+    it("does not render WordDiff spans for objective types (isSubjectiveType=false or undefined)", () => {
+      const html = renderToStaticMarkup(
+        <GradingFeedback
+          type="exercise"
+          isCorrect={false}
+          feedbackVi="Sai rồi."
+          answer="Incorrect answer"
+          naturalAnswer="Correct answer"
+          isSubjectiveType={false}
+          showSuggestion={true}
+        />
+      );
+
+      expect(html).not.toContain("data-diff-type=");
+    });
+  });
 });
