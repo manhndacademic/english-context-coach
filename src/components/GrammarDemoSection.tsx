@@ -136,7 +136,7 @@ export function GrammarDemoSection() {
                         return (
                           <span
                             key={i}
-                            className="bg-danger-light dark:bg-[rgba(244,63,94,0.18)] text-danger dark:text-[#ff8585] line-through rounded-[3px] px-0.5 mx-[1px] transition-all duration-300"
+                            className="bg-danger-light dark:bg-[rgba(244,63,94,0.18)] text-danger dark:text-[#ff8585] line-through rounded-[3px] px-px transition-all duration-300"
                           >
                             {span.text}
                           </span>
@@ -145,7 +145,7 @@ export function GrammarDemoSection() {
                         return (
                           <span
                             key={i}
-                            className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-0.5 mx-[1px] transition-all duration-300"
+                            className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-px transition-all duration-300"
                           >
                             {span.text}
                           </span>

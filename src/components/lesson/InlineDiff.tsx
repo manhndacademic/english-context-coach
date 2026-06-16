@@ -88,7 +88,7 @@ export function InlineDiff({
                 bg-danger-light dark:bg-[rgba(244,63,94,0.18)]
                 text-danger dark:text-[#ff8585]
                 line-through
-                rounded-[3px] px-0.5 mx-[1px]"
+                rounded-[3px] px-px"
             >
               {span.text}
             </span>
@@ -105,7 +105,7 @@ export function InlineDiff({
               className="font-serif text-base leading-relaxed font-bold
                 bg-success-light dark:bg-[rgba(16,185,129,0.18)]
                 text-success dark:text-[#a7f3d0]
-                rounded-[3px] px-0.5 mx-[1px]"
+                rounded-[3px] px-px"
             >
               {span.text}
             </span>
