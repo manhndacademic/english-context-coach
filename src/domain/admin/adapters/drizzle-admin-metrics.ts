@@ -157,8 +157,11 @@ export class DrizzleAdminMetricsRepository implements AdminMetricsRepository {
     const keyCountsSubquery = this.dbClient
       .select({
         userId: schema.userAiApiKeys.userId,
-        personalKeyCount: sql<number>`count(*)::int`,
-        activePersonalKeyCount: sql<number>`count(case when ${schema.userAiApiKeys.status} = 'active' then 1 end)::int`,
+        personalKeyCount: sql<number>`count(*)::int`.as("personal_key_count"),
+        activePersonalKeyCount:
+          sql<number>`count(case when ${schema.userAiApiKeys.status} = 'active' then 1 end)::int`.as(
+            "active_personal_key_count"
+          ),
       })
       .from(schema.userAiApiKeys)
       .groupBy(schema.userAiApiKeys.userId)
