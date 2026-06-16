@@ -78,8 +78,48 @@ export class DrizzleKeyResolver implements KeyResolver {
     excludedKeyIds?: Set<string>,
     model?: string
   ): Promise<{ key: string; id?: string; isUserKey: boolean }> {
-    // 1. Check if user has a custom API Key
+    // 1. Prefer normalized user-owned API keys
     if (userId) {
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+      const userKeys = await db
+        .select()
+        .from(schema.userAiApiKeys)
+        .where(
+          and(
+            eq(schema.userAiApiKeys.userId, userId),
+            or(
+              eq(schema.userAiApiKeys.status, "active"),
+              and(
+                eq(schema.userAiApiKeys.status, "rate_limited"),
+                lt(schema.userAiApiKeys.rateLimitedAt, oneMinuteAgo)
+              )
+            )
+          )
+        );
+
+      const now = Date.now();
+      const usableUserKeys = userKeys.filter((k) => {
+        if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
+        if (model) {
+          const cooldownUntil =
+            DrizzleKeyResolver.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
+          if (now < cooldownUntil) return false;
+        }
+        return true;
+      });
+
+      if (usableUserKeys.length > 0) {
+        const picked =
+          usableUserKeys[Math.floor(Math.random() * usableUserKeys.length)];
+        const key = decryptApiKey(picked.encryptedKey);
+        await db
+          .update(schema.userAiApiKeys)
+          .set({ lastUsedAt: new Date(), updatedAt: new Date() })
+          .where(eq(schema.userAiApiKeys.id, picked.id));
+        return { key, id: picked.id, isUserKey: true };
+      }
+
+      // Legacy fallback: keep old users.customGeminiApiKey data working.
       const [user] = await db
         .select({ customGeminiApiKey: schema.users.customGeminiApiKey })
         .from(schema.users)
@@ -222,6 +262,23 @@ export class DrizzleKeyResolver implements KeyResolver {
       return;
     }
     try {
+      const updatedUserKeys = await db
+        .update(schema.userAiApiKeys)
+        .set({
+          status: "rate_limited",
+          errorMessage: errorMsg,
+          rateLimitedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.userAiApiKeys.id, keyId))
+        .returning({ id: schema.userAiApiKeys.id });
+      if (updatedUserKeys.length > 0) {
+        logger.warn(
+          `User API key marked rate_limited: ${keyId}. Error: ${errorMsg}`
+        );
+        return;
+      }
+
       await db
         .update(schema.aiApiKeys)
         .set({
@@ -246,6 +303,22 @@ export class DrizzleKeyResolver implements KeyResolver {
       return;
     }
     try {
+      const updatedUserKeys = await db
+        .update(schema.userAiApiKeys)
+        .set({
+          status: "invalid",
+          errorMessage: errorMsg,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.userAiApiKeys.id, keyId))
+        .returning({ id: schema.userAiApiKeys.id });
+      if (updatedUserKeys.length > 0) {
+        logger.error(
+          `User API key marked invalid: ${keyId}. Error: ${errorMsg}`
+        );
+        return;
+      }
+
       await db
         .update(schema.aiApiKeys)
         .set({
@@ -267,6 +340,21 @@ export class DrizzleKeyResolver implements KeyResolver {
       return;
     }
     try {
+      const updatedUserKeys = await db
+        .update(schema.userAiApiKeys)
+        .set({
+          status: "active",
+          errorMessage: null,
+          rateLimitedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.userAiApiKeys.id, keyId))
+        .returning({ id: schema.userAiApiKeys.id });
+      if (updatedUserKeys.length > 0) {
+        logger.info(`User API key reset to active: ${keyId}`);
+        return;
+      }
+
       await db
         .update(schema.aiApiKeys)
         .set({

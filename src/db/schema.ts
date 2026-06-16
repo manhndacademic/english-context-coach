@@ -126,6 +126,77 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+export const userAiApiKeys = pgTable(
+  "user_ai_api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("gemini"),
+    name: text("name").notNull(),
+    encryptedKey: text("encrypted_key").notNull(),
+    keyFingerprint: text("key_fingerprint").notNull(),
+    status: text("status").notNull().default("active"),
+    errorMessage: text("error_message"),
+    rateLimitedAt: timestamp("rate_limited_at", { mode: "date" }),
+    lastUsedAt: timestamp("last_used_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userStatusIdx: index("user_ai_api_keys_user_status_idx").on(
+      table.userId,
+      table.status
+    ),
+    userFingerprintUnique: uniqueIndex(
+      "user_ai_api_keys_user_fingerprint_unique"
+    ).on(table.userId, table.keyFingerprint),
+  })
+);
+
+export const emailDigestLogs = pgTable(
+  "email_digest_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    digestDate: text("digest_date").notNull(),
+    status: text("status").notNull(),
+    dueCount: integer("due_count").notNull().default(0),
+    errorMessage: text("error_message"),
+    sentAt: timestamp("sent_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userDateUnique: uniqueIndex("email_digest_logs_user_date_unique").on(
+      table.userId,
+      table.digestDate
+    ),
+    dateStatusIdx: index("email_digest_logs_date_status_idx").on(
+      table.digestDate,
+      table.status
+    ),
+  })
+);
+
+export const adminAuditLogs = pgTable("admin_audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adminUserId: uuid("admin_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  targetUserId: uuid("target_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  targetResourceType: text("target_resource_type").notNull(),
+  targetResourceId: text("target_resource_id"),
+  action: text("action").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
 export const accounts = pgTable(
   "accounts",
   {
@@ -622,6 +693,9 @@ export type UserError = typeof userErrors.$inferSelect;
 export type GenerationJob = typeof generationJobs.$inferSelect;
 export type GenerationMilestone = typeof generationMilestones.$inferSelect;
 export type GenerationThought = typeof generationThoughts.$inferSelect;
+export type UserAiApiKey = typeof userAiApiKeys.$inferSelect;
+export type EmailDigestLog = typeof emailDigestLogs.$inferSelect;
+export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
 
 export const reviewAttempts = pgTable(
   "review_attempts",

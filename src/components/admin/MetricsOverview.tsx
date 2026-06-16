@@ -7,6 +7,7 @@ import {
   Clock,
   ListTodo,
   KeyRound,
+  MailCheck,
 } from "lucide-react";
 
 interface MetricsOverviewProps {
@@ -30,6 +31,12 @@ interface MetricsOverviewProps {
     rateLimited: number;
     invalid: number;
   };
+  digestStats: {
+    sent: number;
+    skipped: number;
+    failed: number;
+    enabledUsers: number;
+  };
 }
 
 export function MetricsOverview({
@@ -44,6 +51,7 @@ export function MetricsOverview({
   successRate24h,
   jobStats,
   keysCount,
+  digestStats,
 }: MetricsOverviewProps) {
   return (
     <>
@@ -209,6 +217,28 @@ export function MetricsOverview({
               </span>{" "}
               · Bad:{" "}
               <span className="text-danger font-bold">{keysCount.invalid}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-layout-gap">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-28.75 lg:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
+              Email digest hôm nay
+            </span>
+            <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
+              <MailCheck size={16} />
+            </span>
+          </div>
+          <div className="mt-2">
+            <strong className="text-2xl font-bold leading-none tracking-tight block">
+              {digestStats.sent} Sent
+            </strong>
+            <span className="text-[10px] text-muted block mt-1.5 truncate">
+              Skipped: {digestStats.skipped} · Failed: {digestStats.failed} ·
+              Enabled users: {digestStats.enabledUsers}
             </span>
           </div>
         </div>

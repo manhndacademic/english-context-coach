@@ -7,19 +7,52 @@
  */
 
 import { db } from "@/db";
-import { users, mistakePatterns } from "@/db/schema";
+import { emailDigestLogs, users, mistakePatterns } from "@/db/schema";
 import { and, eq, lte, count, asc } from "drizzle-orm";
 import { sendDigestEmail } from "@/lib/email/sendDigestEmail";
 import { getLogger } from "@/lib/logger";
 
 const log = getLogger("c.c.jobs.digestWorker");
-
-/** UTC offset for Vietnam time (UTC+7) */
 const VN_UTC_OFFSET_HOURS = 7;
 
 function currentVnHour(): number {
   const utcHour = new Date().getUTCHours();
   return (utcHour + VN_UTC_OFFSET_HOURS) % 24;
+}
+
+function currentVnDigestDate(now = new Date()): string {
+  const vnTime = new Date(now.getTime() + VN_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  return vnTime.toISOString().slice(0, 10);
+}
+
+async function upsertDigestLog(input: {
+  userId: string;
+  digestDate: string;
+  status: "sent" | "skipped" | "failed";
+  dueCount: number;
+  errorMessage?: string | null;
+  sentAt?: Date | null;
+}) {
+  await db
+    .insert(emailDigestLogs)
+    .values({
+      userId: input.userId,
+      digestDate: input.digestDate,
+      status: input.status,
+      dueCount: input.dueCount,
+      errorMessage: input.errorMessage ?? null,
+      sentAt: input.sentAt ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [emailDigestLogs.userId, emailDigestLogs.digestDate],
+      set: {
+        status: input.status,
+        dueCount: input.dueCount,
+        errorMessage: input.errorMessage ?? null,
+        sentAt: input.sentAt ?? null,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 export async function runDigestWorker(): Promise<{
@@ -29,9 +62,11 @@ export async function runDigestWorker(): Promise<{
   errors: number;
 }> {
   const currentHour = currentVnHour();
-  log.info(`[DigestWorker] Running for VN hour ${currentHour}:00`);
+  const digestDate = currentVnDigestDate();
+  log.info(
+    `[DigestWorker] Running for VN hour ${currentHour}:00 date=${digestDate}`
+  );
 
-  // Find all users who have digest enabled and prefer this hour
   const eligibleUsers = await db
     .select({
       id: users.id,
@@ -57,7 +92,24 @@ export async function runDigestWorker(): Promise<{
   for (const user of eligibleUsers) {
     results.processed++;
     try {
-      // Count how many items are due
+      const [existingLog] = await db
+        .select({ status: emailDigestLogs.status })
+        .from(emailDigestLogs)
+        .where(
+          and(
+            eq(emailDigestLogs.userId, user.id),
+            eq(emailDigestLogs.digestDate, digestDate)
+          )
+        )
+        .limit(1);
+      if (existingLog?.status === "sent") {
+        results.skipped++;
+        log.info(
+          `[DigestWorker] Digest already sent for user ${user.id} on ${digestDate}. Skipping.`
+        );
+        continue;
+      }
+
       const [{ value: dueCount }] = await db
         .select({ value: count() })
         .from(mistakePatterns)
@@ -70,12 +122,17 @@ export async function runDigestWorker(): Promise<{
         );
 
       if (!dueCount || dueCount === 0) {
+        await upsertDigestLog({
+          userId: user.id,
+          digestDate,
+          status: "skipped",
+          dueCount: 0,
+        });
         log.info(`[DigestWorker] No due items for user ${user.id}. Skipping.`);
         results.skipped++;
         continue;
       }
 
-      // Fetch up to 5 preview items (phrase + meaningVi)
       const previewItems = await db
         .select({
           phrase: mistakePatterns.normalizedPhrase,
@@ -98,6 +155,13 @@ export async function runDigestWorker(): Promise<{
         dueCount,
         items: previewItems,
       });
+      await upsertDigestLog({
+        userId: user.id,
+        digestDate,
+        status: "sent",
+        dueCount,
+        sentAt: new Date(),
+      });
 
       results.sent++;
       log.info(
@@ -105,6 +169,14 @@ export async function runDigestWorker(): Promise<{
       );
     } catch (err) {
       results.errors++;
+      const message = err instanceof Error ? err.message : String(err);
+      await upsertDigestLog({
+        userId: user.id,
+        digestDate,
+        status: "failed",
+        dueCount: 0,
+        errorMessage: message,
+      });
       log.error(
         `[DigestWorker] Failed to send digest to ${user.email}:`,
         err instanceof Error ? err : new Error(String(err))
@@ -115,6 +187,7 @@ export async function runDigestWorker(): Promise<{
   log.info(
     `[DigestWorker] Done. processed=${results.processed} sent=${results.sent} skipped=${results.skipped} errors=${results.errors}`
   );
-
   return results;
 }
+
+export const digestWorkerInternals = { currentVnDigestDate };

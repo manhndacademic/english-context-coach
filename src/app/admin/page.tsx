@@ -25,6 +25,11 @@ const MetricsChart = dynamic(
   }
 );
 
+function currentVnDigestDate(now = new Date()): string {
+  const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return vnTime.toISOString().slice(0, 10);
+}
+
 export default async function AdminDashboardPage() {
   await requireAdmin();
 
@@ -70,6 +75,9 @@ export default async function AdminDashboardPage() {
 
   // 5b. AI Success Rate (24h)
   const errorStats24h = await adminRepo.getAiErrorStats24h(oneDayAgo);
+  const digestStats = await adminRepo.getDigestStatsByDate(
+    currentVnDigestDate()
+  );
 
   const total24h = errorStats24h.total;
   const failed24h = errorStats24h.failed;
@@ -115,6 +123,7 @@ export default async function AdminDashboardPage() {
           rateLimited: rateLimitedKeys,
           invalid: invalidKeys,
         }}
+        digestStats={digestStats}
       />
 
       {/* Visual Charts */}
