@@ -10,6 +10,7 @@ interface RepeatedMistakesPanelProps {
     meaningVi: string;
     errorType: string;
     reviewPromptStatus: string;
+    dueAt?: string | Date;
   }>;
 }
 
@@ -44,12 +45,41 @@ export function RepeatedMistakesPanel({
                   {pattern.errorType.replaceAll("_", " ")}
                 </span>
                 {pattern.reviewPromptStatus === "succeeded" ? (
-                  <Link
-                    href={`/review?patternId=${pattern.id}`}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
-                  >
-                    Ôn tập <ArrowRight size={10} />
-                  </Link>
+                  (() => {
+                    let nextReviewText = "";
+                    if (pattern.dueAt) {
+                      const dueTime = new Date(pattern.dueAt).getTime();
+                      const nowTime = Date.now();
+                      if (dueTime > nowTime) {
+                        const diffMs = dueTime - nowTime;
+                        const diffDays = Math.ceil(
+                          diffMs / (1000 * 60 * 60 * 24)
+                        );
+                        if (diffDays <= 1) {
+                          nextReviewText = "Hẹn ôn tập: Ngày mai";
+                        } else {
+                          nextReviewText = `Chờ ôn tập: ${diffDays} ngày nữa`;
+                        }
+                      }
+                    }
+
+                    if (nextReviewText) {
+                      return (
+                        <span className="inline-flex items-center text-[10px] font-bold text-muted bg-surface-strong px-2 py-0.5 rounded leading-none shrink-0 border border-border">
+                          {nextReviewText}
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        href={`/review?patternId=${pattern.id}`}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
+                      >
+                        Ôn tập <ArrowRight size={10} />
+                      </Link>
+                    );
+                  })()
                 ) : pattern.reviewPromptStatus === "failed" ? (
                   <div className="flex items-center gap-2">
                     <span className="text-danger text-[10px] font-bold bg-danger-light border border-danger/10 px-2 py-0.5 rounded leading-none shrink-0">
