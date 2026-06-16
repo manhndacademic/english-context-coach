@@ -66,3 +66,6 @@ Services:
 - `GEMINI_FAST_MODELS`: comma-separated fallback models for exercise/review generation
 - `GEMINI_THINKING_LEVEL`: Gemini 3 thinking level for generation thoughts: `MINIMAL`, `LOW`, `MEDIUM`, or `HIGH`
 - `WORKER_CONCURRENCY`: global worker concurrency, defaults to `1`
+- `NEXT_PUBLIC_BASE_URL`: the public base URL of the application (e.g. `https://english.domain.com`) used for absolute links in emails
+- `GMAIL_USER`: Gmail address for sending daily digest emails
+- `GMAIL_APP_PASSWORD`: Google App Password for SMTP authentication (App Password required if 2-Step Verification is enabled)
