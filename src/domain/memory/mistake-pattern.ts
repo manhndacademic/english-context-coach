@@ -84,7 +84,9 @@ export class MistakePattern {
     private _reviewPromptAttempts: number,
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
-    private _reviewPromptLockedBy: string | null
+    private _reviewPromptLockedBy: string | null,
+    public readonly source: "mistake" | "phrase" | "manual" = "mistake",
+    public readonly keyPhraseId: string | null = null
   ) {}
 
   static createNew(input: {
@@ -130,7 +132,64 @@ export class MistakePattern {
       0,
       null,
       null,
-      null
+      null,
+      "mistake", // source
+      null // keyPhraseId
+    );
+  }
+
+  /**
+   * Factory for review cards seeded directly from an AI-extracted key phrase.
+   * These enter the SRS queue immediately with dueAt=now so the user
+   * can start practising right away.
+   */
+  static createFromPhrase(input: {
+    id: string;
+    userId: string;
+    keyPhraseId: string;
+    conceptKey: string;
+    normalizedPhrase: string;
+    senseKey: string | null;
+    category: any;
+    meaningVi: string;
+    isSensitive: boolean;
+  }): MistakePattern {
+    return new MistakePattern(
+      input.id,
+      input.userId,
+      input.conceptKey,
+      input.normalizedPhrase,
+      input.senseKey,
+      input.category,
+      // phrase-sourced cards use 'phrase_misunderstanding' as a neutral
+      // error type so they participate in the SRS without skewing mistake stats
+      "phrase_misunderstanding",
+      input.meaningVi,
+      input.meaningVi, // safeReviewPromptVi — safe copy, no original context
+      input.isSensitive,
+      1, // occurrenceCount
+      0, // intervalDays
+      2.5, // easeFactor
+      0, // repetitions
+      "active", // masteryState
+      new Date(), // dueAt — due immediately
+      null, // lastReviewedAt
+      new Date(), // createdAt
+      new Date(), // updatedAt
+      null,
+      null,
+      null,
+      null,
+      null,
+      "natural_translation", // reviewType
+      null, // reviewChoices
+      "queued", // reviewPromptStatus — triggers AI review prompt generation
+      0,
+      null,
+      null,
+      null,
+      "phrase", // source
+      input.keyPhraseId
     );
   }
 
@@ -177,7 +236,9 @@ export class MistakePattern {
       state.reviewPromptAttempts,
       state.reviewPromptError,
       parseDate(state.reviewPromptLockedAt),
-      state.reviewPromptLockedBy
+      state.reviewPromptLockedBy,
+      state.source ?? "mistake",
+      state.keyPhraseId ?? null
     );
   }
 
@@ -367,6 +428,8 @@ export class MistakePattern {
     return {
       id: this.id,
       userId: this.userId,
+      source: this.source,
+      keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
       senseKey: this.senseKey,
@@ -403,6 +466,8 @@ export class MistakePattern {
     return {
       id: this.id,
       userId: this.userId,
+      source: this.source,
+      keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
       senseKey: this.senseKey,
@@ -439,6 +504,8 @@ export class MistakePattern {
 export interface MistakePatternPlain {
   id: string;
   userId: string;
+  source: "mistake" | "phrase" | "manual";
+  keyPhraseId: string | null;
   conceptKey: string;
   normalizedPhrase: string;
   senseKey: string | null;

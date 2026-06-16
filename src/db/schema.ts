@@ -104,6 +104,12 @@ export const userStatusEnum = pgEnum("user_status", [
   "rejected",
 ]);
 
+export const reviewSourceEnum = pgEnum("review_source", [
+  "mistake",
+  "phrase",
+  "manual",
+]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -114,6 +120,8 @@ export const users = pgTable("users", {
   role: text("role").default("user").notNull(),
   customGeminiApiKey: text("custom_gemini_api_key"),
   status: userStatusEnum("status").default("pending").notNull(),
+  emailDigestEnabled: boolean("email_digest_enabled").notNull().default(false),
+  emailDigestHour: integer("email_digest_hour").notNull().default(7),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
@@ -430,6 +438,12 @@ export const mistakePatterns = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // source discriminates how the card entered the review queue
+    source: reviewSourceEnum("source").notNull().default("mistake"),
+    // set when source = 'phrase', links back to the originating key phrase
+    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
+      onDelete: "set null",
+    }),
     conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key"),

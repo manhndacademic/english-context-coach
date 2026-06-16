@@ -3,6 +3,8 @@ import { redisConnection } from "../redis";
 import { getLessonGenerationEngine } from "@/domain/lesson";
 import { getLearnerMemoryEngine } from "@/domain/memory";
 import { getLogger } from "@/lib/logger";
+import { digestQueue, DIGEST_JOB_NAME } from "./digestQueue";
+import { runDigestWorker } from "./digestWorker";
 
 const log = getLogger("c.c.worker.WorkerDaemon");
 
@@ -97,12 +99,55 @@ export async function runWorker(
     log.error("[ReviewWorker] Global worker error:", err);
   });
 
+  const digestWorker = new Worker(
+    "daily-digest",
+    async (job) => {
+      log.info(
+        `[DigestWorker] Processing job ${job.id} (${job.name}) from BullMQ`
+      );
+      await runDigestWorker();
+    },
+    {
+      connection: redisConnection,
+      concurrency: 1,
+    }
+  );
+
+  // Schedule the digest cron to run once per hour.
+  // runDigestWorker() internally checks the current VN hour to match users.
+  await digestQueue.add(
+    DIGEST_JOB_NAME,
+    {},
+    {
+      repeat: {
+        pattern: "0 * * * *", // every hour at :00
+      },
+      jobId: `${DIGEST_JOB_NAME}-repeatable`,
+    }
+  );
+
+  log.info(
+    `Scheduled daily-digest cron (every hour). VN hour matching handled in worker.`
+  );
+
+  digestWorker.on("failed", (job, err) => {
+    log.error(`[DigestWorker] Job ${job?.id} failed in BullMQ:`, err);
+  });
+
+  digestWorker.on("error", (err) => {
+    log.error("[DigestWorker] Global worker error:", err);
+  });
+
   log.info(`BullMQ Worker Daemon is active and listening to Redis.`);
 
   return {
     async close() {
       log.info("Stopping BullMQ workers...");
-      await Promise.all([lessonWorker.close(), reviewWorker.close()]);
+      await Promise.all([
+        lessonWorker.close(),
+        reviewWorker.close(),
+        digestWorker.close(),
+      ]);
       log.info("BullMQ workers stopped.");
     },
   };

@@ -343,6 +343,10 @@ class MockLessonRepository implements LessonRepository {
     return this.keyPhrases.get(keyPhraseId) ?? null;
   }
 
+  async findKeyPhrases(_lessonId: string) {
+    return [];
+  }
+
   async findLessonFocus(lessonFocusId: string) {
     return this.lessonFocuses.get(lessonFocusId) ?? null;
   }

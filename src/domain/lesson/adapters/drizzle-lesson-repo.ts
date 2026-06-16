@@ -158,6 +158,14 @@ export class DrizzleLessonRepository implements LessonRepository {
     return (row as KeyPhrase) ?? null;
   }
 
+  async findKeyPhrases(lessonId: string): Promise<KeyPhrase[]> {
+    const rows = await this.dbClient
+      .select()
+      .from(schema.keyPhrases)
+      .where(eq(schema.keyPhrases.lessonId, lessonId));
+    return rows as KeyPhrase[];
+  }
+
   async findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null> {
     const [row] = await this.dbClient
       .select()

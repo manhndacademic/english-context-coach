@@ -3,7 +3,11 @@ import { AppHeader } from "@/components/app-header";
 import { getUsageStatsAction } from "@/app/actions/settings";
 import { ApiKeyForm } from "@/components/settings/api-key-form";
 import { UsageDashboard } from "@/components/settings/usage-dashboard";
+import { NotificationSettingsForm } from "@/components/settings/notification-settings-form";
 import { Sparkles } from "lucide-react";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -12,11 +16,26 @@ export default async function SettingsPage() {
   // Fetch initial usage stats on the server
   const initialStats = await getUsageStatsAction("7days");
 
+  // Fetch notification preferences
+  const [notifPrefs] = await db
+    .select({
+      emailDigestEnabled: users.emailDigestEnabled,
+      emailDigestHour: users.emailDigestHour,
+    })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+
   return (
     <>
       <AppHeader email={user.email} isAdmin={user.role === "admin"} />
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <ApiKeyForm initialHasCustomKey={hasCustomKey} />
+
+        <NotificationSettingsForm
+          initialEnabled={notifPrefs?.emailDigestEnabled ?? false}
+          initialHour={notifPrefs?.emailDigestHour ?? 7}
+        />
 
         <UsageDashboard initialStats={initialStats} />
 

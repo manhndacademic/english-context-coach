@@ -7,6 +7,7 @@ import {
 import { sanitizeGenerationThought } from "@/domain/generation-progress";
 import { assertCompleteExercises } from "./rules";
 import { getLogger, parseDbDate } from "@/lib/logger";
+import { addPhrasesToReviewQueue } from "@/lib/phrases/addPhrasesToReviewQueue";
 import type {
   LessonGenerationEngine as LessonGenerationEngineInterface,
   LessonRepository,
@@ -311,6 +312,19 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           result,
           process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-flash-lite"
         );
+
+        // Side-effect: enqueue phrase-sourced SRS cards for each key phrase.
+        // Non-fatal — lesson processing completes even if this fails.
+        try {
+          const savedPhrases = await this.lessons.findKeyPhrases(job.lessonId);
+          if (savedPhrases.length > 0) {
+            await addPhrasesToReviewQueue(job.userId, savedPhrases);
+          }
+        } catch (queueErr) {
+          log.warn(
+            `[LessonEngine] Failed to enqueue phrase SRS cards for lesson ${job.lessonId}: ${queueErr}`
+          );
+        }
 
         await this.lessons.recordMilestone({
           lessonId: job.lessonId,

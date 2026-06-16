@@ -291,6 +291,8 @@ export interface LessonContentRepository {
   findLesson(lessonId: string, userId: string): Promise<Lesson | null>;
   findLatestLesson(sourceTextId: string): Promise<Lesson | null>;
   findKeyPhrase(keyPhraseId: string): Promise<KeyPhrase | null>;
+  findKeyPhrases(lessonId: string): Promise<KeyPhrase[]>;
+
   findLessonFocus(lessonFocusId: string): Promise<LessonFocus | null>;
 
   updateLessonStatus(

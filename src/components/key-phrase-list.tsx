@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, AlertCircle, HelpCircle, BookOpen } from "lucide-react";
+import { useState, useTransition } from "react";
+import {
+  ChevronDown,
+  AlertCircle,
+  HelpCircle,
+  BookOpen,
+  CheckCircle2,
+} from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
 import type { KeyPhrase } from "@/domain/lesson";
 
@@ -9,8 +15,27 @@ function formatLabel(value: string) {
   return value.replaceAll("_", " ");
 }
 
-export function KeyPhraseList({ phrases }: { phrases: KeyPhrase[] }) {
+async function dismissPhrase(patternId: string) {
+  const res = await fetch(`/api/review/patterns/${patternId}/dismiss`, {
+    method: "PATCH",
+  });
+  if (!res.ok) throw new Error("Failed to dismiss");
+}
+
+export function KeyPhraseList({
+  phrases,
+  /**
+   * Optional map from conceptKey → mistakePatternId.
+   * When provided, each phrase card shows an "Đã biết" dismiss button.
+   */
+  phrasePatternMap,
+}: {
+  phrases: KeyPhrase[];
+  phrasePatternMap?: Record<string, string>;
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
 
   if (!phrases.length) {
     return (
@@ -24,10 +49,25 @@ export function KeyPhraseList({ phrases }: { phrases: KeyPhrase[] }) {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const handleDismiss = (phraseId: string, conceptKey: string) => {
+    const patternId = phrasePatternMap?.[conceptKey];
+    if (!patternId) return;
+    startTransition(async () => {
+      try {
+        await dismissPhrase(patternId);
+        setDismissedIds((prev) => new Set([...prev, phraseId]));
+      } catch {
+        // silently ignore — review card will reappear on next session
+      }
+    });
+  };
+
   return (
     <div className="grid gap-4">
       {phrases.map((phrase) => {
         const isExpanded = expandedId === phrase.id;
+        const isDismissed = dismissedIds.has(phrase.id);
+        const hasPatternId = phrasePatternMap?.[phrase.conceptKey];
         const confText = [phrase.literalTranslationVi, phrase.whyConfusingVi]
           .filter(Boolean)
           .join(" ");
@@ -56,6 +96,12 @@ export function KeyPhraseList({ phrases }: { phrases: KeyPhrase[] }) {
                   <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
                     {phrase.difficulty}
                   </span>
+                  {isDismissed && (
+                    <span className="inline-flex items-center gap-1 w-fit rounded-full bg-success-light border border-success px-2.5 py-1 text-success text-[10px] font-extrabold leading-none">
+                      <CheckCircle2 size={10} />
+                      Đã biết
+                    </span>
+                  )}
                 </span>
                 <span className="text-sm text-text leading-relaxed mt-1 block">
                   <strong className="text-accent font-semibold">
@@ -135,12 +181,30 @@ export function KeyPhraseList({ phrases }: { phrases: KeyPhrase[] }) {
                       <div className="flex items-center gap-1.5 text-muted text-xs font-extrabold uppercase tracking-wider">
                         <AlertCircle size={14} className="text-danger" />
                         <span className="text-danger">
-                          Bẫy dịch từ & Độ nhầm lẫn
+                          Bẫy dịch từ &amp; Độ nhầm lẫn
                         </span>
                       </div>
                       <div className="text-sm md:text-base leading-relaxed text-[#7a1515] dark:text-[#ff8585]">
                         {renderRichText(confText)}
                       </div>
+                    </div>
+                  )}
+
+                  {/* "Đã biết" dismiss button — only shown when we have a pattern ID */}
+                  {hasPatternId && !isDismissed && (
+                    <div className="pt-3 flex justify-end border-t border-dashed border-border mt-3">
+                      <button
+                        id={`dismiss-phrase-${phrase.id}`}
+                        onClick={() =>
+                          handleDismiss(phrase.id, phrase.conceptKey)
+                        }
+                        disabled={isPending}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-success transition-colors duration-200 border border-border rounded-full px-3 py-1.5 bg-surface hover:bg-success-light hover:border-success disabled:opacity-50"
+                        title="Đánh dấu là đã biết — từ này sẽ không xuất hiện trong bài ôn tập"
+                      >
+                        <CheckCircle2 size={13} />
+                        Đã biết — bỏ qua
+                      </button>
                     </div>
                   )}
                 </div>

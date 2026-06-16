@@ -48,6 +48,10 @@ class MockLessonRepository implements LessonRepository {
     return null;
   }
 
+  async findKeyPhrases(_lessonId: string) {
+    return [];
+  }
+
   async findLessonFocus(_lessonFocusId: string) {
     return null;
   }
