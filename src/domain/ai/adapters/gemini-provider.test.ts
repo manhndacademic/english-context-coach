@@ -6,28 +6,41 @@ import { GeminiLLMProvider } from "./gemini-provider";
 class MockKeyResolver implements KeyResolver {
   keys: { key: string; id: string; isUserKey: boolean }[] = [];
   rateLimited = new Set<string>();
+  keyModelCooldowns = new Map<string, number>();
   invalid = new Set<string>();
 
   ignoreRateLimitInResolution = false;
 
   async resolveApiKeyWithExclusions(
     _userId?: string,
-    excludedKeyIds?: Set<string>
+    excludedKeyIds?: Set<string>,
+    model?: string
   ) {
-    const active = this.keys.filter(
-      (k) =>
-        (!excludedKeyIds || !excludedKeyIds.has(k.id)) &&
-        (this.ignoreRateLimitInResolution || !this.rateLimited.has(k.id)) &&
-        !this.invalid.has(k.id)
-    );
+    const now = Date.now();
+    const active = this.keys.filter((k) => {
+      if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
+      if (!this.ignoreRateLimitInResolution && this.rateLimited.has(k.id))
+        return false;
+      if (this.invalid.has(k.id)) return false;
+      if (model) {
+        const cooldownUntil =
+          this.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
+        if (now < cooldownUntil) return false;
+      }
+      return true;
+    });
     if (active.length === 0) {
       throw new Error("No keys available");
     }
     return active[0];
   }
 
-  async markKeyRateLimited(keyId: string) {
-    this.rateLimited.add(keyId);
+  async markKeyRateLimited(keyId: string, _errorMsg: string, model?: string) {
+    if (model) {
+      this.keyModelCooldowns.set(`${keyId}:${model}`, Date.now() + 60 * 1000);
+    } else {
+      this.rateLimited.add(keyId);
+    }
   }
 
   async markKeyInvalid(keyId: string) {
@@ -162,7 +175,9 @@ describe("GeminiLLMProvider Resiliency", () => {
     expect(calls.length).toBe(2);
     expect(calls[0].apiKey).toBe("k-1");
     expect(calls[1].apiKey).toBe("k-2");
-    expect(keyResolver.rateLimited.has("key-1")).toBe(true);
+    expect(
+      keyResolver.keyModelCooldowns.has("key-1:gemini-3.1-flash-lite")
+    ).toBe(true);
   });
 
   it("Test 4: All keys exhausted for a model rotates model pool", async () => {
@@ -243,5 +258,59 @@ describe("GeminiLLMProvider Resiliency", () => {
     expect(recorded.inputTokens).toBe(10);
     expect(recorded.outputTokens).toBe(20);
     expect(recorded.costMicros).toBeGreaterThan(0);
+  });
+
+  it("Test 6: Model rate limit allows using the same key on fallback model", async () => {
+    const { ProviderRotationPool } = await import("./model-pool");
+    const customPool = new ProviderRotationPool(
+      ["model-analysis-1", "model-analysis-2"],
+      ["model-fast-1", "model-fast-2"]
+    );
+
+    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
+
+    // k-1 fails on model-fast-1 with rate limit
+    responses.push({ error: new Error("RESOURCE_EXHAUSTED") });
+
+    // k-1 succeeds on model-fast-2
+    responses.push({
+      text: JSON.stringify({ score: 100, feedbackVi: "Tốt" }),
+    });
+
+    const provider = new GeminiLLMProvider(
+      keyResolver,
+      requestRecorder,
+      customPool,
+      async (callOpts) => {
+        calls.push(callOpts);
+        const resp = responses.shift();
+        if (!resp) throw new Error("No mock response configured");
+        if (resp.error) throw resp.error;
+        return {
+          text: resp.text ?? "",
+          inputTokens: 10,
+          outputTokens: 20,
+        };
+      }
+    );
+
+    const result = await provider.generateJson({
+      userId: "u-1",
+      purpose: "grading",
+      prompt: "Check",
+      promptVersion: "1",
+      schemaVersion: "grading",
+      schema,
+      modelKind: "fast",
+    });
+
+    expect(result).toEqual({ score: 100, feedbackVi: "Tốt" });
+    expect(calls.length).toBe(2);
+    expect(calls[0].model).toBe("model-fast-1");
+    expect(calls[1].model).toBe("model-fast-2");
+    expect(calls[0].apiKey).toBe("k-1");
+    expect(calls[1].apiKey).toBe("k-1"); // Reuse key-1
+    expect(keyResolver.keyModelCooldowns.has("key-1:model-fast-1")).toBe(true);
+    expect(keyResolver.keyModelCooldowns.has("key-1:model-fast-2")).toBe(false);
   });
 });

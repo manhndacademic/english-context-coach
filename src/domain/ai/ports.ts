@@ -17,10 +17,15 @@ export interface LLMProvider {
 export interface KeyResolver {
   resolveApiKeyWithExclusions(
     userId?: string,
-    excludedKeyIds?: Set<string>
+    excludedKeyIds?: Set<string>,
+    model?: string
   ): Promise<{ key: string; id?: string; isUserKey: boolean }>;
 
-  markKeyRateLimited(keyId: string, errorMsg: string): Promise<void>;
+  markKeyRateLimited(
+    keyId: string,
+    errorMsg: string,
+    model?: string
+  ): Promise<void>;
   markKeyInvalid(keyId: string, errorMsg: string): Promise<void>;
   restoreKeyToActive(keyId: string): Promise<void>;
   saveUserApiKey(userId: string, encryptedApiKey: string | null): Promise<void>;

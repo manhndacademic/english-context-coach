@@ -23,10 +23,12 @@ export function parseApiKeys(envKeysStr: string | undefined): string[] {
 export class DrizzleKeyResolver implements KeyResolver {
   private static readonly envKeyCooldowns = new Map<string, number>(); // keyId -> cooldownUntil epoch ms
   private static readonly envKeyInvalid = new Set<string>(); // keyId
+  private static readonly keyModelCooldowns = new Map<string, number>(); // "keyId:model" -> cooldownUntil epoch ms
 
   static resetEnvKeysForTest(): void {
     DrizzleKeyResolver.envKeyCooldowns.clear();
     DrizzleKeyResolver.envKeyInvalid.clear();
+    DrizzleKeyResolver.keyModelCooldowns.clear();
   }
 
   static getEnvKeysStatus(): {
@@ -73,7 +75,8 @@ export class DrizzleKeyResolver implements KeyResolver {
 
   async resolveApiKeyWithExclusions(
     userId?: string,
-    excludedKeyIds?: Set<string>
+    excludedKeyIds?: Set<string>,
+    model?: string
   ): Promise<{ key: string; id?: string; isUserKey: boolean }> {
     // 1. Check if user has a custom API Key
     if (userId) {
@@ -134,10 +137,17 @@ export class DrizzleKeyResolver implements KeyResolver {
         )
       );
 
-    // Filter out excluded key IDs
-    const activeKeys = systemKeys.filter(
-      (k) => !excludedKeyIds || !excludedKeyIds.has(k.id)
-    );
+    const now = Date.now();
+    // Filter out excluded key IDs and model-specific cooldowns
+    const activeKeys = systemKeys.filter((k) => {
+      if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
+      if (model) {
+        const cooldownUntil =
+          DrizzleKeyResolver.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
+        if (now < cooldownUntil) return false;
+      }
+      return true;
+    });
 
     if (activeKeys.length > 0) {
       // Pick a key randomly
@@ -169,6 +179,11 @@ export class DrizzleKeyResolver implements KeyResolver {
           const cooldownUntil =
             DrizzleKeyResolver.envKeyCooldowns.get(k.id) ?? 0;
           if (now < cooldownUntil) return false;
+          if (model) {
+            const modelCooldownUntil =
+              DrizzleKeyResolver.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
+            if (now < modelCooldownUntil) return false;
+          }
           return true;
         });
 
@@ -182,9 +197,24 @@ export class DrizzleKeyResolver implements KeyResolver {
     throw new Error("No active system, user, or fallback API keys available.");
   }
 
-  async markKeyRateLimited(keyId: string, errorMsg: string): Promise<void> {
+  async markKeyRateLimited(
+    keyId: string,
+    errorMsg: string,
+    model?: string
+  ): Promise<void> {
+    const cooldownMs = 60 * 1000; // 1 minute
+    const cooldownUntil = Date.now() + cooldownMs;
+
+    if (model) {
+      const cacheKey = `${keyId}:${model}`;
+      DrizzleKeyResolver.keyModelCooldowns.set(cacheKey, cooldownUntil);
+      logger.warn(
+        `API key marked rate_limited for model ${model} (in-memory): ${keyId}. Error: ${errorMsg}`
+      );
+      return;
+    }
+
     if (keyId.startsWith("env-key-")) {
-      const cooldownUntil = Date.now() + 60 * 1000; // 1 minute
       DrizzleKeyResolver.envKeyCooldowns.set(keyId, cooldownUntil);
       logger.warn(
         `API key marked rate_limited (in-memory): ${keyId}. Error: ${errorMsg}`

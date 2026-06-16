@@ -314,7 +314,8 @@ export class GeminiLLMProvider implements LLMProvider {
       attempts++;
       const resolved = await this.keyResolver.resolveApiKeyWithExclusions(
         options.userId,
-        excludedKeyIds
+        excludedKeyIds,
+        model
       );
       const { key, id: keyId, isUserKey } = resolved;
 
@@ -376,7 +377,8 @@ export class GeminiLLMProvider implements LLMProvider {
             if (isRateLimitError(err)) {
               await this.keyResolver.markKeyRateLimited(
                 keyId,
-                err.message || "Rate limit exceeded"
+                err.message || "Rate limit exceeded",
+                model
               );
             } else if (isInvalidKeyError(err)) {
               await this.keyResolver.markKeyInvalid(
