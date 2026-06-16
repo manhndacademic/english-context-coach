@@ -3,6 +3,7 @@ import { GrammarCorrectionView } from "./GrammarCorrectionView";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const mockLesson = {
+  id: "lesson-1",
   summaryVi: "Tóm tắt bài học",
   naturalTranslationVi: "Dịch tự nhiên",
   contextExplanationVi: "Giải thích ngữ cảnh",
@@ -34,6 +35,8 @@ describe("GrammarCorrectionView", () => {
     const html = renderToStaticMarkup(
       <GrammarCorrectionView
         lesson={mockLesson}
+        sourceContent={null}
+        phrases={[]}
         sentenceBreakdowns={breakdowns}
         lessonFocuses={mockLessonFocuses}
       />
@@ -61,6 +64,8 @@ describe("GrammarCorrectionView", () => {
     const html = renderToStaticMarkup(
       <GrammarCorrectionView
         lesson={mockLesson}
+        sourceContent={null}
+        phrases={[]}
         sentenceBreakdowns={breakdowns}
         lessonFocuses={mockLessonFocuses}
       />

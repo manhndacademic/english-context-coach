@@ -131,12 +131,16 @@ export function StandardLessonLayout({
             ) : isGrammarCorrection ? (
               <GrammarCorrectionView
                 lesson={lesson}
+                sourceContent={sourceContent ?? null}
+                phrases={phrases}
                 sentenceBreakdowns={sentenceBreakdowns}
                 lessonFocuses={lessonFocuses}
               />
             ) : isMixedLanguage ? (
               <MixedLanguageView
                 lesson={lesson}
+                sourceContent={sourceContent ?? null}
+                phrases={phrases}
                 sentenceBreakdowns={sentenceBreakdowns}
                 lessonFocuses={lessonFocuses}
               />
