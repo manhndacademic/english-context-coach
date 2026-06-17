@@ -6,6 +6,8 @@ import { getLogger } from "@/lib/logger";
 import { digestQueue, DIGEST_JOB_NAME } from "./digestQueue";
 import { runDigestWorker } from "./digestWorker";
 import { notifyJobQueued } from "./trigger";
+import { reclaimQueue, RECLAIM_JOB_NAME } from "./reclaimQueue";
+import { runReclaimWorker } from "./reclaim";
 
 const log = getLogger("c.c.worker.WorkerDaemon");
 
@@ -151,6 +153,42 @@ export async function runWorker(
     log.error("[DigestWorker] Global worker error:", err);
   });
 
+  const reclaimWorker = new Worker(
+    "stale-job-reclamation",
+    async (job) => {
+      log.info(
+        `[ReclaimWorker] Processing job ${job.id} (${job.name}) from BullMQ`
+      );
+      await runReclaimWorker();
+    },
+    {
+      connection: redisConnection,
+      concurrency: 1,
+    }
+  );
+
+  // Schedule the reclaim cron to run every 5 minutes.
+  await reclaimQueue.add(
+    RECLAIM_JOB_NAME,
+    {},
+    {
+      repeat: {
+        pattern: "*/5 * * * *", // every 5 minutes
+      },
+      jobId: `${RECLAIM_JOB_NAME}-repeatable`,
+    }
+  );
+
+  log.info(`Scheduled stale-job-reclamation cron (every 5 minutes).`);
+
+  reclaimWorker.on("failed", (job, err) => {
+    log.error(`[ReclaimWorker] Job ${job?.id} failed in BullMQ:`, err);
+  });
+
+  reclaimWorker.on("error", (err) => {
+    log.error("[ReclaimWorker] Global worker error:", err);
+  });
+
   // Trigger an initial scan on startup to process any stale queued jobs in PostgreSQL
   notifyJobQueued().catch((err) => {
     log.error(`[WorkerDaemon] Failed to trigger initial scan on startup:`, err);
@@ -165,6 +203,7 @@ export async function runWorker(
         lessonWorker.close(),
         reviewWorker.close(),
         digestWorker.close(),
+        reclaimWorker.close(),
       ]);
       log.info("BullMQ workers stopped.");
     },
