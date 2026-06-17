@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { verifyGeminiApiKey } from "./gemini-utils";
+import { verifyGeminiApiKey, extractJson } from "./gemini-utils";
 
 // Mock GoogleGenAI
 vi.mock("@google/genai", () => {
@@ -53,5 +53,44 @@ describe("verifyGeminiApiKey", () => {
   it("sanitizes network errors into a user-friendly Vietnamese message", async () => {
     const error = await verifyGeminiApiKey("network-error-key");
     expect(error).toContain("Không thể kết nối đến máy chủ Gemini");
+  });
+});
+
+describe("extractJson", () => {
+  it("extracts and parses simple json successfully", () => {
+    const raw = `{"score": 90, "feedbackVi": "Tốt"}`;
+    const result = JSON.parse(extractJson(raw));
+    expect(result).toEqual({ score: 90, feedbackVi: "Tốt" });
+  });
+
+  it("handles literal newlines inside JSON string fields by escaping them", () => {
+    const raw = `{"score": 90, "feedbackVi": "Dòng 1\nDòng 2"}`;
+    const extracted = extractJson(raw);
+    const parsed = JSON.parse(extracted);
+    expect(parsed).toEqual({ score: 90, feedbackVi: "Dòng 1\nDòng 2" });
+  });
+
+  it("handles literal carriage returns inside JSON string fields by escaping them", () => {
+    const raw = `{"score": 90, "feedbackVi": "Dòng 1\rDòng 2"}`;
+    const extracted = extractJson(raw);
+    const parsed = JSON.parse(extracted);
+    expect(parsed).toEqual({ score: 90, feedbackVi: "Dòng 1\rDòng 2" });
+  });
+
+  it("leaves literal newlines outside JSON string fields untouched", () => {
+    const raw = `{\n  "score": 90,\n  "feedbackVi": "Tốt"\n}`;
+    const extracted = extractJson(raw);
+    const parsed = JSON.parse(extracted);
+    expect(parsed).toEqual({ score: 90, feedbackVi: "Tốt" });
+  });
+
+  it("handles nested braces and escaped quotes inside JSON string fields", () => {
+    const raw = `{"score": 90, "feedbackVi": "Cấu trúc \\"{\\" và \\"}\\" là bắt buộc"}`;
+    const extracted = extractJson(raw);
+    const parsed = JSON.parse(extracted);
+    expect(parsed).toEqual({
+      score: 90,
+      feedbackVi: 'Cấu trúc "{" và "}" là bắt buộc',
+    });
   });
 });

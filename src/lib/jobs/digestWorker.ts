@@ -32,7 +32,7 @@ export async function runDigestWorker(): Promise<{
   errors: number;
 }> {
   const currentHour = currentVnHour();
-  const digestDate = currentVnDigestDate();
+  const digestDate = digestWorkerInternals.currentVnDigestDate();
   log.info(
     `[DigestWorker] Running for VN hour ${currentHour}:00 date=${digestDate}`
   );

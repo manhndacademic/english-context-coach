@@ -80,6 +80,44 @@ function cleanJsonString(str: string): string {
   return trimmed.substring(startIdx);
 }
 
+function escapeLiteralNewlines(str: string): string {
+  let inString = false;
+  let escaped = false;
+  let result = "";
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    if (escaped) {
+      escaped = false;
+      result += char;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      result += char;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      result += char;
+      continue;
+    }
+
+    if (inString && char === "\n") {
+      result += "\\n";
+    } else if (inString && char === "\r") {
+      result += "\\r";
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
 export function extractJson(text: string) {
   const trimmed = text.trim();
   let candidate = trimmed;
@@ -87,7 +125,8 @@ export function extractJson(text: string) {
     const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
     candidate = match?.[1]?.trim() ?? trimmed;
   }
-  return cleanJsonString(candidate);
+  const cleaned = cleanJsonString(candidate);
+  return escapeLiteralNewlines(cleaned);
 }
 
 function stripNulls(obj: any): any {
