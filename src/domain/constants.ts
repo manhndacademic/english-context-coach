@@ -16,7 +16,7 @@ export const MAX_LESSON_ITEMS = 7;
 export const PROMPT_VERSIONS = {
   analysis: "analysis-v3",
   exercises: "exercises-v1",
-  grading: "grading-v1",
+  grading: "grading-v2",
   review_prompt: "review_prompt-v1",
 } as const;
 

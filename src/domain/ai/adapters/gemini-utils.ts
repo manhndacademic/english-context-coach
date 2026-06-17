@@ -79,7 +79,11 @@ export function isInvalidKeyError(err: any): boolean {
 
 export function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
   let schema = zodSchema;
+  let isNullable = false;
   while (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
+    if (schema instanceof z.ZodNullable) {
+      isNullable = true;
+    }
     schema = schema.unwrap();
   }
 
@@ -87,41 +91,31 @@ export function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
     schema = schema.innerType();
   }
 
+  let result: any = {};
+
   if (schema instanceof z.ZodString) {
-    return { type: "STRING" };
-  }
-
-  if (schema instanceof z.ZodNumber) {
+    result = { type: "STRING" };
+  } else if (schema instanceof z.ZodNumber) {
     const isInteger = schema._def.checks.some((c: any) => c.kind === "int");
-    return { type: isInteger ? "INTEGER" : "NUMBER" };
-  }
-
-  if (schema instanceof z.ZodBoolean) {
-    return { type: "BOOLEAN" };
-  }
-
-  if (schema instanceof z.ZodLiteral) {
-    return {
+    result = { type: isInteger ? "INTEGER" : "NUMBER" };
+  } else if (schema instanceof z.ZodBoolean) {
+    result = { type: "BOOLEAN" };
+  } else if (schema instanceof z.ZodLiteral) {
+    result = {
       type: "STRING",
       enum: [schema._def.value],
     };
-  }
-
-  if (schema instanceof z.ZodEnum) {
-    return {
+  } else if (schema instanceof z.ZodEnum) {
+    result = {
       type: "STRING",
       enum: schema._def.values,
     };
-  }
-
-  if (schema instanceof z.ZodArray) {
-    return {
+  } else if (schema instanceof z.ZodArray) {
+    result = {
       type: "ARRAY",
       items: zodToGeminiSchema(schema.element),
     };
-  }
-
-  if (schema instanceof z.ZodObject) {
+  } else if (schema instanceof z.ZodObject) {
     const properties: Record<string, any> = {};
     const required: string[] = [];
 
@@ -144,32 +138,34 @@ export function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
       }
     }
 
-    return {
+    result = {
       type: "OBJECT",
       properties,
       required: required.length > 0 ? required : undefined,
     };
-  }
-
-  if (schema instanceof z.ZodDiscriminatedUnion) {
+  } else if (schema instanceof z.ZodDiscriminatedUnion) {
     const options = Array.from(schema.options.values()).map((opt) =>
       zodToGeminiSchema(opt as z.ZodTypeAny)
     );
-    return {
+    result = {
       anyOf: options,
     };
-  }
-
-  if (schema instanceof z.ZodUnion) {
+  } else if (schema instanceof z.ZodUnion) {
     const options = schema._def.options.map((opt: z.ZodTypeAny) =>
       zodToGeminiSchema(opt)
     );
-    return {
+    result = {
       anyOf: options,
     };
+  } else {
+    result = { type: "STRING" };
   }
 
-  return { type: "STRING" };
+  if (isNullable) {
+    result.nullable = true;
+  }
+
+  return result;
 }
 
 export async function verifyGeminiApiKey(

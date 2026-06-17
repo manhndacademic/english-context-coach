@@ -208,13 +208,54 @@ export class JsonParserService {
   }
 
   /**
+   * Recursively sanitizes string values in an object/array.
+   * - Strips HTML tags completely.
+   * - Cleans up suffix/prefix technical noise like "(null)null,", "nullnull", etc.
+   * - Converts literal string placeholders like "null", "undefined", "(null)" to null.
+   */
+  private static sanitizeValue(val: any): any {
+    if (Array.isArray(val)) {
+      return val.map(JsonParserService.sanitizeValue);
+    }
+    if (val !== null && typeof val === "object") {
+      const newObj: any = {};
+      for (const key of Object.keys(val)) {
+        newObj[key] = JsonParserService.sanitizeValue(val[key]);
+      }
+      return newObj;
+    }
+    if (typeof val === "string") {
+      // 1. Strip HTML tags
+      let cleaned = val.replace(/<[^>]*>/g, "");
+
+      // 2. Remove trailing/leading garbage like "(null)null,", "nullnull", "(null)"
+      cleaned = cleaned.replace(/\s*\(?null\)?\s*\(?null\)?\s*,?\s*$/i, "");
+      cleaned = cleaned.replace(/^\s*\(?null\)?\s*\(?null\)?\s*,?\s*/i, "");
+
+      const lower = cleaned.trim().toLowerCase();
+      if (
+        lower === "null" ||
+        lower === "undefined" ||
+        lower === "(null)" ||
+        lower === "none" ||
+        cleaned.trim() === ""
+      ) {
+        return null;
+      }
+      return cleaned.trim();
+    }
+    return val;
+  }
+
+  /**
    * Coerces parsed JSON blocks into expected schemas to accommodate LLM variations.
    */
   static coerceJsonForSchema(
     input: unknown,
     schemaVersion: keyof typeof SCHEMA_VERSIONS
   ): any {
-    const cleaned = JsonParserService.stripNulls(input);
+    const sanitized = JsonParserService.sanitizeValue(input);
+    const cleaned = JsonParserService.stripNulls(sanitized);
     if (schemaVersion === "exercises" && Array.isArray(cleaned)) {
       return { exercises: cleaned };
     }

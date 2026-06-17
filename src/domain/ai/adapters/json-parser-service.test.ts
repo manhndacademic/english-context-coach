@@ -121,6 +121,52 @@ describe("JsonParserService", () => {
         isCorrect: true,
       });
     });
+
+    it("should strip HTML tags from string values", () => {
+      const input = {
+        feedbackVi: "<p>Bạn cần dùng 'quyền xem' thay vì 'quyền để xem'.</p>",
+        naturalAnswer: "<span>Clean text</span>",
+      };
+      const output = JsonParserService.coerceJsonForSchema(input, "grading");
+      expect(output.feedbackVi).toBe(
+        "Bạn cần dùng 'quyền xem' thay vì 'quyền để xem'."
+      );
+      expect(output.naturalAnswer).toBe("Clean text");
+    });
+
+    it("should remove garbage suffix and prefix (null)null,", () => {
+      const input = {
+        naturalAnswer:
+          "Bạn cần yêu cầu quyền xem các tệp tài chính hạn chế trong thư mục dùng chung. (null)null,",
+        literalTranslationTrap: "  (null)null,   ",
+      };
+      const output = JsonParserService.coerceJsonForSchema(input, "grading");
+      expect(output.naturalAnswer).toBe(
+        "Bạn cần yêu cầu quyền xem các tệp tài chính hạn chế trong thư mục dùng chung."
+      );
+      expect(output.literalTranslationTrap).toBeUndefined();
+    });
+
+    it("should convert literal string placeholders to null and strip them", () => {
+      const input = {
+        literalTranslationTrap: "null",
+        error: {
+          shouldSave: true,
+          confidence: 80,
+          errorType: "none",
+          explanationVi: "undefined",
+          targetItem: "(null)",
+        },
+      };
+      const output = JsonParserService.coerceJsonForSchema(input, "grading");
+      expect(output.literalTranslationTrap).toBeUndefined();
+      // Since errorType, explanationVi, targetItem are all stripped, and shouldSave is true,
+      // it keeps only shouldSave and confidence
+      expect(output.error).toEqual({
+        shouldSave: true,
+        confidence: 80,
+      });
+    });
   });
 
   describe("parse", () => {
