@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { ThinkingLevel } from "@google/genai";
-import { ProviderRotationPool } from "@/domain/ai/adapters/model-pool";
+import { ApiRotationPool } from "@/domain/ai/adapters/api-rotation-pool";
 
-describe("ProviderRotationPool", () => {
-  let pool: ProviderRotationPool;
+describe("ApiRotationPool", () => {
+  let pool: ApiRotationPool;
 
   beforeEach(() => {
-    pool = new ProviderRotationPool(
+    pool = new ApiRotationPool(
+      undefined,
       ["model-a", "model-b", "model-c"],
       ["fast-a", "fast-b"]
     );
@@ -20,7 +21,11 @@ describe("ProviderRotationPool", () => {
 
   describe("getModels", () => {
     it("returns analysis models", () => {
-      expect(pool.getModels("analysis")).toEqual(["model-a", "model-b", "model-c"]);
+      expect(pool.getModels("analysis")).toEqual([
+        "model-a",
+        "model-b",
+        "model-c",
+      ]);
     });
 
     it("returns fast models", () => {
@@ -147,39 +152,63 @@ describe("ProviderRotationPool", () => {
 
   describe("getThinkingLevel (Gemma compatibility)", () => {
     const GEMMA_MODELS = ["gemma-4-31b-it", "gemma-4-26b-a4b-it"];
-    const NON_GEMMA_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3-flash-preview"];
+    const NON_GEMMA_MODELS = [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3-flash-preview",
+    ];
 
     // Use a fresh pool with gemma models in it
-    let gemmaPool: ProviderRotationPool;
+    let gemmaPool: ApiRotationPool;
     beforeEach(() => {
-      gemmaPool = new ProviderRotationPool(
+      gemmaPool = new ApiRotationPool(
+        undefined,
         ["gemma-4-31b-it", "gemma-4-26b-a4b-it", "gemini-3.1-flash-lite"],
         ["gemini-3.1-flash-lite"]
       );
     });
 
     it.each(GEMMA_MODELS)("maps LOW → MINIMAL for %s", (model) => {
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(ThinkingLevel.MINIMAL);
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(
+        ThinkingLevel.MINIMAL
+      );
     });
 
     it.each(GEMMA_MODELS)("maps MEDIUM → MINIMAL for %s", (model) => {
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(ThinkingLevel.MINIMAL);
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(
+        ThinkingLevel.MINIMAL
+      );
     });
 
     it.each(GEMMA_MODELS)("preserves MINIMAL for %s", (model) => {
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(ThinkingLevel.MINIMAL);
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(
+        ThinkingLevel.MINIMAL
+      );
     });
 
     it.each(GEMMA_MODELS)("preserves HIGH for %s", (model) => {
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(ThinkingLevel.HIGH);
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(
+        ThinkingLevel.HIGH
+      );
     });
 
-    it.each(NON_GEMMA_MODELS)("passes through any level unchanged for non-Gemma %s", (model) => {
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(ThinkingLevel.LOW);
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(ThinkingLevel.MEDIUM);
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(ThinkingLevel.HIGH);
-      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(ThinkingLevel.MINIMAL);
-    });
+    it.each(NON_GEMMA_MODELS)(
+      "passes through any level unchanged for non-Gemma %s",
+      (model) => {
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(
+          ThinkingLevel.LOW
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(
+          ThinkingLevel.MEDIUM
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(
+          ThinkingLevel.HIGH
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(
+          ThinkingLevel.MINIMAL
+        );
+      }
+    );
   });
 
   // ─── env var override ────────────────────────────────────────────────────────
@@ -189,8 +218,11 @@ describe("ProviderRotationPool", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = "custom-model-1,custom-model-2";
       try {
-        const envPool = new ProviderRotationPool();
-        expect(envPool.getModels("analysis")).toEqual(["custom-model-1", "custom-model-2"]);
+        const envPool = new ApiRotationPool();
+        expect(envPool.getModels("analysis")).toEqual([
+          "custom-model-1",
+          "custom-model-2",
+        ]);
       } finally {
         process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
       }
@@ -200,7 +232,7 @@ describe("ProviderRotationPool", () => {
       const originalEnv = process.env.GEMINI_FAST_MODELS;
       process.env.GEMINI_FAST_MODELS = "fast-custom-1";
       try {
-        const envPool = new ProviderRotationPool();
+        const envPool = new ApiRotationPool();
         expect(envPool.getModels("fast")).toEqual(["fast-custom-1"]);
       } finally {
         process.env.GEMINI_FAST_MODELS = originalEnv;
@@ -211,7 +243,7 @@ describe("ProviderRotationPool", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = "";
       try {
-        const envPool = new ProviderRotationPool();
+        const envPool = new ApiRotationPool();
         // Should use defaults (starts with gemini-3.1-flash-lite)
         expect(envPool.getModels("analysis")[0]).toBe("gemini-3.1-flash-lite");
       } finally {
@@ -223,7 +255,7 @@ describe("ProviderRotationPool", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = " model-x , model-y ";
       try {
-        const envPool = new ProviderRotationPool();
+        const envPool = new ApiRotationPool();
         expect(envPool.getModels("analysis")).toEqual(["model-x", "model-y"]);
       } finally {
         process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
@@ -235,7 +267,7 @@ describe("ProviderRotationPool", () => {
       process.env.GEMINI_COOLDOWN_MS = "15000";
       try {
         vi.useFakeTimers();
-        const testPool = new ProviderRotationPool(["model-a"], []);
+        const testPool = new ApiRotationPool(undefined, ["model-a"], []);
         testPool.markRateLimited("model-a");
         expect(testPool.isAvailable("model-a")).toBe(false);
 

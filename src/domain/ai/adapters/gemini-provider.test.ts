@@ -181,8 +181,9 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 4: All keys exhausted for a model rotates model pool", async () => {
-    const { ProviderRotationPool } = await import("./model-pool");
-    const customPool = new ProviderRotationPool(
+    const { ApiRotationPool } = await import("./api-rotation-pool");
+    const customPool = new ApiRotationPool(
+      keyResolver,
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
@@ -261,8 +262,9 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 6: Model rate limit allows using the same key on fallback model", async () => {
-    const { ProviderRotationPool } = await import("./model-pool");
-    const customPool = new ProviderRotationPool(
+    const { ApiRotationPool } = await import("./api-rotation-pool");
+    const customPool = new ApiRotationPool(
+      keyResolver,
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
