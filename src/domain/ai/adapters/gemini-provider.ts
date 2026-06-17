@@ -10,11 +10,10 @@ import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
 import {
   getGeminiThinkingLevel,
   zodToGeminiSchema,
-  extractJson,
-  coerceJsonForSchema,
   AiError,
   estimateCost,
 } from "./gemini-utils";
+import { JsonParserService } from "./json-parser-service";
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
 
@@ -316,12 +315,11 @@ export class GeminiLLMProvider implements LLMProvider {
         options.purpose
       }:\n${rawText}`
     );
-    let extracted = extractJson(rawText);
     let parsed = null;
 
     try {
-      const coerced = coerceJsonForSchema(
-        JSON.parse(extracted),
+      const coerced = JsonParserService.parse(
+        rawText,
         options.schemaVersion as keyof typeof SCHEMA_VERSIONS
       );
       parsed = options.schema.safeParse(coerced);
@@ -373,11 +371,10 @@ export class GeminiLLMProvider implements LLMProvider {
     logger.trace(
       `[GeminiProvider] Raw repair text response received:\n${repairResult.text}`
     );
-    const repairedExtracted = extractJson(repairResult.text);
     let coercedRepaired;
     try {
-      coercedRepaired = coerceJsonForSchema(
-        JSON.parse(repairedExtracted),
+      coercedRepaired = JsonParserService.parse(
+        repairResult.text,
         options.schemaVersion as keyof typeof SCHEMA_VERSIONS
       );
     } catch (parseErr: any) {
