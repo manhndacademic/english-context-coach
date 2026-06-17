@@ -34,7 +34,7 @@ describe("DigestWorker Race Condition & Claiming", () => {
         email: "digest-test@example.com",
         name: "Digest Test User",
         emailDigestEnabled: true,
-        emailDigestHour: new Date().getUTCHours() + (7 % 24), // current VN hour
+        emailDigestHour: (new Date().getUTCHours() + 7) % 24, // current VN hour
       })
       .returning();
   });
