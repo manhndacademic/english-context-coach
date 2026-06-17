@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/auth/guards";
-import { AppHeader } from "@/components/app-header";
 import { ReviewSession } from "./session";
 import { getMistakePatternRepository } from "@/domain/memory";
 import { getMistakePatternLessonsMap } from "@/app/actions/review";
+import { PageLayout } from "@/components/ui/page-layout";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface PageProps {
   searchParams: Promise<{ patternId?: string }>;
@@ -29,29 +30,18 @@ export default async function ReviewPage({ searchParams }: PageProps) {
   const lessonsMap = await getMistakePatternLessonsMap(user.id);
 
   return (
-    <>
-      <AppHeader
-        email={user.email}
-        isAdmin={user.role === "admin"}
-        image={user.image}
-      />
-      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
-        <div className="max-w-2xl mx-auto w-full flex flex-col gap-6">
-          <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-bold font-serif mb-1 text-text m-0">
-              Ôn tập mẫu lỗi (Spaced Repetition)
-            </h1>
-            <p className="text-muted text-sm leading-relaxed m-0 mt-1.5">
-              Ôn tập sử dụng ngữ cảnh khái quát hóa an toàn, không chứa thông
-              tin cá nhân từ bài học gốc.
-            </p>
-          </div>
+    <PageLayout user={user}>
+      <div className="max-w-2xl mx-auto w-full flex flex-col gap-6">
+        <PageHeader
+          title="Ôn tập mẫu lỗi (Spaced Repetition)"
+          description="Ôn tập sử dụng ngữ cảnh khái quát hóa an toàn, không chứa thông tin cá nhân từ bài học gốc."
+          className="text-center sm:text-left border-none pb-0 mb-0"
+        />
 
-          <div className="w-full">
-            <ReviewSession patterns={patterns} lessonsMap={lessonsMap} />
-          </div>
+        <div className="w-full">
+          <ReviewSession patterns={patterns} lessonsMap={lessonsMap} />
         </div>
-      </main>
-    </>
+      </div>
+    </PageLayout>
   );
 }

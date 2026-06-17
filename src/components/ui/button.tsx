@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
@@ -7,12 +8,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-accent text-white hover:bg-accent-hover focus-visible:ring-accent",
-        secondary: "bg-surface-strong text-text border border-border hover:bg-border focus-visible:ring-muted",
-        outline: "border border-border bg-transparent text-text hover:bg-surface-strong focus-visible:ring-accent",
-        ghost: "text-muted hover:text-text hover:bg-surface-strong focus-visible:ring-accent",
+        default:
+          "bg-accent text-white hover:bg-accent-hover hover-shadow-accent focus-visible:ring-accent",
+        secondary:
+          "bg-surface-strong text-text border border-border hover:bg-border focus-visible:ring-muted",
+        outline:
+          "border border-border bg-transparent text-text hover:bg-surface-strong focus-visible:ring-accent",
+        ghost:
+          "text-muted hover:text-text hover:bg-surface-strong focus-visible:ring-accent",
         link: "text-accent underline-offset-4 hover:underline",
-        danger: "bg-danger text-white hover:opacity-90 focus-visible:ring-danger",
+        danger:
+          "bg-danger text-white hover:opacity-90 focus-visible:ring-danger",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -29,13 +35,17 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
     return (
-      <button
+      <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}

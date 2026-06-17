@@ -1,9 +1,21 @@
 @import "tailwindcss";
 
+/* Typography scale reference
+   xs   = 0.75rem  (12px) — labels, badges
+   sm   = 0.875rem (14px) — body, descriptions
+   base = 1rem     (16px) — default body
+   lg   = 1.125rem (18px) — section subheadings
+   xl   = 1.25rem  (20px) — card headings
+   2xl  = 1.5rem   (24px) — page h2
+   3xl  = 1.875rem (30px) — page h1 (mobile)
+   4xl  = 2.25rem  (36px) — page h1 (desktop)
+*/
+
 @theme {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+  --color-surface-active: var(--surface-active);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-border: var(--border);
@@ -13,10 +25,12 @@
   --color-accent-light: var(--accent-light);
   --color-danger: var(--danger);
   --color-danger-light: var(--danger-light);
+  --color-danger-strong: var(--danger-strong);
   --color-warning: var(--warning);
   --color-warning-light: var(--warning-light);
   --color-success: var(--success);
   --color-success-light: var(--success-light);
+  --color-success-strong: var(--success-strong);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
@@ -48,6 +62,7 @@
   --surface-hsl: 0, 0%, 100%;
   --surface: hsl(var(--surface-hsl));
   --surface-strong: #f1f5f9;
+  --surface-active: rgba(5, 150, 105, 0.06);
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
@@ -57,10 +72,12 @@
   --accent-light: #ecfdf5;
   --danger: #e11d48;
   --danger-light: #fff1f2;
+  --danger-strong: #7a1515;
   --warning: #d97706;
   --warning-light: #fffbeb;
   --success: #16a34a;
   --success-light: #f0fdf4;
+  --success-strong: #0f5132;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04);
   --shadow-lg:
@@ -98,6 +115,7 @@
   --surface-hsl: 222, 47%, 11%;
   --surface: hsl(var(--surface-hsl));
   --surface-strong: #1e293b;
+  --surface-active: rgba(16, 185, 129, 0.08);
   --text: #f8fafc;
   --muted: #94a3b8;
   --border: #1e293b;
@@ -107,10 +125,12 @@
   --accent-light: rgba(16, 185, 129, 0.15);
   --danger: #f43f5e;
   --danger-light: rgba(244, 63, 94, 0.1);
+  --danger-strong: #ff8585;
   --warning: #f59e0b;
   --warning-light: rgba(245, 158, 11, 0.1);
   --success: #10b981;
   --success-light: rgba(16, 185, 129, 0.15);
+  --success-strong: #a7f3d0;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.7);
@@ -256,4 +276,14 @@
   transform: translateY(-4px);
   border-color: var(--accent);
   box-shadow: var(--shadow-lg);
+}
+
+.hover-shadow-accent {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.hover-shadow-accent:hover {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
 }

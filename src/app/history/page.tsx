@@ -1,5 +1,4 @@
 import { requireUser } from "@/lib/auth/guards";
-import { AppHeader } from "@/components/app-header";
 import { getLessonRepository } from "@/domain/lesson";
 import {
   getLearnerMemoryEngine,
@@ -7,8 +6,12 @@ import {
 } from "@/domain/memory";
 import { getMistakePatternLessonsMap } from "@/app/actions/review";
 import Link from "next/link";
+import { PageLayout } from "@/components/ui/page-layout";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { SectionCard } from "@/components/ui/section-card";
+import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
   BookOpen,
   Calendar,
   History,
@@ -50,102 +53,55 @@ export default async function HistoryPage() {
       : "0";
 
   return (
-    <>
-      <AppHeader
-        email={user.email}
-        isAdmin={user.role === "admin"}
-        image={user.image}
+    <PageLayout user={user}>
+      {/* Navigation & Header */}
+      <PageHeader
+        title="Lịch sử học tập"
+        description="Xem lại tiến trình hoàn thành bài học, các câu đã thực hành và tần suất ôn tập mẫu lỗi."
+        icon={<History size={26} />}
+        backHref="/dashboard"
+        backLabel="Quay về Trang chủ"
       />
-      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
-        {/* Navigation & Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1 text-xs font-bold text-accent no-underline hover:underline mb-2"
-            >
-              <ArrowLeft size={12} /> Quay về Trang chủ
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold font-serif mb-1 text-text m-0 flex items-center gap-2">
-              <History size={26} className="text-accent" /> Lịch sử học tập
-            </h1>
-            <p className="text-muted text-sm leading-relaxed m-0 mt-1">
-              Xem lại tiến trình hoàn thành bài học, các câu đã thực hành và tần
-              suất ôn tập mẫu lỗi.
-            </p>
-          </div>
-        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 min-[960px]:grid-cols-6 gap-4">
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Bài học đã học
-            </span>
-            <strong className="text-2xl font-bold text-text leading-tight">
-              {lessonsCompleted}
-            </strong>
-          </div>
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Luyện tập đúng
-            </span>
-            <strong className="text-2xl font-bold text-accent leading-tight">
-              {exercisesCompleted}
-            </strong>
-          </div>
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Mẫu lỗi lưu
-            </span>
-            <strong className="text-2xl font-bold text-text leading-tight">
-              {patternCount}
-            </strong>
-          </div>
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Cần ôn tập
-            </span>
-            <strong
-              className={`text-2xl font-bold leading-tight ${dueCount > 0 ? "text-warning" : "text-text"}`}
-            >
-              {dueCount}
-            </strong>
-          </div>
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Đã thành thạo
-            </span>
-            <strong className="text-2xl font-bold text-success leading-tight">
-              {masteredCount}
-            </strong>
-          </div>
-          <div className="hover-lift bg-surface border border-border rounded-lg p-4 shadow-sm grid gap-1">
-            <span className="text-muted text-[10px] font-bold uppercase tracking-wider">
-              Lặp lại TB
-            </span>
-            <strong className="text-2xl font-bold text-text leading-tight">
-              {avgRepetitions} lần
-            </strong>
-          </div>
-        </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 min-[960px]:grid-cols-6 gap-4">
+        <StatCard label="Bài học đã học" value={lessonsCompleted} />
+        <StatCard
+          label="Luyện tập đúng"
+          value={exercisesCompleted}
+          valueVariant="accent"
+        />
+        <StatCard label="Mẫu lỗi lưu" value={patternCount} />
+        <StatCard
+          label="Cần ôn tập"
+          value={dueCount}
+          valueVariant={dueCount > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="Đã thành thạo"
+          value={masteredCount}
+          valueVariant="success"
+        />
+        <StatCard label="Lặp lại TB" value={`${avgRepetitions} lần`} />
+      </div>
 
-        {/* Details Grid */}
-        <div className="grid grid-cols-1 min-[960px]:grid-cols-[1fr_1.5fr] gap-6 items-start">
-          {/* Recent Lessons Panel */}
-          <section className="bg-surface border border-border rounded-lg p-5 shadow-md flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-text flex items-center gap-2 m-0 border-b border-border pb-3">
-              <BookOpen size={18} className="text-accent" /> Bài học đã làm (
-              {recentLessons.length})
-            </h2>
+      {/* Details Grid */}
+      <div className="grid grid-cols-1 min-[960px]:grid-cols-[1fr_1.5fr] gap-6 items-start">
+        {/* Recent Lessons Panel */}
+        <SectionCard className="p-5 sm:p-5">
+          <SectionCard.Header
+            title={`Bài học đã làm (${recentLessons.length})`}
+            icon={<BookOpen size={18} className="text-accent" />}
+          />
 
+          <SectionCard.Body className="gap-3">
             {recentLessons.length === 0 ? (
               <p className="text-muted text-sm m-0 py-4 text-center">
                 Bạn chưa hoàn thành bài học nào. Hãy dán văn bản mới ở trang chủ
                 để bắt đầu!
               </p>
             ) : (
-              <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">
+              <div className="flex flex-col gap-3 max-h-150 overflow-y-auto pr-1">
                 {recentLessons.map((lesson) => (
                   <div
                     key={lesson.id}
@@ -158,9 +114,13 @@ export default async function HistoryPage() {
                       >
                         {lesson.title || "Bài học không tên"}
                       </Link>
-                      <span className="shrink-0 text-[10px] font-extrabold uppercase bg-accent-light text-accent border border-accent/15 px-1.5 py-0.5 rounded leading-none">
+                      <Badge
+                        variant="accent"
+                        size="sm"
+                        className="shrink-0 leading-none rounded uppercase text-[10px] px-1.5 py-0.5"
+                      >
                         {lesson.detectedLevel || "B1"}
-                      </span>
+                      </Badge>
                     </div>
 
                     <div className="flex items-center gap-3 text-muted text-xs">
@@ -183,22 +143,24 @@ export default async function HistoryPage() {
                 ))}
               </div>
             )}
-          </section>
+          </SectionCard.Body>
+        </SectionCard>
 
-          {/* Learned Mistakes Panel */}
-          <section className="bg-surface border border-border rounded-lg p-5 shadow-md flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-text flex items-center gap-2 m-0 border-b border-border pb-3">
-              <TrendingUp size={18} className="text-accent" /> Cụm từ & Mẫu lỗi
-              đã lưu ({patterns.length})
-            </h2>
+        {/* Learned Mistakes Panel */}
+        <SectionCard className="p-5 sm:p-5">
+          <SectionCard.Header
+            title={`Cụm từ & Mẫu lỗi đã lưu (${patterns.length})`}
+            icon={<TrendingUp size={18} className="text-accent" />}
+          />
 
+          <SectionCard.Body className="gap-4">
             {patterns.length === 0 ? (
               <p className="text-muted text-sm m-0 py-8 text-center">
                 Chưa có mẫu lỗi nào được ghi nhận. Hãy trả lời câu hỏi bài học
                 để hệ thống lưu lại các lỗi cần ôn tập.
               </p>
             ) : (
-              <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-1">
+              <div className="flex flex-col gap-4 max-h-150 overflow-y-auto pr-1">
                 {patterns.map((p) => {
                   const lessonsList =
                     lessonsMap[`${p.conceptKey}_${p.errorType}`] || [];
@@ -218,17 +180,29 @@ export default async function HistoryPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {p.masteryState === "mastered" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-success-light border border-success text-success px-2 py-0.5 text-[9px] font-extrabold leading-none uppercase">
+                            <Badge
+                              variant="success"
+                              size="sm"
+                              className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                            >
                               Thành thạo
-                            </span>
+                            </Badge>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-warning-light border border-warning text-warning px-2 py-0.5 text-[9px] font-extrabold leading-none uppercase">
+                            <Badge
+                              variant="warning"
+                              size="sm"
+                              className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                            >
                               Đang học
-                            </span>
+                            </Badge>
                           )}
-                          <span className="text-muted text-[10px] font-bold border border-border px-1.5 py-0.5 rounded bg-surface leading-none">
+                          <Badge
+                            variant="default"
+                            size="sm"
+                            className="bg-surface border-border leading-none text-muted rounded text-[10px] px-1.5 py-0.5"
+                          >
                             Lặp {p.repetitions} lần
-                          </span>
+                          </Badge>
                         </div>
                       </div>
 
@@ -254,9 +228,13 @@ export default async function HistoryPage() {
                       )}
 
                       <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-border/50">
-                        <span className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none whitespace-nowrap">
+                        <Badge
+                          variant="danger"
+                          size="sm"
+                          className="text-[9px] uppercase tracking-wider px-2 py-0.5 leading-none whitespace-nowrap"
+                        >
                           {p.errorType.replaceAll("_", " ")}
-                        </span>
+                        </Badge>
 
                         {p.reviewPromptStatus === "succeeded" ? (
                           <Link
@@ -280,9 +258,9 @@ export default async function HistoryPage() {
                 })}
               </div>
             )}
-          </section>
-        </div>
-      </main>
-    </>
+          </SectionCard.Body>
+        </SectionCard>
+      </div>
+    </PageLayout>
   );
 }

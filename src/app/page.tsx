@@ -6,6 +6,8 @@ import { GrammarDemoSection } from "@/components/GrammarDemoSection";
 import { ComparisonSection } from "@/components/landing/ComparisonSection";
 import { MistakeMemorySection } from "@/components/landing/MistakeMemorySection";
 import { ProductDemoSection } from "@/components/landing/ProductDemoSection";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Sparkles,
   BrainCircuit,
@@ -22,64 +24,76 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 pt-10 pb-20 flex flex-col gap-16 md:gap-20">
+    <div className="max-w-300 mx-auto px-6 pt-10 pb-20 flex flex-col gap-16 md:gap-20">
       <header className="flex flex-col sm:flex-row items-center justify-between border-b border-border pb-5 mb-10 sm:mb-16 gap-4">
         <span className="font-serif text-2xl font-extrabold tracking-tight text-accent hover:text-accent-hover transition-colors">
           English Context Coach
         </span>
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px]"
+          <Button
+            variant="secondary"
+            size="sm"
+            asChild
+            className="h-9.5 hover:-translate-y-px"
           >
-            Đăng nhập
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px h-[38px]"
+            <Link href="/login">Đăng nhập</Link>
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            asChild
+            className="h-9.5 hover:-translate-y-px"
           >
-            Đăng ký miễn phí
-          </Link>
+            <Link href="/register">Đăng ký miễn phí</Link>
+          </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="text-center max-w-[800px] mx-auto mb-20 grid gap-6">
-        <div className="inline-flex mx-auto items-center gap-1.5 bg-accent-light border border-border-glow text-accent px-3.5 py-1.5 rounded-full text-xs font-bold">
+      <section className="text-center max-w-200 mx-auto mb-20 grid gap-6">
+        <Badge
+          variant="accent"
+          size="sm"
+          className="mx-auto flex items-center gap-1.5 font-bold px-3.5 py-1.5 border border-border-glow"
+        >
           <Sparkles size={14} />
           <span>Học từ lỗi sai thực tế của bạn</span>
-        </div>
+        </Badge>
         <h1 className="text-[32px] md:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.1] text-text">
           Hiểu đúng tiếng Anh trong công việc, không dịch từng chữ.
         </h1>
-        <p className="text-base md:text-lg lg:text-[19px] leading-relaxed text-muted max-w-[650px] mx-auto">
+        <p className="text-base md:text-lg lg:text-[19px] leading-relaxed text-muted max-w-162.5 mx-auto">
           Dán email, GitHub issue, tài liệu API, Slack message hoặc bất kỳ đoạn
           tiếng Anh nào. English Context Coach giúp bạn hiểu nghĩa thật trong
           ngữ cảnh, phát hiện bẫy dịch từng chữ, tạo bài tập và ghi nhớ lỗi sai
           để bạn không lặp lại.
         </p>
         <div className="flex flex-col min-[480px]:flex-row gap-3 justify-center mt-3 w-full min-[480px]:w-auto">
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)]"
+          <Button
+            variant="default"
+            size="lg"
+            asChild
+            className="hover:-translate-y-px px-5"
           >
-            Dùng thử miễn phí <ArrowRight size={16} />
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-border px-5 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px"
+            <Link href="/register">
+              Dùng thử miễn phí <ArrowRight size={16} />
+            </Link>
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            asChild
+            className="hover:-translate-y-px px-5"
           >
-            Bắt đầu bài học cũ
-          </Link>
+            <Link href="/login">Bắt đầu bài học cũ</Link>
+          </Button>
         </div>
       </section>
 
       {/* Pain Points Section */}
       <section className="mb-20 grid gap-8">
-        <div className="text-center max-w-[600px] mx-auto">
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
-            Vấn đề thực tế
-          </span>
+        <div className="text-center max-w-150 mx-auto">
+          <Badge className="mb-3">Vấn đề thực tế</Badge>
           <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
             Bạn biết hết từ vựng nhưng vẫn hiểu sai câu?
           </h2>
@@ -96,9 +110,7 @@ export default async function HomePage() {
               <span className="text-lg font-extrabold font-serif text-accent-strong">
                 &quot;We need to push this back.&quot;
               </span>
-              <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold">
-                Work scheduling
-              </span>
+              <Badge>Work scheduling</Badge>
             </div>
             <div className="grid gap-2.5">
               <div className="flex gap-3 items-start px-3.5 py-2.5 rounded-sm text-sm leading-relaxed bg-danger-light border-l-[3px] border-danger text-[#7a1515] dark:text-[#ff8585]">
@@ -119,9 +131,7 @@ export default async function HomePage() {
               <span className="text-lg font-extrabold font-serif text-accent-strong">
                 &quot;Could you take a look?&quot;
               </span>
-              <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold">
-                Slack message
-              </span>
+              <Badge>Slack message</Badge>
             </div>
             <div className="grid gap-2.5">
               <div className="flex gap-3 items-start px-3.5 py-2.5 rounded-sm text-sm leading-relaxed bg-danger-light border-l-[3px] border-danger text-[#7a1515] dark:text-[#ff8585]">
@@ -140,9 +150,7 @@ export default async function HomePage() {
               <span className="text-lg font-extrabold font-serif text-accent-strong">
                 &quot;Let&apos;s circle back next week.&quot;
               </span>
-              <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold">
-                Meeting
-              </span>
+              <Badge>Meeting</Badge>
             </div>
             <div className="grid gap-2.5">
               <div className="flex gap-3 items-start px-3.5 py-2.5 rounded-sm text-sm leading-relaxed bg-danger-light border-l-[3px] border-danger text-[#7a1515] dark:text-[#ff8585]">
@@ -165,10 +173,8 @@ export default async function HomePage() {
 
       {/* Product Flow Section */}
       <section className="mb-20 grid gap-8">
-        <div className="text-center max-w-[600px] mx-auto">
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
-            Hành trình học
-          </span>
+        <div className="text-center max-w-150 mx-auto">
+          <Badge className="mb-3">Hành trình học</Badge>
           <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
             Chu trình học tập khép kín hiệu quả
           </h2>
@@ -237,10 +243,8 @@ export default async function HomePage() {
 
       {/* Use Cases Section */}
       <section className="mb-20 grid gap-8">
-        <div className="text-center max-w-[600px] mx-auto">
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
-            Tình huống áp dụng
-          </span>
+        <div className="text-center max-w-150 mx-auto">
+          <Badge className="mb-3">Tình huống áp dụng</Badge>
           <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
             Được thiết kế chuyên biệt cho từng nhu cầu
           </h2>
@@ -263,17 +267,19 @@ export default async function HomePage() {
         <h2 className="text-[28px] font-extrabold m-0 text-text">
           Thử với một đoạn tiếng Anh bạn đang đọc hôm nay.
         </h2>
-        <p className="text-sm leading-relaxed max-w-[500px] mx-auto m-0 text-muted">
+        <p className="text-sm leading-relaxed max-w-125 mx-auto m-0 text-muted">
           Email, tài liệu API, Slack message, GitHub issue, paper — đoạn nào
           cũng được.
         </p>
         <div>
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-8 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] min-w-[200px]"
+          <Button
+            variant="default"
+            size="lg"
+            asChild
+            className="hover:-translate-y-px min-w-50"
           >
-            Dùng thử miễn phí
-          </Link>
+            <Link href="/register">Dùng thử miễn phí</Link>
+          </Button>
         </div>
         <p className="text-muted text-xs mt-3">
           © 2026 English Context Coach · Vietnamese-native Learning System.
