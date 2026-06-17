@@ -28,7 +28,7 @@ interface InlineDiffProps {
 export function InlineDiff({
   original,
   corrected,
-  diffSpans,
+  diffSpans: _diffSpans,
   view = "unified",
   className,
 }: InlineDiffProps) {
@@ -46,13 +46,10 @@ export function InlineDiff({
     );
   }
 
-  // Use AI/DB spans if valid, otherwise fall back to Myers LCS
-  const spans: DiffSpan[] =
-    diffSpans && diffSpans.length > 0
-      ? diffSpans
-      : computeCharDiff(original, corrected);
+  // Always compute clean character diff programmatically to ensure 100% correct spaces
+  const spans: DiffSpan[] = computeCharDiff(original, corrected);
 
-  // If everything is equal (AI returned all-equal spans), also show no-error badge
+  // If everything is equal, also show no-error badge
   if (isNoDiff(spans)) {
     return (
       <span className={className}>
@@ -66,55 +63,58 @@ export function InlineDiff({
     );
   }
 
-  return (
-    <span className={className}>
-      {spans.map((span, i) => {
-        if (span.type === "equal") {
-          return (
-            <span key={i} className="font-serif text-base leading-relaxed">
-              {span.text}
-            </span>
-          );
-        }
+  // Filter only visible spans for the current view mode
+  const visibleSpans = spans
+    .map((span) => {
+      const isVisible =
+        span.type === "equal" ||
+        (span.type === "delete" &&
+          (view === "original" || view === "unified")) ||
+        (span.type === "insert" &&
+          (view === "corrected" || view === "unified"));
+      return isVisible ? span : null;
+    })
+    .filter((s): s is DiffSpan => s !== null);
 
-        if (
-          span.type === "delete" &&
-          (view === "original" || view === "unified")
-        ) {
-          return (
-            <span
-              key={i}
-              className="font-serif text-base leading-relaxed
-                bg-danger-light dark:bg-[rgba(244,63,94,0.18)]
-                text-danger dark:text-[#ff8585]
-                line-through
-                rounded-[3px] px-px"
-            >
-              {span.text}
-            </span>
-          );
-        }
+  const elements: React.ReactNode[] = [];
 
-        if (
-          span.type === "insert" &&
-          (view === "corrected" || view === "unified")
-        ) {
-          return (
-            <span
-              key={i}
-              className="font-serif text-base leading-relaxed font-bold
-                bg-success-light dark:bg-[rgba(16,185,129,0.18)]
-                text-success dark:text-[#a7f3d0]
-                rounded-[3px] px-px"
-            >
-              {span.text}
-            </span>
-          );
-        }
+  visibleSpans.forEach((span, i) => {
+    if (span.type === "equal") {
+      elements.push(
+        <span
+          key={`span-${i}`}
+          className="font-serif text-base leading-relaxed"
+        >
+          {span.text}
+        </span>
+      );
+    } else if (span.type === "delete") {
+      elements.push(
+        <span
+          key={`span-${i}`}
+          className="font-serif text-base leading-relaxed
+            bg-danger-light dark:bg-[rgba(244,63,94,0.18)]
+            text-danger dark:text-[#ff8585]
+            line-through
+            rounded-[3px] px-px"
+        >
+          {span.text}
+        </span>
+      );
+    } else if (span.type === "insert") {
+      elements.push(
+        <span
+          key={`span-${i}`}
+          className="font-serif text-base leading-relaxed font-bold
+            bg-success-light dark:bg-[rgba(16,185,129,0.18)]
+            text-success dark:text-[#a7f3d0]
+            rounded-[3px] px-px"
+        >
+          {span.text}
+        </span>
+      );
+    }
+  });
 
-        // Hide opposite side's diff in specific view modes
-        return null;
-      })}
-    </span>
-  );
+  return <span className={className}>{elements}</span>;
 }

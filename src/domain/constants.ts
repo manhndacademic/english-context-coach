@@ -6,7 +6,7 @@ const getSourceTextMaxLength = () => {
     const parsed = parseInt(envVal, 10);
     if (!isNaN(parsed)) return parsed;
   }
-  return 8_000;
+  return 100_000;
 };
 
 export const SOURCE_TEXT_MAX_LENGTH = getSourceTextMaxLength();
