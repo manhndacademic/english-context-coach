@@ -1,3 +1,5 @@
+import { MistakePattern } from "./mistake-pattern";
+
 export interface Attempt {
   id: string;
   exerciseId: string;
@@ -113,7 +115,7 @@ export interface LearnerMemoryEngine {
   ): Promise<{
     dueCount: number;
     patternCount: number;
-    repeatedMistakes: any[];
+    repeatedMistakes: MistakePattern[];
     learningStreakDays: number;
     masteredCount: number;
     reviewSuccessRate: number;

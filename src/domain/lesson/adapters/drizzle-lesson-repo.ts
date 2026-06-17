@@ -10,7 +10,7 @@ import {
   sql as drizzleSql,
   type SQL,
 } from "drizzle-orm";
-import { db, schema, sql as rawSql } from "@/db";
+import { db, schema, sql as rawSql, type DbClient, type DrizzleTx } from "@/db";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
@@ -36,16 +36,20 @@ import type {
   SourceText,
   GenerationMilestone,
   GenerationThought,
+  TextType,
+  DetectedLevel,
 } from "../ports";
 import type {
   KeyPhrase as DbKeyPhrase,
   LessonFocus as DbLessonFocus,
   SentenceBreakdown as DbSentenceBreakdown,
 } from "@/db/schema";
+import type { Attempt, UserError } from "@/domain/memory/types";
+import { MistakePattern } from "@/domain/memory/mistake-pattern";
 
 export class DrizzleLessonRepository implements LessonRepository {
   constructor(
-    private dbClient: any = db,
+    private dbClient: DbClient = db,
     private textProcessor: TextProcessor = getTextProcessor()
   ) {}
 
@@ -225,7 +229,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       throw new Error(`Source text ${lessonRow.sourceTextId} not found.`);
     }
 
-    await this.dbClient.transaction(async (tx: any) => {
+    await this.dbClient.transaction(async (tx: DrizzleTx) => {
       await tx
         .update(schema.lessons)
         .set({
@@ -337,7 +341,7 @@ export class DrizzleLessonRepository implements LessonRepository {
       ])
     );
 
-    await this.dbClient.transaction(async (tx: any) => {
+    await this.dbClient.transaction(async (tx: DrizzleTx) => {
       await tx
         .delete(schema.exercises)
         .where(eq(schema.exercises.lessonId, lessonId));
@@ -418,9 +422,9 @@ export class DrizzleLessonRepository implements LessonRepository {
 
     return {
       title: lesson.title,
-      textType: lesson.textType as any,
+      textType: lesson.textType as TextType,
       inputMode: lesson.inputMode,
-      detectedLevel: lesson.detectedLevel as any,
+      detectedLevel: lesson.detectedLevel as DetectedLevel,
       summaryVi: lesson.summaryVi,
       naturalTranslationVi: lesson.naturalTranslationVi,
       contextExplanationVi: lesson.contextExplanationVi,
@@ -450,7 +454,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
         whyConfusingVi: phrase.whyConfusingVi ?? undefined,
         category: phrase.category,
-        difficulty: phrase.difficulty as any,
+        difficulty: phrase.difficulty as DetectedLevel,
       })),
       lessonFocuses: lessonFocuses.map((focus: DbLessonFocus) => ({
         title: focus.title,
@@ -459,7 +463,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         conceptMeaningVi: focus.conceptMeaningVi,
         category: focus.category,
         explanationVi: focus.explanationVi,
-        difficulty: focus.difficulty as any,
+        difficulty: focus.difficulty as DetectedLevel,
       })),
     };
   }
@@ -620,9 +624,9 @@ export class DrizzleLessonRepository implements LessonRepository {
       sentenceBreakdowns: sentenceBreakdowns as SentenceBreakdown[],
       lessonFocuses: lessonFocuses as LessonFocus[],
       exercises: exercises as Exercise[],
-      attempts: attempts as any[],
-      userErrors: userErrors as any[],
-      mistakePatterns: mistakePatterns as any[],
+      attempts: attempts as Attempt[],
+      userErrors: userErrors as UserError[],
+      mistakePatterns: mistakePatterns as MistakePattern[],
       progress,
     };
   }
@@ -633,13 +637,13 @@ export class DrizzleLessonRepository implements LessonRepository {
   ): Promise<
     Array<{
       id: string;
-      title: string | null;
+      title: string;
       version: number;
       analysisStatus: "pending" | "running" | "succeeded" | "failed";
       exerciseStatus: "pending" | "running" | "succeeded" | "failed";
-      textType: any;
+      textType: TextType;
       inputMode: string;
-      detectedLevel: any;
+      detectedLevel: DetectedLevel | null;
       createdAt: Date;
     }>
   > {
@@ -660,12 +664,10 @@ export class DrizzleLessonRepository implements LessonRepository {
       .orderBy(desc(schema.lessons.createdAt))
       .limit(limit);
 
-    return rows.map((row: any) => ({
+    return rows.map((row) => ({
       ...row,
-      analysisStatus: row.analysisStatus,
-      exerciseStatus: row.exerciseStatus,
-      textType: row.textType ?? "unknown",
-      detectedLevel: row.detectedLevel,
+      textType: (row.textType ?? "unknown") as TextType,
+      detectedLevel: row.detectedLevel as DetectedLevel | null,
     }));
   }
 
@@ -750,7 +752,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async resetStuckJob(userId: string, lessonId: string): Promise<void> {
-    await this.dbClient.transaction(async (tx: any) => {
+    await this.dbClient.transaction(async (tx: DrizzleTx) => {
       await tx
         .update(schema.lessons)
         .set({
@@ -956,7 +958,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     contentHash: string,
     requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    const result = await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [sourceText] = await tx
         .insert(schema.sourceTexts)
         .values({
@@ -1005,7 +1007,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     version: number,
     stage: "analysis" | "exercises"
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    const result = await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [lesson] = await tx
         .insert(schema.lessons)
         .values({
@@ -1043,7 +1045,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     lessonId: string,
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob> {
-    const result = await this.dbClient.transaction(async (tx: any) => {
+    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [job] = await tx
         .insert(schema.generationJobs)
         .values({

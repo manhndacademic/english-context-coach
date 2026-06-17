@@ -22,3 +22,14 @@ if (process.env.NODE_ENV !== "production") {
 
 export const db = drizzle(sql, { schema });
 export { schema };
+
+import { PgTransaction } from "drizzle-orm/pg-core";
+import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
+
+export type DrizzleClient = typeof db;
+export type DrizzleTx = PgTransaction<
+  PostgresJsQueryResultHKT,
+  typeof schema,
+  any
+>;
+export type DbClient = DrizzleClient | DrizzleTx;

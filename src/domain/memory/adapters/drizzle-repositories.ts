@@ -1,5 +1,5 @@
 import { and, eq, sql as drizzleSql, lte, count, desc, asc } from "drizzle-orm";
-import { db, schema, sql as rawSql } from "@/db";
+import { db, schema, sql as rawSql, type DbClient, type DrizzleTx } from "@/db";
 import type { Exercise } from "@/domain/lesson/ports";
 import type { Attempt, UserError, ReviewAttempt } from "../types";
 import { MistakePattern } from "../mistake-pattern";
@@ -11,7 +11,7 @@ import type {
 } from "../ports";
 
 export class DrizzleExerciseRepository implements ExerciseRepository {
-  constructor(private dbClient: any = db) {}
+  constructor(private dbClient: DbClient = db) {}
 
   async findExercise(
     exerciseId: string,
@@ -32,7 +32,7 @@ export class DrizzleExerciseRepository implements ExerciseRepository {
 }
 
 export class DrizzleAttemptRepository implements AttemptRepository {
-  constructor(private dbClient: any = db) {}
+  constructor(private dbClient: DbClient = db) {}
 
   async createAttempt(attempt: {
     exerciseId: string;
@@ -82,14 +82,18 @@ export class DrizzleAttemptRepository implements AttemptRepository {
   }): Promise<UserError> {
     const [row] = await this.dbClient
       .insert(schema.userErrors)
-      .values(error as any)
+      .values({
+        ...error,
+        errorType:
+          error.errorType as (typeof schema.errorTypeEnum.enumValues)[number],
+      })
       .returning();
     return row;
   }
 }
 
 export class DrizzleMistakePatternRepository implements MistakePatternRepository {
-  constructor(private dbClient: any = db) {}
+  constructor(private dbClient: DbClient = db) {}
 
   async findMistakePattern(
     patternId: string,
@@ -131,7 +135,10 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         and(
           eq(schema.mistakePatterns.userId, userId),
           eq(schema.mistakePatterns.conceptKey, conceptKey),
-          eq(schema.mistakePatterns.errorType, errorType as any)
+          eq(
+            schema.mistakePatterns.errorType,
+            errorType as (typeof schema.errorTypeEnum.enumValues)[number]
+          )
         )
       )
       .limit(1);
@@ -142,7 +149,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     const row = pattern.toDbRow();
     const rows = await this.dbClient
       .insert(schema.mistakePatterns)
-      .values(row)
+      .values(row as typeof schema.mistakePatterns.$inferInsert)
       .onConflictDoUpdate({
         target: [
           schema.mistakePatterns.userId,
@@ -169,7 +176,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     const row = pattern.toDbRow();
     await this.dbClient
       .insert(schema.mistakePatterns)
-      .values(row)
+      .values(row as typeof schema.mistakePatterns.$inferInsert)
       .onConflictDoUpdate({
         target: [
           schema.mistakePatterns.userId,
@@ -200,7 +207,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
   }
 
   async claimReviewPromptJob(workerId: string): Promise<MistakePattern | null> {
-    const rows = await rawSql`
+    const rows = (await rawSql`
       update mistake_patterns
       set review_prompt_status = 'running',
           review_prompt_locked_at = now(),
@@ -244,8 +251,8 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         review_prompt_error as "reviewPromptError",
         review_prompt_locked_at as "reviewPromptLockedAt",
         review_prompt_locked_by as "reviewPromptLockedBy"
-    `;
-    const pattern = rows[0] as any;
+    `) as unknown as Array<typeof schema.mistakePatterns.$inferSelect>;
+    const pattern = rows[0];
     return pattern ? MistakePattern.reconstitute(pattern) : null;
   }
 
@@ -267,7 +274,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       )
       .orderBy(asc(schema.mistakePatterns.dueAt))
       .limit(limit);
-    return rows.map((r: any) => MistakePattern.reconstitute(r));
+    return rows.map((r) => MistakePattern.reconstitute(r));
   }
 
   async findAllMistakePatterns(userId: string): Promise<MistakePattern[]> {
@@ -276,7 +283,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       .from(schema.mistakePatterns)
       .where(eq(schema.mistakePatterns.userId, userId))
       .orderBy(desc(schema.mistakePatterns.updatedAt));
-    return rows.map((r: any) => MistakePattern.reconstitute(r));
+    return rows.map((r) => MistakePattern.reconstitute(r));
   }
 
   async getDashboardMetrics(
@@ -321,8 +328,8 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
 
     // Merge and deduplicate dates for streak
     const allDateStrings = new Set<string>([
-      ...attemptDates.map((r: any) => r.activityDate),
-      ...reviewDates.map((r: any) => r.activityDate),
+      ...attemptDates.map((r) => r.activityDate),
+      ...reviewDates.map((r) => r.activityDate),
     ]);
 
     let learningStreakDays = 0;
@@ -491,13 +498,13 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       }
     }
 
-    const literalErrorTrend = (literalErrorTrendRows || []).map((row: any) => {
+    const literalErrorTrend = (literalErrorTrendRows || []).map((row) => {
       const total = Number(row.total) || 0;
       const literalCount = Number(row.literalCount) || 0;
       const literalRatio =
         total > 0 ? Math.round((literalCount / total) * 100) : 0;
       return {
-        week: row.week,
+        week: row.week ?? "",
         literalRatio,
         total,
       };
@@ -506,7 +513,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     return {
       dueCount: dueCountResult[0]?.value ?? 0,
       patternCount: patternCountResult[0]?.value ?? 0,
-      repeatedMistakes: repeatedMistakesRows.map((r: any) =>
+      repeatedMistakes: repeatedMistakesRows.map((r) =>
         MistakePattern.reconstitute(r)
       ),
       learningStreakDays,
@@ -521,7 +528,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
 }
 
 export class DrizzleTransactionCoordinator implements TransactionCoordinator {
-  constructor(private dbClient: any = db) {}
+  constructor(private dbClient: DbClient = db) {}
 
   async runInTransaction<T>(
     operation: (repos: {
@@ -531,7 +538,7 @@ export class DrizzleTransactionCoordinator implements TransactionCoordinator {
     }) => Promise<T>
   ): Promise<T> {
     if (typeof this.dbClient.transaction === "function") {
-      return await this.dbClient.transaction(async (txClient: any) => {
+      return await this.dbClient.transaction(async (txClient: DrizzleTx) => {
         return await operation({
           exercises: new DrizzleExerciseRepository(txClient),
           attempts: new DrizzleAttemptRepository(txClient),

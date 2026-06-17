@@ -20,7 +20,7 @@ export interface AttemptRepository {
     score: number;
     isCorrect: boolean;
     feedbackVi: string;
-    gradingMetadata: any;
+    gradingMetadata: Record<string, any> | null;
   }): Promise<Attempt>;
 
   createReviewAttempt(attempt: {
