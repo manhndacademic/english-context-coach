@@ -102,6 +102,7 @@ export function analysisPrompt(sourceText: string, userHighlights?: string[]) {
     "Keep meaningInContextVi concise, and include whyConfusingVi only when there is a real learner trap.",
     "Use natural learner-friendly Vietnamese.",
     "When referencing English key phrases, grammatical structures, or technical terms within Vietnamese descriptions (such as structureNotesVi, whyConfusingVi, contextExplanationVi, or explanationVi), format them using markdown backticks (e.g., `concerned with` or `Rooted in`). Use standard markdown (**bold**, *italic*) for other inline emphasis. Avoid using raw single quotes ('...') for these items.",
+    "CRITICAL: Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English or Vietnamese sentences (such as examples in `examples` or corrected sentences in `correctedSentenceEn`). The sentences must look natural as they would appear in regular written text.",
     "For technical/workplace terms, keep English when that is natural in Vietnamese, then explain it.",
     "The title must be neutral and must avoid names, company names, project identifiers, URLs, and sensitive snippets.",
     "JSON shape:",

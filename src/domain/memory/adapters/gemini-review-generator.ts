@@ -3,6 +3,7 @@ import { reviewPromptGenerationPrompt } from "@/lib/ai/prompts";
 import { reviewPromptSchema } from "@/lib/ai/schemas";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { ReviewPromptGenerator } from "../ports";
+import { cleanEmbeddedQuotesOrBackticks } from "@/lib/utils";
 
 export class GeminiReviewPromptGenerator implements ReviewPromptGenerator {
   constructor(private llm: LLMProvider) {}
@@ -39,12 +40,18 @@ export class GeminiReviewPromptGenerator implements ReviewPromptGenerator {
 
     return {
       reviewType: result.reviewType,
-      reviewPromptEn: result.reviewPromptEn,
+      reviewPromptEn: cleanEmbeddedQuotesOrBackticks(result.reviewPromptEn),
       reviewPromptVi: result.reviewPromptVi,
       reviewRubricVi: result.reviewRubricVi,
-      reviewCorrectAnswer: result.reviewCorrectAnswer,
-      reviewAcceptableAnswers: result.reviewAcceptableAnswers,
-      reviewChoices: result.reviewChoices ?? null,
+      reviewCorrectAnswer: cleanEmbeddedQuotesOrBackticks(
+        result.reviewCorrectAnswer
+      ),
+      reviewAcceptableAnswers: result.reviewAcceptableAnswers.map((a) =>
+        cleanEmbeddedQuotesOrBackticks(a)
+      ),
+      reviewChoices: result.reviewChoices
+        ? result.reviewChoices.map((c) => cleanEmbeddedQuotesOrBackticks(c))
+        : null,
     };
   }
 }

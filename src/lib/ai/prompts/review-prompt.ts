@@ -50,7 +50,8 @@ export function reviewPromptGenerationPrompt(input: {
     "5. Provide a clear correct response (`reviewCorrectAnswer`) and 1-3 alternative responses (`reviewAcceptableAnswers`).",
     "   - For translation types, these must be full natural translations of the entire generated sentence (`reviewPromptEn`).",
     "6. Provide a short Vietnamese grading rubric (`reviewRubricVi`) highlighting what key meaning components the response must preserve and what word-by-word traps to penalize.",
-    "7. Return strict JSON only. No markdown.",
+    "7. CRITICAL: Do NOT wrap the concept phrase, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English or Vietnamese sentences (such as `reviewPromptEn`, `reviewCorrectAnswer`, or `reviewAcceptableAnswers`). The sentences must look natural as they would appear in regular written text.",
+    "8. Return strict JSON only. No markdown.",
     "JSON shape:",
     JSON.stringify(reviewPromptJsonShape),
   ].join("\n\n");

@@ -8,6 +8,7 @@ import type {
   SaveExercisesInput,
 } from "../ports";
 import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
+import { cleanEmbeddedQuotesOrBackticks } from "@/lib/utils";
 
 export class GeminiGenerationEngine implements GenerationEngine {
   constructor(
@@ -52,9 +53,13 @@ export class GeminiGenerationEngine implements GenerationEngine {
       contextExplanationVi: result.contextExplanationVi,
       sentenceBreakdowns: result.sentenceBreakdowns.map((breakdown) => ({
         sentence: breakdown.sentence,
-        correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
+        correctedSentenceEn: breakdown.correctedSentenceEn
+          ? cleanEmbeddedQuotesOrBackticks(breakdown.correctedSentenceEn)
+          : undefined,
         diffSpans: breakdown.diffSpans ?? undefined,
-        naturalMeaningVi: breakdown.naturalMeaningVi,
+        naturalMeaningVi: cleanEmbeddedQuotesOrBackticks(
+          breakdown.naturalMeaningVi
+        ),
         structureNotesVi: breakdown.structureNotesVi,
         toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
       })),
@@ -65,7 +70,10 @@ export class GeminiGenerationEngine implements GenerationEngine {
         conceptMeaningVi: phrase.conceptMeaningVi,
         meaningVi: phrase.meaningVi,
         meaningInContextVi: phrase.meaningInContextVi,
-        examples: phrase.examples ?? [],
+        examples: (phrase.examples ?? []).map((ex) => ({
+          exampleEn: cleanEmbeddedQuotesOrBackticks(ex.exampleEn),
+          exampleVi: cleanEmbeddedQuotesOrBackticks(ex.exampleVi),
+        })),
         literalTranslationVi: phrase.literalTranslationVi ?? undefined,
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
         whyConfusingVi: phrase.whyConfusingVi ?? undefined,
@@ -110,15 +118,26 @@ export class GeminiGenerationEngine implements GenerationEngine {
         focus: "focus" in exercise ? exercise.focus : undefined,
         type: exercise.type as any,
         promptVi: exercise.promptVi,
-        promptEn: "promptEn" in exercise ? exercise.promptEn : undefined,
-        choices: "choices" in exercise ? exercise.choices : undefined,
-        correctAnswer:
-          "correctAnswer" in exercise
-            ? (exercise.correctAnswer as any)
+        promptEn:
+          "promptEn" in exercise && exercise.promptEn
+            ? cleanEmbeddedQuotesOrBackticks(exercise.promptEn)
             : undefined,
+        choices:
+          "choices" in exercise && exercise.choices
+            ? exercise.choices.map((c) => cleanEmbeddedQuotesOrBackticks(c))
+            : undefined,
+        correctAnswer:
+          "correctAnswer" in exercise &&
+          typeof exercise.correctAnswer === "string"
+            ? cleanEmbeddedQuotesOrBackticks(exercise.correctAnswer)
+            : "correctAnswer" in exercise
+              ? exercise.correctAnswer
+              : undefined,
         acceptableAnswers:
-          "acceptableAnswers" in exercise
-            ? exercise.acceptableAnswers
+          "acceptableAnswers" in exercise && exercise.acceptableAnswers
+            ? exercise.acceptableAnswers.map((a) =>
+                cleanEmbeddedQuotesOrBackticks(a)
+              )
             : undefined,
         rubricVi: "rubricVi" in exercise ? exercise.rubricVi : undefined,
       })),
