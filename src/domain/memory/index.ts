@@ -9,7 +9,6 @@ import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator"
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getLLMProvider } from "@/domain/ai";
 import { getTextProcessor } from "@/domain/text";
-import { getLessonRepository } from "@/domain/lesson";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
 import type { LearnerMemoryEngine } from "./types";
 import type {
@@ -24,6 +23,11 @@ let cachedExerciseRepo: ExerciseRepository | null = null;
 let cachedAttemptRepo: AttemptRepository | null = null;
 let cachedMistakePatternRepo: MistakePatternRepository | null = null;
 let cachedTxCoordinator: TransactionCoordinator | null = null;
+let lessonRepoInstance: any = null;
+
+export function setLessonRepositoryForMemory(repo: any) {
+  lessonRepoInstance = repo;
+}
 
 export function getExerciseRepository(): ExerciseRepository {
   if (!cachedExerciseRepo) {
@@ -59,7 +63,8 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
     const attemptRepo = getAttemptRepository();
     const mistakePatternRepo = getMistakePatternRepository();
     const txCoordinator = getTransactionCoordinator();
-    const lessonRepo = getLessonRepository();
+    const lessonRepo =
+      lessonRepoInstance || require("@/domain/lesson").getLessonRepository();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);

@@ -3,6 +3,11 @@ import { DrizzleLessonRepository } from "./adapters/drizzle-lesson-repo";
 import { GeminiGenerationEngine } from "./adapters/gemini-generation";
 import { DefaultLessonGenerationEngine } from "./engine";
 import { getLLMProvider } from "@/domain/ai";
+import {
+  getLearnerMemoryEngine,
+  getMistakePatternRepository,
+  setLessonRepositoryForMemory,
+} from "@/domain/memory";
 import { getTextProcessor } from "@/domain/text";
 import type {
   LessonRepository,
@@ -16,6 +21,7 @@ let cachedEngine: LessonGenerationEngine | null = null;
 export function getLessonRepository(): LessonRepository {
   if (!cachedLessons) {
     cachedLessons = new DrizzleLessonRepository(db, getTextProcessor());
+    setLessonRepositoryForMemory(cachedLessons);
   }
   return cachedLessons;
 }
@@ -29,10 +35,31 @@ export function getGenerationEngine(
 
 export function getLessonGenerationEngine(): LessonGenerationEngine {
   if (!cachedEngine) {
+    const lessonRepository = getLessonRepository();
     cachedEngine = new DefaultLessonGenerationEngine(
-      getLessonRepository(),
+      lessonRepository,
+      lessonRepository,
+      lessonRepository,
+      lessonRepository,
+      lessonRepository,
       getGenerationEngine(),
-      getTextProcessor()
+      getTextProcessor(),
+      {
+        notifyJobQueued: async () => {
+          const { notifyJobQueued } = await import("@/lib/jobs/trigger");
+          await notifyJobQueued();
+        },
+        bulkCreateSrsCardsFromKeyPhrases: async (userId, keyPhrases) =>
+          getLearnerMemoryEngine().bulkCreateSrsCardsFromKeyPhrases(
+            userId,
+            keyPhrases
+          ),
+        scrubSensitiveContentForSourceText: async (userId, sourceTextId) =>
+          getMistakePatternRepository().scrubSensitiveContentForSourceText(
+            userId,
+            sourceTextId
+          ),
+      }
     );
   }
   return cachedEngine;
@@ -57,10 +84,6 @@ export type {
   SentenceBreakdown,
   LessonFocus,
 } from "./ports";
-
-export { DrizzleLessonRepository } from "./adapters/drizzle-lesson-repo";
-export { GeminiGenerationEngine } from "./adapters/gemini-generation";
-export { DefaultLessonGenerationEngine } from "./engine";
 
 export {
   dedupeKeyPhrases,

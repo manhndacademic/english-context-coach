@@ -11,17 +11,15 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { db, schema, sql as rawSql, type DbClient, type DrizzleTx } from "@/db";
-import { notifyJobQueued } from "@/lib/jobs/trigger";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import { getTextProcessor, type TextProcessor } from "@/domain/text";
-import { dedupeKeyPhrases, findMatchingLessonFocus } from "../rules";
+import { findMatchingLessonFocus } from "../rules";
 import {
   selectDisplayGenerationJob,
   type GenerationMilestoneCode,
   type GenerationStage,
   sanitizeGenerationThought,
 } from "@/domain/generation-progress";
-import type { MistakePattern as DbMistakePattern } from "@/db/schema";
 import type {
   LessonRepository,
   Lesson,
@@ -76,40 +74,6 @@ export class DrizzleLessonRepository implements LessonRepository {
   }
 
   async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {
-    const lessons = await this.dbClient
-      .select({ id: schema.lessons.id })
-      .from(schema.lessons)
-      .where(
-        and(
-          eq(schema.lessons.sourceTextId, sourceTextId),
-          eq(schema.lessons.userId, userId)
-        )
-      );
-
-    const lessonIds = lessons.map((lesson: { id: string }) => lesson.id);
-    if (lessonIds.length) {
-      const patterns = await this.dbClient
-        .select()
-        .from(schema.mistakePatterns)
-        .where(eq(schema.mistakePatterns.userId, userId));
-
-      const sensitivePatternIds = patterns
-        .filter((pattern: DbMistakePattern) =>
-          this.textProcessor.shouldScrubMistakePattern({
-            phrase: pattern.normalizedPhrase,
-            meaningVi: pattern.meaningVi,
-            safeReviewPromptVi: pattern.safeReviewPromptVi,
-          })
-        )
-        .map((pattern: DbMistakePattern) => pattern.id);
-
-      if (sensitivePatternIds.length > 0) {
-        await this.dbClient
-          .delete(schema.mistakePatterns)
-          .where(inArray(schema.mistakePatterns.id, sensitivePatternIds));
-      }
-    }
-
     await this.dbClient
       .delete(schema.sourceTexts)
       .where(
@@ -247,15 +211,9 @@ export class DrizzleLessonRepository implements LessonRepository {
         })
         .where(eq(schema.lessons.id, lessonId));
 
-      const dedupedKeyPhrases = dedupeKeyPhrases(
-        analysis.keyPhrases,
-        sourceTextRow.content,
-        this.textProcessor
-      );
-
-      if (dedupedKeyPhrases.length) {
+      if (analysis.keyPhrases.length) {
         await tx.insert(schema.keyPhrases).values(
-          dedupedKeyPhrases.map((phrase) => ({
+          analysis.keyPhrases.map((phrase) => ({
             lessonId,
             userId,
             phrase: phrase.phrase,
@@ -725,10 +683,6 @@ export class DrizzleLessonRepository implements LessonRepository {
         updatedAt: new Date(),
       })
       .where(eq(schema.generationJobs.id, jobId));
-
-    if (status === "queued") {
-      await notifyJobQueued();
-    }
   }
 
   async assertQueueCapacity(userId: string): Promise<string | null> {
@@ -958,7 +912,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     contentHash: string,
     requestedMode?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
+    return (await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [sourceText] = await tx
         .insert(schema.sourceTexts)
         .values({
@@ -996,9 +950,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         .returning();
 
       return { lesson, job };
-    });
-    await notifyJobQueued();
-    return result as { lesson: Lesson; job: GenerationJob };
+    })) as { lesson: Lesson; job: GenerationJob };
   }
 
   async createLessonAndJob(
@@ -1007,7 +959,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     version: number,
     stage: "analysis" | "exercises"
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
-    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
+    return (await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [lesson] = await tx
         .insert(schema.lessons)
         .values({
@@ -1034,9 +986,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         .returning();
 
       return { lesson, job };
-    });
-    await notifyJobQueued();
-    return result as { lesson: Lesson; job: GenerationJob };
+    })) as { lesson: Lesson; job: GenerationJob };
   }
 
   async createJob(
@@ -1045,7 +995,7 @@ export class DrizzleLessonRepository implements LessonRepository {
     lessonId: string,
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob> {
-    const result = await this.dbClient.transaction(async (tx: DrizzleTx) => {
+    return (await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [job] = await tx
         .insert(schema.generationJobs)
         .values({
@@ -1074,8 +1024,6 @@ export class DrizzleLessonRepository implements LessonRepository {
       }
 
       return job;
-    });
-    await notifyJobQueued();
-    return result as GenerationJob;
+    })) as GenerationJob;
   }
 }

@@ -28,3 +28,5 @@ export async function requireAdmin() {
   }
   return user;
 }
+
+export type SessionUser = Awaited<ReturnType<typeof requireUser>>;

@@ -8,8 +8,6 @@ import {
 import { validatedAction } from "@/lib/action-builder";
 import { z } from "zod";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
-import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
 
 export type ReviewResultState = {
   success?: boolean;
@@ -105,30 +103,5 @@ export async function getMistakePatternLessonsMap(
     return {};
   }
 
-  const rows = await db
-    .select({
-      conceptKey: schema.userErrors.conceptKey,
-      errorType: schema.userErrors.errorType,
-      lessonId: schema.lessons.id,
-      lessonTitle: schema.lessons.title,
-    })
-    .from(schema.userErrors)
-    .innerJoin(
-      schema.lessons,
-      eq(schema.userErrors.lessonId, schema.lessons.id)
-    )
-    .where(eq(schema.userErrors.userId, userId));
-
-  const map: Record<string, Array<{ id: string; title: string | null }>> = {};
-  for (const row of rows) {
-    if (!row.lessonId) continue;
-    const key = `${row.conceptKey}_${row.errorType}`;
-    if (!map[key]) {
-      map[key] = [];
-    }
-    if (!map[key].some((l) => l.id === row.lessonId)) {
-      map[key].push({ id: row.lessonId, title: row.lessonTitle });
-    }
-  }
-  return map;
+  return getMistakePatternRepository().getLessonsForPatterns(userId);
 }

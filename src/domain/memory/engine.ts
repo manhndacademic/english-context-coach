@@ -3,7 +3,6 @@ import type { TextProcessor } from "@/domain/text";
 import { getLogger, parseDbDate } from "@/lib/logger";
 
 const log = getLogger("d.m.engine.LearnerMemoryEngine");
-import type { LessonRepository, Exercise } from "@/domain/lesson/ports";
 import { MistakePattern } from "./mistake-pattern";
 import type {
   ExerciseRepository,
@@ -13,6 +12,9 @@ import type {
   GradingEngine,
   ReviewPromptGenerator,
   LearnerGradingResult,
+  MemoryLessonLookup,
+  GradableExerciseInstance,
+  MemoryKeyPhraseInput,
 } from "./ports";
 import type {
   LearnerMemoryEngine as LearnerMemoryEngineInterface,
@@ -62,7 +64,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     _attemptRepo: AttemptRepository,
     private mistakePatternRepo: MistakePatternRepository,
     private txCoordinator: TransactionCoordinator,
-    private lessonRepo: LessonRepository,
+    private lessonRepo: MemoryLessonLookup,
     private grader: GradingEngine,
     private notifyQueue: () => Promise<void>,
     private reviewGenerator: ReviewPromptGenerator,
@@ -382,11 +384,18 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     return await this.mistakePatternRepo.getDashboardMetrics(userId, dueAt);
   }
 
+  async bulkCreateSrsCardsFromKeyPhrases(
+    userId: string,
+    keyPhrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }> {
+    return this.mistakePatternRepo.bulkCreateFromKeyPhrases(userId, keyPhrases);
+  }
+
   private async applyAttemptMemoryTransition(
     input: {
       userId: string;
       lessonId: string;
-      exercise: Exercise;
+      exercise: GradableExerciseInstance;
       answer: string;
       grade: LearnerGradingResult;
     },
@@ -510,7 +519,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
   private async resolveMemoryConcept(input: {
     userId: string;
     lessonId: string;
-    exercise: Exercise;
+    exercise: GradableExerciseInstance;
     answer: string;
     grade: LearnerGradingResult;
   }): Promise<ResolvedMemoryConcept> {
@@ -537,7 +546,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     const category =
       keyPhrase?.category ??
       (lessonFocus
-        ? categoryForLessonFocus(lessonFocus.category)
+        ? categoryForLessonFocus(lessonFocus.category as any)
         : "general_phrase");
     const meaningVi =
       keyPhrase?.meaningVi ??

@@ -43,7 +43,6 @@ export const createSourceTextAction = validatedAction(
       data.inputMode
     );
     if (!result.ok) return { error: result.message };
-    await notifyJobQueued();
     revalidatePath("/dashboard");
     redirect(`/lessons/${result.lessonId}`);
   }
@@ -70,30 +69,9 @@ export const regenerateLessonAction = validatedAction(
       latestLesson.id
     );
     if (result.ok) {
-      await notifyJobQueued();
       redirect(`/lessons/${result.lessonId}`);
     }
     revalidatePath("/dashboard");
-  }
-);
-
-const retryExercisesSchema = z.object({
-  lessonId: z
-    .string()
-    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
-});
-
-export const retryExercisesAction = validatedAction(
-  retryExercisesSchema,
-  async (data, user) => {
-    const result = await getLessonGenerationEngine().retry(
-      user.id,
-      data.lessonId
-    );
-    if (result.ok) {
-      await notifyJobQueued();
-      revalidatePath(`/lessons/${data.lessonId}`);
-    }
   }
 );
 
@@ -111,7 +89,6 @@ export const retryLessonGenerationAction = validatedAction(
       data.lessonId
     );
     if (result.ok) {
-      await notifyJobQueued();
       revalidatePath(`/lessons/${data.lessonId}`);
     }
   }
@@ -142,8 +119,10 @@ const deleteSourceTextSchema = z.object({
 export const deleteSourceTextAction = validatedAction(
   deleteSourceTextSchema,
   async (data, user) => {
-    const repo = getLessonRepository();
-    await repo.deleteSourceText(user.id, data.sourceTextId);
+    await getLessonGenerationEngine().deleteSourceText(
+      user.id,
+      data.sourceTextId
+    );
     revalidatePath("/dashboard");
     redirect("/dashboard");
   }

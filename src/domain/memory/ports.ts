@@ -1,14 +1,93 @@
-import type { Exercise } from "@/domain/lesson/ports";
 import type { Attempt, UserError, ReviewAttempt } from "./types";
 import type { GradingResult } from "@/lib/ai/schemas";
 import { MistakePattern } from "./mistake-pattern";
+
+export interface MemoryKeyPhraseInput {
+  id: string;
+  conceptKey: string;
+  normalizedPhrase: string;
+  senseKey: string;
+  category:
+    | "idiom"
+    | "phrasal_verb"
+    | "technical_term"
+    | "collocation"
+    | "grammar_pattern"
+    | "business_phrase"
+    | "general_phrase";
+  conceptMeaningVi: string;
+  isSensitive: boolean;
+}
 
 export type LearnerGradingResult = GradingResult & {
   systemFailure?: boolean;
 };
 
+export interface GradableExercise {
+  type:
+    | "meaning_choice"
+    | "cloze_phrase"
+    | "natural_translation"
+    | "focus_question"
+    | "trap_choice"
+    | "phrase_production"
+    | "dialogue_completion"
+    | "register_shift"
+    | "trap_detect";
+  promptVi: string;
+  promptEn: string | null;
+  choices: string[] | null;
+  correctAnswer: string | null;
+  acceptableAnswers: string[] | null;
+  rubricVi: string | null;
+}
+
+export interface MemoryLessonLookup {
+  findKeyPhrase(keyPhraseId: string): Promise<{
+    id: string;
+    normalizedPhrase: string;
+    senseKey: string;
+    category:
+      | "idiom"
+      | "phrasal_verb"
+      | "technical_term"
+      | "collocation"
+      | "grammar_pattern"
+      | "business_phrase"
+      | "general_phrase";
+    meaningVi: string;
+    conceptKey: string;
+    conceptPhrase: string;
+    conceptMeaningVi: string;
+    phrase: string;
+    isSensitive: boolean;
+  } | null>;
+  findLessonFocus(lessonFocusId: string): Promise<{
+    id: string;
+    title: string;
+    category: string;
+    explanationVi: string;
+    conceptKey: string;
+    conceptPhrase: string;
+    conceptMeaningVi: string;
+  } | null>;
+}
+
+export type GradableExerciseInstance = GradableExercise & {
+  id: string;
+  lessonId: string;
+  userId: string;
+  keyPhraseId: string | null;
+  lessonFocusId: string | null;
+  orderIndex: number;
+  createdAt: Date;
+};
+
 export interface ExerciseRepository {
-  findExercise(exerciseId: string, userId: string): Promise<Exercise | null>;
+  findExercise(
+    exerciseId: string,
+    userId: string
+  ): Promise<GradableExerciseInstance | null>;
 }
 
 export interface AttemptRepository {
@@ -68,6 +147,17 @@ export interface MistakePatternRepository {
     limit: number
   ): Promise<MistakePattern[]>;
   findAllMistakePatterns(userId: string): Promise<MistakePattern[]>;
+  bulkCreateFromKeyPhrases(
+    userId: string,
+    phrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }>;
+  scrubSensitiveContentForSourceText(
+    userId: string,
+    sourceTextId: string
+  ): Promise<void>;
+  getLessonsForPatterns(
+    userId: string
+  ): Promise<Record<string, Array<{ id: string; title: string | null }>>>;
   getDashboardMetrics(
     userId: string,
     dueAt: Date
@@ -103,7 +193,7 @@ export interface GradingEngine {
   grade(input: {
     userId: string;
     lessonId?: string;
-    exercise: Exercise;
+    exercise: GradableExercise;
     answer: string;
   }): Promise<LearnerGradingResult>;
 }

@@ -1,6 +1,5 @@
 import {
   regenerateLessonAction,
-  retryExercisesAction,
   retryLessonGenerationAction,
   forceRetryLessonAction,
 } from "@/app/actions/source-texts";
@@ -120,7 +119,7 @@ export function LessonHeader({ lesson, progress, now }: LessonHeaderProps) {
           ) : null}
           {lesson.analysisStatus === "succeeded" &&
           lesson.exerciseStatus === "failed" ? (
-            <form action={retryExercisesAction}>
+            <form action={retryLessonGenerationAction}>
               <input name="lessonId" type="hidden" value={lesson.id} />
               <button
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 font-semibold text-sm transition-all shadow-sm bg-surface-strong text-text hover:bg-border hover:-translate-y-px h-[38px] cursor-pointer"

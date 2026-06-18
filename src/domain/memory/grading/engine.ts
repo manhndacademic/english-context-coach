@@ -1,9 +1,12 @@
-import type { Exercise } from "@/domain/lesson/ports";
 import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { LLMProvider } from "@/domain/ai";
 import { gradingPrompt } from "@/lib/ai/prompts";
 import { gradingSchema } from "@/lib/ai/schemas";
-import type { GradingEngine, LearnerGradingResult } from "../ports";
+import type {
+  GradingEngine,
+  LearnerGradingResult,
+  GradableExercise,
+} from "../ports";
 
 function normalizeAnswer(value: string) {
   return value
@@ -15,7 +18,7 @@ function normalizeAnswer(value: string) {
 }
 
 function gradeObjectiveExercise(
-  exercise: Exercise,
+  exercise: GradableExercise,
   answer: string
 ): LearnerGradingResult | null {
   const isMultipleChoice =
@@ -76,7 +79,7 @@ export class DefaultGradingEngine implements GradingEngine {
   async grade(input: {
     userId: string;
     lessonId?: string;
-    exercise: Exercise;
+    exercise: GradableExercise;
     answer: string;
   }): Promise<LearnerGradingResult> {
     const ruleGrade = gradeObjectiveExercise(input.exercise, input.answer);

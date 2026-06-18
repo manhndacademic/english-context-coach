@@ -1,4 +1,5 @@
 import { MistakePattern } from "./mistake-pattern";
+import type { MemoryKeyPhraseInput } from "./ports";
 
 export interface Attempt {
   id: string;
@@ -128,4 +129,8 @@ export interface LearnerMemoryEngine {
       total: number;
     }>;
   }>;
+  bulkCreateSrsCardsFromKeyPhrases(
+    userId: string,
+    keyPhrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }>;
 }

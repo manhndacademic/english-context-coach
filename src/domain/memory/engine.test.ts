@@ -171,6 +171,19 @@ class MockMistakePatternRepository implements MistakePatternRepository {
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
+  async bulkCreateFromKeyPhrases(_userId: string, phrases: any[]) {
+    return { inserted: phrases.length, skipped: 0 };
+  }
+
+  async scrubSensitiveContentForSourceText(
+    _userId: string,
+    _sourceTextId: string
+  ) {}
+
+  async getLessonsForPatterns(_userId: string) {
+    return {};
+  }
+
   async getDashboardMetrics(_userId: string, _dueAt: Date) {
     return {
       dueCount: 0,

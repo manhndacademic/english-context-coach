@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
+import type { SessionUser } from "@/lib/auth/guards";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 interface ActionOptions {
@@ -8,7 +9,7 @@ interface ActionOptions {
 
 export function validatedAction<T extends z.ZodTypeAny, R>(
   schema: T,
-  handler: (data: z.infer<T>, user: any) => Promise<R>,
+  handler: (data: z.infer<T>, user: SessionUser) => Promise<R>,
   options: ActionOptions = { role: "user" }
 ) {
   return async (...args: any[]): Promise<R> => {

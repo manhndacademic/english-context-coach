@@ -407,6 +407,10 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
     genEngine = new MockGenerationEngine();
     engine = new DefaultLessonGenerationEngine(
       repo,
+      repo,
+      repo,
+      repo,
+      repo,
       genEngine,
       getTextProcessor()
     );
@@ -599,6 +603,66 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       expect(genEngine.lastAnalysisLessonId).toBe("les-1");
       expect(genEngine.lastExercisesUserId).toBe("user-special-123");
       expect(genEngine.lastExercisesLessonId).toBe("les-1");
+    });
+
+    it("deduplicates key phrases before saving analysis", async () => {
+      const job = {
+        id: "job-dedup",
+        userId: "user-1",
+        sourceTextId: "st-1",
+        lessonId: "les-1",
+        status: "queued",
+        stage: "analysis",
+        attempts: 0,
+      };
+      repo.generationJobs.set(job.id, job);
+
+      genEngine.analysisResult = {
+        title: "Mock Lesson",
+        textType: "general",
+        detectedLevel: "B2",
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "Dịch tự nhiên",
+        contextExplanationVi: "Giải thích",
+        sentenceBreakdowns: [],
+        keyPhrases: [
+          {
+            phrase: "take a look",
+            conceptKey: "take_a_look",
+            conceptPhrase: "take a look",
+            conceptMeaningVi: "xem qua",
+            meaningVi: "xem qua",
+            meaningInContextVi: "xem qua",
+            category: "general_phrase",
+            difficulty: "B2",
+            examples: [],
+          },
+          {
+            phrase: "take a look when you get a chance",
+            conceptKey: "take_a_look",
+            conceptPhrase: "take a look",
+            conceptMeaningVi: "xem qua",
+            meaningVi: "xem qua",
+            meaningInContextVi: "xem qua cơ hội",
+            category: "general_phrase",
+            difficulty: "B2",
+            examples: [],
+          },
+        ],
+        lessonFocuses: [],
+      } as any;
+
+      const result = await engine.processNext("worker-1");
+      expect(result.status).toBe("processed");
+      if (result.status === "processed") {
+        expect(result.success).toBe(true);
+      }
+
+      const savedLesson = repo.lessons.get("les-1");
+      expect(savedLesson.keyPhrases).toHaveLength(1);
+      expect(savedLesson.keyPhrases[0].phrase).toBe(
+        "take a look when you get a chance"
+      );
     });
   });
 

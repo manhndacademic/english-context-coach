@@ -1,6 +1,14 @@
-import { and, eq, sql as drizzleSql, lte, count, desc, asc } from "drizzle-orm";
+import {
+  and,
+  eq,
+  sql as drizzleSql,
+  lte,
+  count,
+  desc,
+  asc,
+  inArray,
+} from "drizzle-orm";
 import { db, schema, sql as rawSql, type DbClient, type DrizzleTx } from "@/db";
-import type { Exercise } from "@/domain/lesson/ports";
 import type { Attempt, UserError, ReviewAttempt } from "../types";
 import { MistakePattern } from "../mistake-pattern";
 import type {
@@ -8,6 +16,8 @@ import type {
   AttemptRepository,
   MistakePatternRepository,
   TransactionCoordinator,
+  GradableExercise,
+  MemoryKeyPhraseInput,
 } from "../ports";
 
 export class DrizzleExerciseRepository implements ExerciseRepository {
@@ -16,7 +26,18 @@ export class DrizzleExerciseRepository implements ExerciseRepository {
   async findExercise(
     exerciseId: string,
     userId: string
-  ): Promise<Exercise | null> {
+  ): Promise<
+    | (GradableExercise & {
+        id: string;
+        lessonId: string;
+        userId: string;
+        keyPhraseId: string | null;
+        lessonFocusId: string | null;
+        orderIndex: number;
+        createdAt: Date;
+      })
+    | null
+  > {
     const [row] = await this.dbClient
       .select()
       .from(schema.exercises)
@@ -27,7 +48,7 @@ export class DrizzleExerciseRepository implements ExerciseRepository {
         )
       )
       .limit(1);
-    return row ?? null;
+    return (row as any) ?? null;
   }
 }
 
@@ -284,6 +305,117 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       .where(eq(schema.mistakePatterns.userId, userId))
       .orderBy(desc(schema.mistakePatterns.updatedAt));
     return rows.map((r) => MistakePattern.reconstitute(r));
+  }
+
+  async bulkCreateFromKeyPhrases(
+    userId: string,
+    phrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }> {
+    if (phrases.length === 0) {
+      return { inserted: 0, skipped: 0 };
+    }
+
+    const values = phrases.map((phrase) => ({
+      userId,
+      source: "phrase" as const,
+      keyPhraseId: phrase.id,
+      conceptKey: phrase.conceptKey,
+      normalizedPhrase: phrase.normalizedPhrase,
+      senseKey: phrase.senseKey,
+      category: phrase.category,
+      errorType: "phrase_misunderstanding" as const,
+      meaningVi: phrase.conceptMeaningVi,
+      safeReviewPromptVi: phrase.conceptMeaningVi,
+      isSensitive: phrase.isSensitive,
+      reviewPromptStatus: "queued" as const,
+    }));
+
+    const insertedRows = await this.dbClient
+      .insert(schema.mistakePatterns)
+      .values(values)
+      .onConflictDoNothing({
+        target: [
+          schema.mistakePatterns.userId,
+          schema.mistakePatterns.conceptKey,
+          schema.mistakePatterns.errorType,
+        ],
+      })
+      .returning({ id: schema.mistakePatterns.id });
+
+    return {
+      inserted: insertedRows.length,
+      skipped: phrases.length - insertedRows.length,
+    };
+  }
+
+  async scrubSensitiveContentForSourceText(
+    userId: string,
+    sourceTextId: string
+  ): Promise<void> {
+    const lessonRows = await this.dbClient
+      .select({ id: schema.lessons.id })
+      .from(schema.lessons)
+      .where(
+        and(
+          eq(schema.lessons.userId, userId),
+          eq(schema.lessons.sourceTextId, sourceTextId)
+        )
+      );
+
+    if (lessonRows.length === 0) {
+      return;
+    }
+
+    const lessonIds = lessonRows.map((lesson) => lesson.id);
+    const keyPhraseRows = await this.dbClient
+      .select({ id: schema.keyPhrases.id })
+      .from(schema.keyPhrases)
+      .where(inArray(schema.keyPhrases.lessonId, lessonIds));
+
+    if (keyPhraseRows.length === 0) {
+      return;
+    }
+
+    const keyPhraseIds = keyPhraseRows.map((phrase) => phrase.id);
+    await this.dbClient
+      .delete(schema.mistakePatterns)
+      .where(
+        and(
+          eq(schema.mistakePatterns.userId, userId),
+          inArray(schema.mistakePatterns.keyPhraseId, keyPhraseIds)
+        )
+      );
+  }
+
+  async getLessonsForPatterns(
+    userId: string
+  ): Promise<Record<string, Array<{ id: string; title: string | null }>>> {
+    const rows = await this.dbClient
+      .select({
+        conceptKey: schema.userErrors.conceptKey,
+        errorType: schema.userErrors.errorType,
+        lessonId: schema.lessons.id,
+        lessonTitle: schema.lessons.title,
+      })
+      .from(schema.userErrors)
+      .innerJoin(
+        schema.lessons,
+        eq(schema.userErrors.lessonId, schema.lessons.id)
+      )
+      .where(eq(schema.userErrors.userId, userId));
+
+    const map: Record<string, Array<{ id: string; title: string | null }>> = {};
+    for (const row of rows) {
+      if (!row.lessonId) continue;
+      const key = `${row.conceptKey}_${row.errorType}`;
+      const lessons = map[key] ?? [];
+      if (!lessons.some((lesson) => lesson.id === row.lessonId)) {
+        lessons.push({ id: row.lessonId, title: row.lessonTitle });
+      }
+      map[key] = lessons;
+    }
+
+    return map;
   }
 
   async getDashboardMetrics(

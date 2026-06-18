@@ -1,25 +1,52 @@
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import type { TextProcessor } from "@/domain/text";
+import { notifyJobQueued } from "@/lib/jobs/trigger";
 import {
   getPlainTextFromJSON,
   getHighlightsFromJSON,
 } from "@/domain/text/processor";
 import { sanitizeGenerationThought } from "@/domain/generation-progress";
-import { assertCompleteExercises } from "./rules";
+import { assertCompleteExercises, prepareAnalysisForSave } from "./rules";
 import { getLogger, parseDbDate } from "@/lib/logger";
-import { addPhrasesToReviewQueue } from "@/lib/phrases/addPhrasesToReviewQueue";
 import type {
   LessonGenerationEngine as LessonGenerationEngineInterface,
-  LessonRepository,
   GenerationEngine,
   LessonGenerationResult,
   JobProcessResult,
   GenerationProgress,
   GenerationJob,
   SaveExercisesInput,
+  SourceTextRepository,
+  LessonContentRepository,
+  GenerationJobRepository,
+  GenerationProgressRepository,
+  LessonTransactionRepository,
+  KeyPhrase,
 } from "./ports";
 
 const log = getLogger("d.l.engine.LessonGenerationEngine");
+
+interface LessonEngineCollaborators {
+  notifyJobQueued(): Promise<void>;
+  bulkCreateSrsCardsFromKeyPhrases(
+    userId: string,
+    keyPhrases: KeyPhrase[]
+  ): Promise<{ inserted: number; skipped: number }>;
+  scrubSensitiveContentForSourceText(
+    userId: string,
+    sourceTextId: string
+  ): Promise<void>;
+}
+
+const defaultCollaborators: LessonEngineCollaborators = {
+  async notifyJobQueued() {
+    await notifyJobQueued();
+  },
+  async bulkCreateSrsCardsFromKeyPhrases() {
+    return { inserted: 0, skipped: 0 };
+  },
+  async scrubSensitiveContentForSourceText() {},
+};
 
 function isTransientGenerationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -51,9 +78,14 @@ function logSpringStyle(
 
 export class DefaultLessonGenerationEngine implements LessonGenerationEngineInterface {
   constructor(
-    private lessons: LessonRepository,
+    private sourceTexts: SourceTextRepository,
+    private lessonContent: LessonContentRepository,
+    private jobs: GenerationJobRepository,
+    private progress: GenerationProgressRepository,
+    private tx: LessonTransactionRepository,
     private genEngine: GenerationEngine,
-    private textProcessor: TextProcessor
+    private textProcessor: TextProcessor,
+    private collaborators: LessonEngineCollaborators = defaultCollaborators
   ) {}
 
   async queue(
@@ -79,7 +111,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.lessons.assertQueueCapacity(userId);
+    const capacityError = await this.jobs.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -88,7 +120,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const result = await this.lessons.createSourceTextAndLessonAndJob(
+    const result = await this.tx.createSourceTextAndLessonAndJob(
       userId,
       content,
       "Untitled source",
@@ -96,12 +128,13 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       requestedMode
     );
 
-    await this.lessons.recordMilestone({
+    await this.progress.recordMilestone({
       lessonId: result.lesson.id,
       generationJobId: result.job.id,
       code: "queued",
       stage: null,
     });
+    await this.collaborators.notifyJobQueued();
 
     return {
       ok: true,
@@ -114,7 +147,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     userId: string,
     lessonId: string
   ): Promise<LessonGenerationResult> {
-    const lesson = await this.lessons.findLesson(lessonId, userId);
+    const lesson = await this.lessonContent.findLesson(lessonId, userId);
     if (!lesson) {
       return {
         ok: false,
@@ -134,7 +167,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const capacityError = await this.lessons.assertQueueCapacity(userId);
+    const capacityError = await this.jobs.assertQueueCapacity(userId);
     if (capacityError) {
       return {
         ok: false,
@@ -149,19 +182,20 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       lesson.exerciseStatus === "succeeded"
     ) {
       const nextVersion = lesson.version + 1;
-      const result = await this.lessons.createLessonAndJob(
+      const result = await this.tx.createLessonAndJob(
         userId,
         lesson.sourceTextId,
         nextVersion,
         "analysis"
       );
 
-      await this.lessons.recordMilestone({
+      await this.progress.recordMilestone({
         lessonId: result.lesson.id,
         generationJobId: result.job.id,
         code: "queued",
         stage: null,
       });
+      await this.collaborators.notifyJobQueued();
 
       return {
         ok: true,
@@ -185,19 +219,20 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       };
     }
 
-    const job = await this.lessons.createJob(
+    const job = await this.tx.createJob(
       userId,
       lesson.sourceTextId,
       lesson.id,
       stage
     );
 
-    await this.lessons.recordMilestone({
+    await this.progress.recordMilestone({
       lessonId: lesson.id,
       generationJobId: job.id,
       code: "queued",
       stage: null,
     });
+    await this.collaborators.notifyJobQueued();
 
     return {
       ok: true,
@@ -206,8 +241,16 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     };
   }
 
+  async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {
+    await this.sourceTexts.deleteSourceText(userId, sourceTextId);
+    await this.collaborators.scrubSensitiveContentForSourceText(
+      userId,
+      sourceTextId
+    );
+  }
+
   async processNext(workerId: string): Promise<JobProcessResult> {
-    const job = await this.lessons.claimJob(workerId);
+    const job = await this.jobs.claimJob(workerId);
     if (!job) {
       return { status: "idle" };
     }
@@ -230,7 +273,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       `Claimed job ${job.id} for Lesson ${job.lessonId} (Stage: ${job.stage}). Time in queue: ${queueLatency}ms.`
     );
 
-    await this.lessons.recordMilestone({
+    await this.progress.recordMilestone({
       lessonId: job.lessonId,
       generationJobId: job.id,
       code: "claimed",
@@ -240,7 +283,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     let currentStage = job.stage as "analysis" | "exercises";
 
     try {
-      const sourceText = await this.lessons.findSourceText(
+      const sourceText = await this.sourceTexts.findSourceText(
         job.sourceTextId,
         job.userId
       );
@@ -248,7 +291,10 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         throw new Error("Source text is unavailable.");
       }
 
-      const lesson = await this.lessons.findLesson(job.lessonId, job.userId);
+      const lesson = await this.lessonContent.findLesson(
+        job.lessonId,
+        job.userId
+      );
       if (!lesson) {
         throw new Error("Lesson is unavailable.");
       }
@@ -260,12 +306,12 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           `Starting stage "analysis" for Lesson ${job.lessonId}...`
         );
         const analysisStart = Date.now();
-        await this.lessons.updateLessonStatus(
+        await this.lessonContent.updateLessonStatus(
           job.lessonId,
           "analysis",
           "running"
         );
-        await this.lessons.recordMilestone({
+        await this.progress.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_started",
@@ -292,7 +338,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
               this.textProcessor
             );
             if (sanitized) {
-              await this.lessons.recordThought({
+              await this.progress.recordThought({
                 lessonId: job.lessonId,
                 generationJobId: job.id,
                 stage: "analysis",
@@ -306,19 +352,28 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           job.lessonId
         );
 
-        await this.lessons.saveAnalysis(
+        const preparedAnalysis = prepareAnalysisForSave(
+          result,
+          plainText,
+          this.textProcessor
+        );
+
+        await this.lessonContent.saveAnalysis(
           job.lessonId,
           job.userId,
-          result,
+          preparedAnalysis,
           process.env.GEMINI_ANALYSIS_MODEL ?? "gemini-3.1-flash-lite"
         );
 
-        // Side-effect: enqueue phrase-sourced SRS cards for each key phrase.
-        // Non-fatal — lesson processing completes even if this fails.
         try {
-          const savedPhrases = await this.lessons.findKeyPhrases(job.lessonId);
+          const savedPhrases = await this.lessonContent.findKeyPhrases(
+            job.lessonId
+          );
           if (savedPhrases.length > 0) {
-            await addPhrasesToReviewQueue(job.userId, savedPhrases);
+            await this.collaborators.bulkCreateSrsCardsFromKeyPhrases(
+              job.userId,
+              savedPhrases
+            );
           }
         } catch (queueErr) {
           log.warn(
@@ -326,7 +381,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           );
         }
 
-        await this.lessons.recordMilestone({
+        await this.progress.recordMilestone({
           lessonId: job.lessonId,
           generationJobId: job.id,
           code: "analysis_saved",
@@ -340,7 +395,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           `Stage "analysis" succeeded in ${analysisDuration}ms.`
         );
 
-        await this.lessons.updateJobStatus(job.id, "running", {
+        await this.jobs.updateJobStatus(job.id, "running", {
           stage: "exercises",
         });
         currentStage = "exercises";
@@ -352,19 +407,21 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         `Starting stage "exercises" for Lesson ${job.lessonId}...`
       );
       const exercisesStart = Date.now();
-      await this.lessons.updateLessonStatus(
+      await this.lessonContent.updateLessonStatus(
         job.lessonId,
         "exercise",
         "running"
       );
-      await this.lessons.recordMilestone({
+      await this.progress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_started",
         stage: "exercises",
       });
 
-      const analysis = await this.lessons.buildAnalysisFromLesson(job.lessonId);
+      const analysis = await this.lessonContent.buildAnalysisFromLesson(
+        job.lessonId
+      );
       let exercises: SaveExercisesInput | null = null;
 
       for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -376,7 +433,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
               this.textProcessor
             );
             if (sanitized) {
-              await this.lessons.recordThought({
+              await this.progress.recordThought({
                 lessonId: job.lessonId,
                 generationJobId: job.id,
                 stage: "exercises",
@@ -405,14 +462,14 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         );
       }
 
-      await this.lessons.saveExercises(
+      await this.lessonContent.saveExercises(
         job.lessonId,
         job.userId,
         exercises,
         process.env.GEMINI_FAST_MODEL ?? "gemini-3.1-flash-lite"
       );
 
-      await this.lessons.recordMilestone({
+      await this.progress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "exercises_saved",
@@ -426,11 +483,11 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         `Stage "exercises" succeeded in ${exercisesDuration}ms.`
       );
 
-      await this.lessons.updateJobStatus(job.id, "succeeded", {
+      await this.jobs.updateJobStatus(job.id, "succeeded", {
         errorMessage: null,
       });
 
-      await this.lessons.recordMilestone({
+      await this.progress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "completed",
@@ -466,35 +523,36 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
       if (transient && job.attempts < 3) {
         const field = currentStage === "analysis" ? "analysis" : "exercise";
-        await this.lessons.updateLessonStatus(
+        await this.lessonContent.updateLessonStatus(
           job.lessonId,
           field as any,
           "pending"
         );
 
-        await this.lessons.updateJobStatus(job.id, "queued", {
+        await this.jobs.updateJobStatus(job.id, "queued", {
           stage: currentStage,
           errorMessage: message,
           lockedAt: null,
           lockedBy: null,
         });
+        await this.collaborators.notifyJobQueued();
 
         throw error;
       }
 
       const field = currentStage === "analysis" ? "analysis" : "exercise";
-      await this.lessons.updateLessonStatus(
+      await this.lessonContent.updateLessonStatus(
         job.lessonId,
         field as any,
         "failed"
       );
 
-      await this.lessons.updateJobStatus(job.id, "failed", {
+      await this.jobs.updateJobStatus(job.id, "failed", {
         stage: currentStage,
         errorMessage: message,
       });
 
-      await this.lessons.recordMilestone({
+      await this.progress.recordMilestone({
         lessonId: job.lessonId,
         generationJobId: job.id,
         code: "failed",
@@ -514,7 +572,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     lessonId: string,
     userId: string
   ): Promise<GenerationProgress | null> {
-    const progress = await this.lessons.getLessonProgress({
+    const progress = await this.progress.getLessonProgress({
       lessonId,
       userId,
     });
