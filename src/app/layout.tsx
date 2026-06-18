@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
+import { Roboto } from "next/font/google";
 import "./globals.css";
+
+const roboto = Roboto({
+  weight: ["300", "400", "500", "700", "900"],
+  style: ["normal", "italic"],
+  subsets: ["vietnamese", "latin"],
+  display: "swap",
+  variable: "--font-roboto",
+});
 
 export const metadata: Metadata = {
   title: "English Context Coach",
@@ -12,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning className={roboto.variable}>
       <head>
         <script
           dangerouslySetInnerHTML={{
