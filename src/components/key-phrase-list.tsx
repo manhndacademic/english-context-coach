@@ -97,7 +97,7 @@ export function KeyPhraseList({
                     {phrase.difficulty}
                   </span>
                   {isDismissed && (
-                    <span className="inline-flex items-center gap-1 w-fit rounded-full bg-success-light border border-success px-2.5 py-1 text-success text-[10px] font-extrabold leading-none">
+                    <span className="inline-flex items-center gap-1 w-fit rounded-full bg-success text-white dark:text-background border border-transparent px-2.5 py-1 text-[10px] font-extrabold leading-none">
                       <CheckCircle2 size={10} />
                       Đã biết
                     </span>

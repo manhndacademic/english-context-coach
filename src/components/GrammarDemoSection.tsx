@@ -165,7 +165,7 @@ export function GrammarDemoSection() {
                     : "opacity-0 translate-y-1 pointer-events-none"
                 }`}
               >
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-warning bg-warning-light border border-warning/20 px-2.5 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-warning text-white dark:text-background border border-transparent px-2.5 py-1 rounded-full">
                   ⚠️ Lỗi ngữ pháp phát hiện
                 </span>
               </div>

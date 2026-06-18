@@ -15,14 +15,14 @@ describe("Badge", () => {
     const html = renderToStaticMarkup(
       <Badge variant="accent">Accent Label</Badge>
     );
-    expect(html).toContain("bg-accent-light");
-    expect(html).toContain("text-accent");
+    expect(html).toContain("bg-accent");
+    expect(html).toContain("text-white");
   });
 
   it("renders success variant", () => {
     const html = renderToStaticMarkup(<Badge variant="success">Success</Badge>);
-    expect(html).toContain("bg-success-light");
-    expect(html).toContain("text-success");
+    expect(html).toContain("bg-success");
+    expect(html).toContain("text-white");
   });
 
   it("renders md size", () => {

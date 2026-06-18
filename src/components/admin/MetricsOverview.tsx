@@ -62,7 +62,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Tổng Requests
             </span>
-            <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
+            <span className="text-accent-strong bg-accent-light p-1.5 rounded-md shrink-0">
               <Activity size={16} />
             </span>
           </div>
@@ -81,12 +81,12 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Tỷ lệ thành công
             </span>
-            <span className="text-warning bg-warning-light p-1.5 rounded-md shrink-0">
+            <span className="text-warning-strong bg-warning-light p-1.5 rounded-md shrink-0">
               <Percent size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent">
+            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent-strong">
               {successRate}%
             </strong>
             <span className="text-[10px] text-muted block mt-1.5 truncate">
@@ -100,7 +100,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Tổng Tokens
             </span>
-            <span className="text-success bg-success-light p-1.5 rounded-md shrink-0">
+            <span className="text-success-strong bg-success-light p-1.5 rounded-md shrink-0">
               <Cpu size={16} />
             </span>
           </div>
@@ -121,12 +121,12 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Ước tính chi phí
             </span>
-            <span className="text-danger bg-danger-light p-1.5 rounded-md shrink-0">
+            <span className="text-danger-strong bg-danger-light p-1.5 rounded-md shrink-0">
               <Coins size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block text-danger">
+            <strong className="text-2xl font-bold leading-none tracking-tight block text-danger-strong">
               ${totalCostUsd}
             </strong>
             <span className="text-[10px] text-muted block mt-1.5 truncate">
@@ -143,7 +143,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Người dùng active
             </span>
-            <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
+            <span className="text-accent-strong bg-accent-light p-1.5 rounded-md shrink-0">
               <Users size={16} />
             </span>
           </div>
@@ -162,7 +162,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Phản hồi TB
             </span>
-            <span className="text-warning bg-warning-light p-1.5 rounded-md shrink-0">
+            <span className="text-warning-strong bg-warning-light p-1.5 rounded-md shrink-0">
               <Clock size={16} />
             </span>
           </div>
@@ -181,12 +181,12 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Hàng đợi dịch bài
             </span>
-            <span className="text-success bg-success-light p-1.5 rounded-md shrink-0">
+            <span className="text-success-strong bg-success-light p-1.5 rounded-md shrink-0">
               <ListTodo size={16} />
             </span>
           </div>
           <div className="mt-2">
-            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent">
+            <strong className="text-2xl font-bold leading-none tracking-tight block text-accent-strong">
               {jobStats.running + jobStats.queued} Active
             </strong>
             <span className="text-[10px] text-muted block mt-1.5 truncate">
@@ -200,7 +200,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Hệ thống Keys
             </span>
-            <span className="text-danger bg-danger-light p-1.5 rounded-md shrink-0">
+            <span className="text-danger-strong bg-danger-light p-1.5 rounded-md shrink-0">
               <KeyRound size={16} />
             </span>
           </div>
@@ -210,13 +210,17 @@ export function MetricsOverview({
             </strong>
             <span className="text-[10px] text-muted block mt-1.5 truncate">
               Active:{" "}
-              <span className="text-success font-bold">{keysCount.active}</span>{" "}
+              <span className="text-success-strong font-bold">
+                {keysCount.active}
+              </span>{" "}
               · Limited:{" "}
-              <span className="text-warning font-bold">
+              <span className="text-warning-strong font-bold">
                 {keysCount.rateLimited}
               </span>{" "}
               · Bad:{" "}
-              <span className="text-danger font-bold">{keysCount.invalid}</span>
+              <span className="text-danger-strong font-bold">
+                {keysCount.invalid}
+              </span>
             </span>
           </div>
         </div>
@@ -228,7 +232,7 @@ export function MetricsOverview({
             <span className="text-muted text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               Email digest hôm nay
             </span>
-            <span className="text-accent bg-accent-light p-1.5 rounded-md shrink-0">
+            <span className="text-accent-strong bg-accent-light p-1.5 rounded-md shrink-0">
               <MailCheck size={16} />
             </span>
           </div>

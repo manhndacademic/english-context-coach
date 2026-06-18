@@ -45,11 +45,11 @@ export function TopUsersTable({ topUsers }: TopUsersTableProps) {
                   <td className="py-3 px-4">
                     {u.personalKeyCount > 0 ? (
                       u.activePersonalKeyCount > 0 ? (
-                        <span className="bg-success-light border border-success text-success text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
+                        <span className="bg-success text-white dark:text-background border border-transparent text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
                           Key cá nhân ({u.activePersonalKeyCount} active)
                         </span>
                       ) : (
-                        <span className="bg-warning-light border border-warning text-warning text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
+                        <span className="bg-warning text-white dark:text-background border border-transparent text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
                           Key cá nhân (0 active - Dùng key hệ thống)
                         </span>
                       )

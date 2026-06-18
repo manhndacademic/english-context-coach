@@ -239,12 +239,12 @@ export default async function HistoryPage() {
                         {p.reviewPromptStatus === "succeeded" ? (
                           <Link
                             href={`/review?patternId=${p.id}`}
-                            className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent no-underline hover:underline bg-accent-light px-2 py-1 rounded"
+                            className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent-strong no-underline hover:underline bg-accent-light px-2 py-1 rounded"
                           >
                             Luyện ôn tập <ArrowRight size={10} />
                           </Link>
                         ) : p.reviewPromptStatus === "failed" ? (
-                          <span className="text-danger text-[9px] font-bold leading-none bg-danger-light border border-danger/10 px-2 py-1 rounded">
+                          <span className="text-danger-strong text-[9px] font-bold leading-none bg-danger-light border border-danger/10 px-2 py-1 rounded">
                             Lỗi tạo câu hỏi
                           </span>
                         ) : (

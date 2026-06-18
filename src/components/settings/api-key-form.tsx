@@ -37,10 +37,11 @@ interface ApiKeyFormProps {
 
 function badgeClass(status: string) {
   if (status === "active")
-    return "bg-success-light border-success text-success";
+    return "bg-success text-white dark:text-background border-transparent";
   if (status === "rate_limited")
-    return "bg-warning-light border-warning text-warning";
-  if (status === "invalid") return "bg-danger-light border-danger text-danger";
+    return "bg-warning text-white dark:text-background border-transparent";
+  if (status === "invalid")
+    return "bg-danger text-white dark:text-background border-transparent";
   return "bg-background border-border text-muted";
 }
 
@@ -81,7 +82,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
   return (
     <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-6">
       <div className="flex items-start gap-4 flex-col sm:flex-row border-b border-border pb-5">
-        <div className="bg-accent-light text-accent p-3 rounded-md shrink-0">
+        <div className="bg-accent-light text-accent-strong p-3 rounded-md shrink-0">
           <KeyRound size={28} />
         </div>
         <div>
@@ -97,7 +98,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
 
       {message && (
         <div
-          className={`text-sm flex items-start gap-2 rounded-md border p-3 ${message.type === "success" ? "text-success border-success bg-success-light" : "text-danger border-danger bg-danger-light"}`}
+          className={`text-sm flex items-start gap-2 rounded-md border p-3 ${message.type === "success" ? "text-success-strong border-success bg-success-light" : "text-danger-strong border-danger bg-danger-light"}`}
         >
           {message.type === "success" ? (
             <CheckCircle2 size={16} />
@@ -187,7 +188,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                       >
                         <input type="hidden" name="keyId" value={key.id} />
                         <button
-                          className="p-1.5 border border-border rounded-md text-warning"
+                          className="p-1.5 border border-border rounded-md text-warning-strong"
                           title="Tắt"
                         >
                           <PowerOff size={14} />
@@ -210,7 +211,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                     >
                       <input type="hidden" name="keyId" value={key.id} />
                       <button
-                        className="p-1.5 border border-border rounded-md text-danger"
+                        className="p-1.5 border border-border rounded-md text-danger-strong"
                         title="Xóa"
                       >
                         <Trash2 size={14} />
@@ -232,7 +233,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
       </div>
 
       {legacyHasCustomKey && keys.length === 0 && (
-        <p className="text-xs text-warning flex gap-2 m-0">
+        <p className="text-xs text-warning-strong flex gap-2 m-0">
           <ShieldCheck size={14} /> Bạn vẫn có key cũ trong hệ thống legacy; app
           sẽ fallback để không gián đoạn. Hãy thêm lại key vào danh sách mới khi
           thuận tiện.

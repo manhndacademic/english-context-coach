@@ -50,10 +50,10 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
           className={cn(
             "w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-xl font-black border-2",
             score >= 70
-              ? "bg-success-light text-success border-success/30"
+              ? "bg-success-light text-success-strong border-success/30"
               : score >= 40
-                ? "bg-warning-light text-warning border-warning/30"
-                : "bg-danger-light text-danger border-danger/30"
+                ? "bg-warning-light text-warning-strong border-warning/30"
+                : "bg-danger-light text-danger-strong border-danger/30"
           )}
         >
           {score}%

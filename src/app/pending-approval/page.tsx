@@ -43,11 +43,11 @@ export default async function PendingApprovalPage() {
         <div className="p-7 rounded-lg shadow-lg grid gap-6 text-center bg-surface border border-border">
           <div className="flex justify-center">
             {isRejected ? (
-              <div className="p-3 bg-danger-light border border-danger text-danger rounded-full">
+              <div className="p-3 bg-danger-light border border-danger text-danger-strong rounded-full">
                 <XCircle size={36} />
               </div>
             ) : (
-              <div className="p-3 bg-warning-light border border-warning text-warning rounded-full animate-pulse">
+              <div className="p-3 bg-warning-light border border-warning text-warning-strong rounded-full animate-pulse">
                 <Clock size={36} />
               </div>
             )}

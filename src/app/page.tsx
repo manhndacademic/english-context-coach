@@ -282,7 +282,7 @@ export default async function HomePage() {
           </Button>
         </div>
         <p className="text-muted text-xs mt-3">
-          © 2026 English Context Coach · Vietnamese-native Learning System.
+          © 2026 English Context Coach - manhnd.dev.
         </p>
       </footer>
     </div>

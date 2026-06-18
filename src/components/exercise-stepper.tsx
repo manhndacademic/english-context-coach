@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Target, Sparkles } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Target,
+  Sparkles,
+} from "lucide-react";
 import { ExerciseCard } from "./exercise-card";
 import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
 import type { Attempt } from "@/domain/memory";
@@ -43,10 +50,14 @@ export function ExerciseStepper({
   const [showSummary, setShowSummary] = useState(true);
 
   // Clamp index if items change or if it is out of bounds
-  const currentIndex = activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
+  const currentIndex =
+    activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
 
   const userErrorsMap = useMemo(() => {
-    return new Map(Object.entries(serializedUserErrors)) as Map<string, CompletionUserErrorSummary>;
+    return new Map(Object.entries(serializedUserErrors)) as Map<
+      string,
+      CompletionUserErrorSummary
+    >;
   }, [serializedUserErrors]);
 
   const mistakePatternsMap = useMemo(() => {
@@ -99,7 +110,8 @@ export function ExerciseStepper({
       <div className="flex flex-col gap-3 bg-surface-strong p-3.5 px-4 rounded-md border border-border">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-text">
-            Bài tập <strong className="font-bold">{currentIndex + 1}</strong> / {total}
+            Bài tập <strong className="font-bold">{currentIndex + 1}</strong> /{" "}
+            {total}
           </span>
           {allSolved ? (
             <span className="inline-flex items-center gap-1 text-success text-xs sm:text-sm font-bold">
@@ -115,15 +127,19 @@ export function ExerciseStepper({
         {/* Stepper Indicators */}
         <div className="flex flex-wrap items-center gap-2">
           {items.map((item, idx) => {
-            let dotClass = "relative flex items-center justify-center gap-1.5 px-3.5 h-[38px] rounded-md cursor-pointer transition-all duration-200 font-bold text-xs hover:-translate-y-px hover:border-accent hover:bg-surface-strong border ";
+            let dotClass =
+              "relative flex items-center justify-center gap-1.5 px-3.5 h-[38px] rounded-md cursor-pointer transition-all duration-200 font-bold text-xs hover:-translate-y-px hover:border-accent hover:bg-surface-strong border ";
             let icon = null;
 
             if (idx === currentIndex) {
-              dotClass += "border-accent text-accent ring-3 ring-accent-light bg-surface ";
+              dotClass +=
+                "border-accent text-accent-strong ring-3 ring-accent-light bg-surface ";
             } else if (item.isSolved) {
-              dotClass += "bg-success-light border-success/30 text-success ";
+              dotClass +=
+                "bg-success-light border-success/30 text-success-strong ";
             } else if (item.needsRetry) {
-              dotClass += "bg-warning-light border-warning/30 text-warning ";
+              dotClass +=
+                "bg-warning-light border-warning/30 text-warning-strong ";
             } else {
               dotClass += "bg-surface border-border text-muted ";
             }

@@ -114,20 +114,20 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
     switch (userStatus) {
       case "approved":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success-light border border-success text-success px-2.5 py-0.5 text-xs font-bold">
+          <span className="inline-flex items-center gap-1 rounded-full bg-success text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
             Đã duyệt
           </span>
         );
       case "rejected":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-danger-light border border-danger text-danger px-2.5 py-0.5 text-xs font-bold">
+          <span className="inline-flex items-center gap-1 rounded-full bg-danger text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
             Bị từ chối
           </span>
         );
       case "pending":
       default:
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-warning-light border border-warning text-warning px-2.5 py-0.5 text-xs font-bold animate-pulse">
+          <span className="inline-flex items-center gap-1 rounded-full bg-warning text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold animate-pulse">
             Chờ duyệt
           </span>
         );
@@ -165,7 +165,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-warning-light border border-warning text-warning rounded-lg">
+          <div className="p-2.5 bg-warning-light border border-warning text-warning-strong rounded-lg">
             <Clock size={20} />
           </div>
           <div>
@@ -179,7 +179,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-success-light border border-success text-success rounded-lg">
+          <div className="p-2.5 bg-success-light border border-success text-success-strong rounded-lg">
             <UserCheck size={20} />
           </div>
           <div>
@@ -316,7 +316,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                                 <button
                                   type="submit"
                                   title="Phê duyệt quyền truy cập"
-                                  className="bg-success-light border border-success hover:bg-success hover:text-white text-success px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                  className="bg-success-light border border-success hover:bg-success hover:text-white text-success-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                                 >
                                   <Check size={12} /> Duyệt
                                 </button>
@@ -334,7 +334,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                                 <button
                                   type="submit"
                                   title="Từ chối truy cập"
-                                  className="bg-danger-light border border-danger hover:bg-danger hover:text-white text-danger px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                  className="bg-danger-light border border-danger hover:bg-danger hover:text-white text-danger-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                                 >
                                   <X size={12} /> Từ chối
                                 </button>

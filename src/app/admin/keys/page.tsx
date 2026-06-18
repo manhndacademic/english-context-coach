@@ -25,19 +25,19 @@ export default async function AdminKeysPage() {
     switch (status) {
       case "active":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-light border border-success text-success px-2 py-0.5 text-xs font-bold leading-none">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
             <CheckCircle2 size={12} /> Đang hoạt động
           </span>
         );
       case "rate_limited":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-light border border-warning text-warning px-2 py-0.5 text-xs font-bold leading-none animate-pulse">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none animate-pulse">
             <AlertTriangle size={12} /> Rate Limited
           </span>
         );
       case "invalid":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-light border border-danger text-danger px-2 py-0.5 text-xs font-bold leading-none">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-danger text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
             <XCircle size={12} /> Hỏng (Invalid)
           </span>
         );
@@ -109,7 +109,7 @@ export default async function AdminKeysPage() {
                             <button
                               type="submit"
                               title="Xác thực lại key"
-                              className="p-1.5 rounded-md border border-border bg-surface text-accent hover:bg-accent-light transition-all cursor-pointer"
+                              className="p-1.5 rounded-md border border-border bg-surface text-accent-strong hover:bg-accent-light transition-all cursor-pointer"
                             >
                               <RefreshCw size={14} />
                             </button>

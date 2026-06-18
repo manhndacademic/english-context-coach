@@ -153,7 +153,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Requests */}
         <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-4 relative overflow-hidden">
-          <div className="bg-accent-light text-accent p-3 rounded-md">
+          <div className="bg-accent-light text-accent-strong p-3 rounded-md">
             <Activity size={20} />
           </div>
           <div>
@@ -168,7 +168,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
 
         {/* Success Rate */}
         <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-4">
-          <div className="bg-success-light text-success p-3 rounded-md">
+          <div className="bg-success-light text-success-strong p-3 rounded-md">
             <CheckCircle size={20} />
           </div>
           <div>
@@ -183,7 +183,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
 
         {/* Total Tokens */}
         <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-4">
-          <div className="bg-warning-light text-warning p-3 rounded-md">
+          <div className="bg-warning-light text-warning-strong p-3 rounded-md">
             <Cpu size={20} />
           </div>
           <div>
@@ -202,7 +202,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
 
         {/* Average Latency */}
         <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-4">
-          <div className="bg-info-light text-info p-3 rounded-md">
+          <div className="bg-info-light text-info-strong p-3 rounded-md">
             <Clock size={20} />
           </div>
           <div>
@@ -324,19 +324,19 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
                       </td>
                       <td className="py-3 px-4">
                         {req.status === "succeeded" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-success-light text-success px-2 py-0.5 text-[10px] font-bold">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success text-white dark:text-background border border-transparent px-2 py-0.5 text-[10px] font-bold">
                             <CheckCircle size={10} /> Thành công
                           </span>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-danger-light text-danger px-2 py-0.5 text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-danger text-white dark:text-background border border-transparent px-2 py-0.5 text-[10px] font-bold">
                               <AlertCircle size={10} /> Thất bại
                             </span>
                             <button
                               onClick={() =>
                                 setExpandedRowId(isExpanded ? null : req.id)
                               }
-                              className="text-[11px] text-accent hover:underline font-semibold cursor-pointer select-none"
+                              className="text-[11px] text-accent-strong hover:underline font-semibold cursor-pointer select-none"
                             >
                               {isExpanded ? "Ẩn lỗi" : "Chi tiết lỗi"}
                             </button>

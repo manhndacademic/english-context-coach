@@ -19,7 +19,7 @@ export function AddSystemKeyForm() {
       </h2>
       {message && (
         <div
-          className={`text-sm flex gap-2 rounded-md border p-3 ${message.type === "success" ? "text-success border-success bg-success-light" : "text-danger border-danger bg-danger-light"}`}
+          className={`text-sm flex gap-2 rounded-md border p-3 ${message.type === "success" ? "text-success-strong border-success bg-success-light" : "text-danger-strong border-danger bg-danger-light"}`}
         >
           {message.type === "success" ? (
             <CheckCircle2 size={16} />
