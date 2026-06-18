@@ -125,12 +125,12 @@ describe("Gemini Purpose Generation Config Limits", () => {
     delete process.env.GEMINI_MAX_OUTPUT_TOKENS_GRADING;
     delete process.env.GEMINI_MAX_OUTPUT_TOKENS_REPAIR;
 
-    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(8192);
+    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(16384);
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
-    ).toBe(2200);
+    ).toBe(8192);
     expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
-    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(16384);
   });
 
   it("should use parsed env values when valid env vars are defined", () => {
@@ -153,11 +153,11 @@ describe("Gemini Purpose Generation Config Limits", () => {
     process.env.GEMINI_MAX_OUTPUT_TOKENS_GRADING = "0";
     process.env.GEMINI_MAX_OUTPUT_TOKENS_REPAIR = "";
 
-    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(8192);
+    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(16384);
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
-    ).toBe(2200);
+    ).toBe(8192);
     expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
-    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(16384);
   });
 });

@@ -50,7 +50,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_ANALYSIS",
-          8192
+          16384
         ),
         systemInstruction:
           "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
@@ -59,7 +59,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_EXERCISE",
-          2200
+          8192
         ),
         systemInstruction:
           "When progress notes are available, write short Vietnamese learner-facing status notes only. Do not mention code, JSON, schemas, prompts, chain-of-thought, or hidden reasoning. The final response must be valid JSON only.",
@@ -68,7 +68,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_REPAIR",
-          4096
+          16384
         ),
         temperature: 0.1,
         systemInstruction:
