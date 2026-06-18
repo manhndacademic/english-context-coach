@@ -18,7 +18,7 @@ export function AppHeader({
   email,
   isAdmin,
   image,
-  maxWidthClass = "max-w-[1100px]",
+  maxWidthClass = "max-w-[1200px]",
 }: {
   email?: string | null;
   isAdmin?: boolean;

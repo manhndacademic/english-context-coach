@@ -14,7 +14,7 @@ describe("PageContainer", () => {
         <div>Content</div>
       </PageContainer>
     );
-    expect(html).toContain("max-w-[1100px]");
+    expect(html).toContain("max-w-[1200px]");
     expect(html).toContain("mx-auto");
     expect(html).toContain("px-4");
   });
@@ -33,6 +33,6 @@ describe("PageLayout", () => {
     expect(html).toContain("Header: test@example.com");
     expect(html).toContain("test-child");
     expect(html).toContain("Layout Child");
-    expect(html).toContain("max-w-[1100px]");
+    expect(html).toContain("max-w-[1200px]");
   });
 });

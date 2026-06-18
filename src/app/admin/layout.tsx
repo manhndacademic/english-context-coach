@@ -22,9 +22,9 @@ export default async function AdminLayout({
         email={user.email}
         isAdmin={true}
         image={user.image}
-        maxWidthClass="max-w-[1440px]"
+        maxWidthClass="max-w-[1200px]"
       />
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 items-start">
           <aside className="bg-surface border border-border rounded-lg p-4 shadow-sm flex flex-col gap-1">
             <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-muted mb-2">

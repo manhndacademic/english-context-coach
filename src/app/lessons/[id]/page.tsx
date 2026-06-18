@@ -34,7 +34,7 @@ export default async function LessonPage({
           isAdmin={user.role === "admin"}
           image={user.image}
         />
-        <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
+        <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
           <section className="border-l-4 border-warning bg-warning-light p-6 rounded-lg grid gap-5 border border-y-border border-r-border shadow-md">
             <div className="flex flex-wrap items-center gap-2 text-warning font-bold text-lg">
               <AlertCircle size={22} />

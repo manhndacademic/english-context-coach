@@ -119,7 +119,7 @@ export function StandardLessonLayout({
         isAdmin={user.role === "admin"}
         image={user.image}
       />
-      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <LessonHeader lesson={lesson} progress={progress} now={now} />
 
         <div
