@@ -74,8 +74,8 @@ export function MetricsChart({ data }: MetricsChartProps) {
         <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 mt-0">
           Tần suất request (30 ngày gần đây)
         </h3>
-        <div className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-55 w-full">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <AreaChart
               data={formattedData}
               margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
@@ -131,8 +131,8 @@ export function MetricsChart({ data }: MetricsChartProps) {
         <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 mt-0">
           Chi phí tích lũy (30 ngày gần đây)
         </h3>
-        <div className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-55 w-full">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <AreaChart
               data={formattedData}
               margin={{ top: 8, right: 8, left: -20, bottom: 0 }}

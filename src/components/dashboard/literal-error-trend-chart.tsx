@@ -70,7 +70,7 @@ export function LiteralErrorTrendChart({ data }: LiteralErrorTrendChartProps) {
 
         {/* Muted skeleton preview chart to tease functionality */}
         <div className="w-full h-full opacity-25 pointer-events-none select-none">
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={180} minWidth={0}>
             <LineChart
               data={mockData}
               margin={{ top: 8, right: 4, left: -20, bottom: 0 }}
@@ -108,7 +108,7 @@ export function LiteralErrorTrendChart({ data }: LiteralErrorTrendChartProps) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={180} minWidth={0}>
       <LineChart
         data={formatted}
         margin={{ top: 8, right: 4, left: -20, bottom: 0 }}

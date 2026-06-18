@@ -224,10 +224,10 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
         <h3 className="text-sm font-bold text-text uppercase tracking-wider mb-4 mt-0">
           Lượng token tiêu thụ theo ngày
         </h3>
-        <div className="h-[250px] w-full">
+        <div className="h-62.5 w-full">
           {formattedChartData.length > 0 &&
           daily.some((d: any) => d.inputTokens + d.outputTokens > 0) ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart
                 data={formattedChartData}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}

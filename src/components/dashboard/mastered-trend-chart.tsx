@@ -69,7 +69,7 @@ export function MasteredTrendChart({ data }: MasteredTrendChartProps) {
 
         {/* Muted skeleton preview chart to tease functionality */}
         <div className="w-full h-full opacity-25 pointer-events-none select-none">
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={180} minWidth={0}>
             <AreaChart
               data={mockData}
               margin={{ top: 8, right: 4, left: -20, bottom: 0 }}
@@ -127,7 +127,7 @@ export function MasteredTrendChart({ data }: MasteredTrendChartProps) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={180} minWidth={0}>
       <AreaChart
         data={formatted}
         margin={{ top: 8, right: 4, left: -20, bottom: 0 }}
