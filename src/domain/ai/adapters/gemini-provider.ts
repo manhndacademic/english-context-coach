@@ -39,7 +39,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_GRADING",
-          1500
+          4096
         ),
         temperature: 0.1,
         topP: 0.8,
@@ -68,7 +68,7 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
       return {
         maxOutputTokens: getEnvTokenLimit(
           "GEMINI_MAX_OUTPUT_TOKENS_REPAIR",
-          1200
+          4096
         ),
         temperature: 0.1,
         systemInstruction:
@@ -175,7 +175,16 @@ export class GeminiLLMProvider implements LLMProvider {
         config,
       });
 
-      text = result.text ?? "";
+      const parts = result.candidates?.[0]?.content?.parts ?? [];
+      if (parts.length > 0) {
+        text = parts
+          .filter((part) => !part.thought && part.text)
+          .map((part) => part.text)
+          .join("");
+      } else {
+        text = result.text ?? "";
+      }
+
       if (result.usageMetadata) {
         inputTokens = result.usageMetadata.promptTokenCount ?? 0;
         outputTokens = result.usageMetadata.candidatesTokenCount ?? 0;

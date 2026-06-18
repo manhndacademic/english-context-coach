@@ -129,8 +129,8 @@ describe("Gemini Purpose Generation Config Limits", () => {
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
     ).toBe(2200);
-    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(1500);
-    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(1200);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(4096);
   });
 
   it("should use parsed env values when valid env vars are defined", () => {
@@ -157,7 +157,7 @@ describe("Gemini Purpose Generation Config Limits", () => {
     expect(
       generationConfigForPurpose("exercise_generation").maxOutputTokens
     ).toBe(2200);
-    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(1500);
-    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(1200);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(4096);
   });
 });
