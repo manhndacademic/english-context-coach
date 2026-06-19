@@ -2,7 +2,7 @@ import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { SourceMeaningPanel } from "./SourceMeaningPanel";
 import { InlineDiff } from "./InlineDiff";
 import { ReadableSourceText } from "@/components/readable-source-text";
-import type { DiffSpan } from "@/lib/ai/schemas";
+import type { DiffSpan } from "@/domain/lesson/schemas";
 import type { KeyPhrase } from "@/domain/lesson";
 
 interface GrammarCorrectionViewProps {

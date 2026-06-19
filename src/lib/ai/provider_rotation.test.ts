@@ -17,6 +17,27 @@ import {
 import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import type { Prompt } from "@/domain/ai/ports";
+
+function createTestPrompt(options: {
+  purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+  prompt: string;
+  promptVersion: string;
+  schemaVersion: string;
+  schema: z.ZodTypeAny;
+  modelKind: "analysis" | "fast";
+  expectedShape?: Record<string, any>;
+}): Prompt<any> {
+  return {
+    purpose: options.purpose,
+    promptVersion: options.promptVersion,
+    schemaVersion: options.schemaVersion,
+    schema: options.schema,
+    modelKind: options.modelKind,
+    render: () => options.prompt,
+    expectedShape: options.expectedShape,
+  };
+}
 
 describe("AI Key Rotation & Error Handling", () => {
   let testUser: any;
@@ -64,19 +85,21 @@ describe("AI Key Rotation & Error Handling", () => {
       .set({ customGeminiApiKey: encryptApiKey(fakeUserKey) })
       .where(eq(schema.users.id, testUser.id));
 
-    const options = {
-      userId: testUser.id,
-      purpose: "repair" as const,
+    const prompt = createTestPrompt({
+      purpose: "repair",
       prompt: "Hello",
       promptVersion: "1.0",
-      schemaVersion: "grading" as const,
+      schemaVersion: "grading",
       schema: z.object({ isCorrect: z.boolean() }),
-      modelKind: "fast" as const,
-    };
+      modelKind: "fast",
+    });
 
-    await expect(provider.generateJson(options)).rejects.toThrow(
-      "Custom User API Key failed"
-    );
+    await expect(
+      provider.generateJson({
+        userId: testUser.id,
+        prompt,
+      })
+    ).rejects.toThrow("Custom User API Key failed");
   });
 
   it("should rotate between multiple user-provided API keys and fail only when all are exhausted", async () => {
@@ -90,19 +113,21 @@ describe("AI Key Rotation & Error Handling", () => {
       .set({ customGeminiApiKey: encryptedArray })
       .where(eq(schema.users.id, testUser.id));
 
-    const options = {
-      userId: testUser.id,
-      purpose: "repair" as const,
+    const prompt = createTestPrompt({
+      purpose: "repair",
       prompt: "Hello",
       promptVersion: "1.0",
-      schemaVersion: "grading" as const,
+      schemaVersion: "grading",
       schema: z.object({ isCorrect: z.boolean() }),
-      modelKind: "fast" as const,
-    };
+      modelKind: "fast",
+    });
 
-    await expect(provider.generateJson(options)).rejects.toThrow(
-      "Custom User API Key failed"
-    );
+    await expect(
+      provider.generateJson({
+        userId: testUser.id,
+        prompt,
+      })
+    ).rejects.toThrow("Custom User API Key failed");
   });
 
   it("should rotately mark rate-limited keys and exclude them", async () => {
@@ -127,15 +152,14 @@ describe("AI Key Rotation & Error Handling", () => {
       status: "active",
     });
 
-    const options = {
-      userId: testUser.id,
-      purpose: "repair" as const,
+    const prompt = createTestPrompt({
+      purpose: "repair",
       prompt: "Hello",
       promptVersion: "1.0",
-      schemaVersion: "grading" as const,
+      schemaVersion: "grading",
       schema: z.object({ isCorrect: z.boolean() }),
-      modelKind: "fast" as const,
-    };
+      modelKind: "fast",
+    });
 
     // Temporarily remove fallback key to force system key failure
     const originalEnvKey = process.env.GEMINI_API_KEY;
@@ -143,7 +167,12 @@ describe("AI Key Rotation & Error Handling", () => {
 
     try {
       // Since both system keys are invalid API keys, the rotation loop will try them and mark them as invalid.
-      await expect(provider.generateJson(options)).rejects.toThrow();
+      await expect(
+        provider.generateJson({
+          userId: testUser.id,
+          prompt,
+        })
+      ).rejects.toThrow();
 
       // Check that both keys were marked as invalid in the database
       const dbKeys = await db.select().from(schema.aiApiKeys);
@@ -167,17 +196,21 @@ describe("AI Key Rotation & Error Handling", () => {
     delete process.env.GEMINI_API_KEY;
 
     try {
-      const options = {
-        userId: testUser.id,
-        purpose: "repair" as const,
+      const prompt = createTestPrompt({
+        purpose: "repair",
         prompt: "Hello",
         promptVersion: "1.0",
-        schemaVersion: "grading" as const,
+        schemaVersion: "grading",
         schema: z.object({ isCorrect: z.boolean() }),
-        modelKind: "fast" as const,
-      };
+        modelKind: "fast",
+      });
 
-      await expect(provider.generateJson(options)).rejects.toThrow();
+      await expect(
+        provider.generateJson({
+          userId: testUser.id,
+          prompt,
+        })
+      ).rejects.toThrow();
     } finally {
       process.env.GEMINI_API_KEY = originalEnvKey;
       process.env.GEMINI_API_KEYS = originalEnvKeys;
@@ -222,18 +255,23 @@ describe("AI Key Rotation & Error Handling", () => {
         outputTokens: 10,
       });
 
-    const options = {
-      userId: testUser.id,
-      purpose: "grading" as const,
+    const prompt = createTestPrompt({
+      purpose: "grading",
       prompt: "Hello",
       promptVersion: "1.0",
-      schemaVersion: "grading" as const,
+      schemaVersion: "grading",
       schema: z.object({ score: z.number(), isCorrect: z.boolean() }),
-      modelKind: "fast" as const,
-    };
+      modelKind: "fast",
+      expectedShape: { score: "number", isCorrect: "boolean" },
+    });
 
     // It should fail due to validation error (after repair also returns wrong_fields)
-    await expect(provider.generateJson(options)).rejects.toThrow();
+    await expect(
+      provider.generateJson({
+        userId: testUser.id,
+        prompt,
+      })
+    ).rejects.toThrow();
 
     // Verify raw API was called
     expect(rawSpy).toHaveBeenCalled();

@@ -1,7 +1,5 @@
-import { PROMPT_VERSIONS } from "@/domain/constants";
 import type { LLMProvider } from "@/domain/ai";
-import { gradingPrompt } from "@/lib/ai/prompts";
-import { gradingSchema } from "@/lib/ai/schemas";
+import { GradingPrompt } from "../prompts";
 import type {
   GradingEngine,
   LearnerGradingResult,
@@ -92,18 +90,13 @@ export class DefaultGradingEngine implements GradingEngine {
       return await this.llm.generateJson({
         userId: input.userId,
         lessonId: input.lessonId,
-        purpose: "grading",
-        prompt: gradingPrompt({
+        prompt: new GradingPrompt({
           promptEn: input.exercise.promptEn ?? "",
           promptVi: input.exercise.promptVi,
           answer: input.answer,
           rubricVi: input.exercise.rubricVi,
           correctAnswer: input.exercise.correctAnswer,
         }),
-        promptVersion: PROMPT_VERSIONS.grading,
-        schemaVersion: "grading",
-        schema: gradingSchema,
-        modelKind: "analysis",
       });
     } catch (error) {
       console.error("[GradingEngine] AI grading call failed:", error);

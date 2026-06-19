@@ -1,10 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { getLogger } from "@/lib/logger";
-import type { LLMProvider, KeyResolver, AiRequestRecorder } from "../ports";
+import type {
+  LLMProvider,
+  KeyResolver,
+  AiRequestRecorder,
+  Prompt,
+} from "../ports";
 import { DrizzleKeyResolver } from "./key-resolver";
 import { DrizzleAiRequestRecorder } from "./ai-request-recorder";
-import { SCHEMA_VERSIONS } from "@/domain/constants";
 import { hashCanonicalPayload } from "@/lib/crypto";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
 import {
@@ -210,25 +214,19 @@ export class GeminiLLMProvider implements LLMProvider {
   async generateJson<T>(options: {
     userId?: string;
     lessonId?: string;
-    purpose: "analysis" | "exercise_generation" | "grading" | "repair";
-    prompt: string;
-    promptVersion: string;
-    schemaVersion: string;
-    schema: z.ZodType<T>;
-    modelKind: "analysis" | "fast";
+    prompt: Prompt<T>;
     onThought?: (text: string) => Promise<void>;
   }): Promise<T> {
     const payloadHash = hashCanonicalPayload({
-      prompt: options.prompt,
-      promptVersion: options.promptVersion,
-      schemaVersion:
-        SCHEMA_VERSIONS[options.schemaVersion as keyof typeof SCHEMA_VERSIONS],
+      prompt: options.prompt.render(),
+      promptVersion: options.prompt.promptVersion,
+      schemaVersion: options.prompt.schemaVersion,
     });
     const startedAt = Date.now();
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let resolvedModel = this.apiRotationPool.getNextAvailable(
-      options.modelKind,
+      options.prompt.modelKind,
       undefined,
       true
     );
@@ -239,8 +237,8 @@ export class GeminiLLMProvider implements LLMProvider {
     try {
       const rotationResult = await this.apiRotationPool.executeWithRotation({
         userId: options.userId,
-        modelKind: options.modelKind,
-        purpose: options.purpose,
+        modelKind: options.prompt.modelKind,
+        purpose: options.prompt.purpose,
         hasSchema: true,
         execute: async ({ key, model, keyId }) => {
           resolvedModel = model;
@@ -248,7 +246,8 @@ export class GeminiLLMProvider implements LLMProvider {
             key,
             model,
             keyId,
-            options,
+            options.prompt,
+            options.onThought,
             (inTokens, outTokens) => {
               totalInputTokens += inTokens;
               totalOutputTokens += outTokens;
@@ -273,14 +272,11 @@ export class GeminiLLMProvider implements LLMProvider {
       await this.requestRecorder.recordRequest({
         userId: options.userId,
         lessonId: options.lessonId,
-        purpose: options.purpose,
+        purpose: options.prompt.purpose,
         provider: "gemini",
         model: resolvedModel,
-        promptVersion: options.promptVersion,
-        schemaVersion:
-          SCHEMA_VERSIONS[
-            options.schemaVersion as keyof typeof SCHEMA_VERSIONS
-          ],
+        promptVersion: options.prompt.promptVersion,
+        schemaVersion: options.prompt.schemaVersion,
         payloadHash,
         status,
         latencyMs,
@@ -301,29 +297,24 @@ export class GeminiLLMProvider implements LLMProvider {
     key: string,
     model: string,
     keyId: string | undefined,
-    options: {
-      purpose: "analysis" | "exercise_generation" | "grading" | "repair";
-      prompt: string;
-      schemaVersion: string;
-      schema: z.ZodType<T>;
-      onThought?: (text: string) => Promise<void>;
-    },
+    prompt: Prompt<T>,
+    onThought: ((text: string) => Promise<void>) | undefined,
     accumulateTokens: (inTokens: number, outTokens: number) => void
   ): Promise<T> {
     let callResult;
     try {
       logger.trace(
         `[GeminiProvider] Raw prompt sent to model ${model} for purpose ${
-          options.purpose
-        }:\n${options.prompt}`
+          prompt.purpose
+        }:\n${prompt.render()}`
       );
       callResult = await this.callGeminiRaw({
         apiKey: key,
         model,
-        prompt: options.prompt,
-        purpose: options.purpose,
-        zodSchema: options.schema,
-        onThought: options.onThought,
+        prompt: prompt.render(),
+        purpose: prompt.purpose,
+        zodSchema: prompt.schema,
+        onThought: onThought,
       });
     } catch (err) {
       throw err;
@@ -333,17 +324,14 @@ export class GeminiLLMProvider implements LLMProvider {
     let rawText = callResult.text;
     logger.trace(
       `[GeminiProvider] Raw text response received from model ${model} for purpose ${
-        options.purpose
+        prompt.purpose
       }:\n${rawText}`
     );
     let parsed = null;
 
     try {
-      const coerced = JsonParserService.parse(
-        rawText,
-        options.schemaVersion as keyof typeof SCHEMA_VERSIONS
-      );
-      parsed = options.schema.safeParse(coerced);
+      const coerced = JsonParserService.parse(rawText, prompt.schemaVersion);
+      parsed = prompt.schema.safeParse(coerced);
       if (parsed.success) {
         logger.debug(
           `[GeminiProvider] Successful validation on first attempt for key ID ${
@@ -354,21 +342,32 @@ export class GeminiLLMProvider implements LLMProvider {
       } else {
         logger.warn(
           `[GeminiProvider] First attempt response validation failed for purpose ${
-            options.purpose
+            prompt.purpose
           }. Errors: ${JSON.stringify(parsed.error.errors)}`
         );
       }
     } catch (parseErr: any) {
       logger.warn(
         `[GeminiProvider] First attempt JSON parsing/coercion failed for purpose ${
-          options.purpose
+          prompt.purpose
         }: ${parseErr.message || parseErr}`
       );
     }
 
     // Trigger repair flow
-    const { repairPrompt } = await import("@/lib/ai/prompts");
-    const repairPromptText = repairPrompt(rawText, options.schemaVersion);
+    const expectedShape = prompt.expectedShape;
+    const repairPromptText = [
+      `Repair this ${prompt.schemaVersion} response into valid strict JSON only.`,
+      "The top-level JSON value must be an object, not an array.",
+      expectedShape
+        ? `Expected JSON shape:\n${JSON.stringify(expectedShape)}`
+        : undefined,
+      "Keep the same meaning. Do not add markdown.",
+      rawText,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     logger.debug(
       `[GeminiProvider] Triggering repair flow using key ID ${keyId || "env_key"}`
     );
@@ -382,7 +381,7 @@ export class GeminiLLMProvider implements LLMProvider {
         model,
         prompt: repairPromptText,
         purpose: "repair",
-        zodSchema: options.schema,
+        zodSchema: prompt.schema,
       });
     } catch (err) {
       throw err;
@@ -396,7 +395,7 @@ export class GeminiLLMProvider implements LLMProvider {
     try {
       coercedRepaired = JsonParserService.parse(
         repairResult.text,
-        options.schemaVersion as keyof typeof SCHEMA_VERSIONS
+        prompt.schemaVersion
       );
     } catch (parseErr: any) {
       logger.error(
@@ -411,7 +410,7 @@ export class GeminiLLMProvider implements LLMProvider {
     }
 
     try {
-      const finalData = options.schema.parse(coercedRepaired);
+      const finalData = prompt.schema.parse(coercedRepaired);
       logger.debug(
         `[GeminiProvider] Successful validation on repaired response for key ID ${
           keyId || "env_key"

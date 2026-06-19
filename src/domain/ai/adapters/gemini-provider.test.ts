@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { z } from "zod";
-import type { KeyResolver, AiRequestRecorder } from "../ports";
+import type { KeyResolver, AiRequestRecorder, Prompt } from "../ports";
 import { GeminiLLMProvider } from "./gemini-provider";
 
 class MockKeyResolver implements KeyResolver {
@@ -73,6 +73,16 @@ describe("GeminiLLMProvider Resiliency", () => {
     feedbackVi: z.string(),
   });
 
+  const testPrompt: Prompt<any> = {
+    purpose: "grading",
+    promptVersion: "1",
+    schemaVersion: "grading",
+    schema,
+    modelKind: "fast",
+    render: () => "Check",
+    expectedShape: { score: "number", feedbackVi: "string" },
+  };
+
   beforeEach(() => {
     keyResolver = new MockKeyResolver();
     requestRecorder = new MockAiRequestRecorder();
@@ -108,12 +118,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     const provider = getProvider();
     const result = await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(result).toEqual({ score: 90, feedbackVi: "Tốt" });
@@ -133,12 +138,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     const provider = getProvider();
     const result = await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(result).toEqual({ score: 85, feedbackVi: "Sửa" });
@@ -163,12 +163,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     const provider = getProvider();
     const result = await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(result).toEqual({ score: 95, feedbackVi: "Tốt" });
@@ -218,12 +213,7 @@ describe("GeminiLLMProvider Resiliency", () => {
 
     const result = await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(result).toEqual({ score: 100, feedbackVi: "Tốt" });
@@ -244,12 +234,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     const provider = getProvider();
     await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(requestRecorder.recorded.length).toBe(1);
@@ -298,12 +283,7 @@ describe("GeminiLLMProvider Resiliency", () => {
 
     const result = await provider.generateJson({
       userId: "u-1",
-      purpose: "grading",
-      prompt: "Check",
-      promptVersion: "1",
-      schemaVersion: "grading",
-      schema,
-      modelKind: "fast",
+      prompt: testPrompt,
     });
 
     expect(result).toEqual({ score: 100, feedbackVi: "Tốt" });

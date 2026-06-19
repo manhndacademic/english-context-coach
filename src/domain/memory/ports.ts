@@ -1,5 +1,5 @@
 import type { Attempt, UserError, ReviewAttempt } from "./types";
-import type { GradingResult } from "@/lib/ai/schemas";
+import type { GradingResult } from "./schemas";
 import { MistakePattern } from "./mistake-pattern";
 
 export interface MemoryKeyPhraseInput {

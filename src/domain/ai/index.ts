@@ -43,7 +43,7 @@ export function getUsageRepository(): UsageRepository {
   return cachedUsageRepository;
 }
 
-export type { LLMProvider, KeyResolver } from "./ports";
+export type { LLMProvider, KeyResolver, Prompt } from "./ports";
 export type { UserApiKeyRepository } from "./user-api-key-repository";
 export {
   DrizzleUserApiKeyRepository,

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { renderRichText } from "@/lib/rich-text";
 import { InlineDiff } from "./InlineDiff";
-import type { DiffSpan } from "@/lib/ai/schemas";
+import type { DiffSpan } from "@/domain/lesson/schemas";
 
 interface SentenceBreakdownItem {
   id: string;

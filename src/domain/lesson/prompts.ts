@@ -1,0 +1,324 @@
+import type { Prompt } from "@/domain/ai";
+import { MAX_LESSON_ITEMS } from "@/domain/constants";
+import {
+  analysisSchema,
+  exercisesSchema,
+  type AnalysisResult,
+  type ExercisesResult,
+} from "./schemas";
+
+export const PROMPT_VERSIONS = {
+  analysis: "analysis-v3",
+  exercises: "exercises-v1",
+} as const;
+
+export const SCHEMA_VERSIONS = {
+  analysis: "analysis-schema-v1",
+  exercises: "exercises-schema-v1",
+} as const;
+
+export const analysisJsonShape = {
+  title: "short neutral Vietnamese/English title",
+  textType:
+    "work_message | technical_doc | email | article | academic | general | unknown",
+  inputMode:
+    "understand_and_practice | fix_and_understand | naturalize_english | mixed_language_support | not_english | developer_error_explanation | unsupported",
+  detectedLevel: "A2 | B1 | B2 | C1",
+  summaryVi: "string",
+  naturalTranslationVi: "string",
+  contextExplanationVi: "string",
+  lessonFocuses: [
+    {
+      title: "short learner-facing focus title",
+      conceptKey: "snake_case identifier for the concept (e.g. polite_request)",
+      conceptPhrase: "generalized canonical title/phrase of the concept",
+      conceptMeaningVi: "generalized Vietnamese explanation of the concept",
+      category: "tone | structure | purpose | context",
+      explanationVi:
+        "Vietnamese explanation of what to notice in the whole source text",
+      difficulty: "A2 | B1 | B2 | C1",
+    },
+  ],
+  sentenceBreakdowns: [
+    {
+      sentence: "source sentence or coherent sentence fragment",
+      correctedSentenceEn:
+        "optional string: corrected English version of this sentence (only for fix_and_understand or naturalize_english modes)",
+      diffSpans:
+        "optional array: character-level diff between sentence and correctedSentenceEn. Each item: {type: 'equal'|'delete'|'insert', text: string}. Only for fix_and_understand or naturalize_english. Omit if no correction.",
+      naturalMeaningVi: "natural Vietnamese meaning of this sentence",
+      structureNotesVi:
+        "Vietnamese explanation of grammar, reference, or structure that affects understanding",
+      toneOrContextVi: "optional Vietnamese note about tone or context",
+    },
+  ],
+  keyPhrases: [
+    {
+      phrase: "string",
+      conceptKey: "snake_case identifier for the concept (e.g. push_back)",
+      conceptPhrase:
+        "generalized canonical English phrase of the concept (e.g. push back)",
+      conceptMeaningVi:
+        "generalized Vietnamese meaning of the concept (e.g. dời lại / trì hoãn)",
+      meaningVi: "string",
+      meaningInContextVi: "string",
+      examples: [
+        {
+          exampleEn: "related English example sentence 1 using the phrase",
+          exampleVi: "natural Vietnamese translation of example 1",
+        },
+        {
+          exampleEn: "related English example sentence 2 using the phrase",
+          exampleVi: "natural Vietnamese translation of example 2",
+        },
+        {
+          exampleEn: "related English example sentence 3 using the phrase",
+          exampleVi: "natural Vietnamese translation of example 3",
+        },
+      ],
+      literalTranslationVi: "optional string",
+      naturalTranslationVi: "optional string",
+      whyConfusingVi: "optional string",
+      category:
+        "idiom | phrasal_verb | technical_term | collocation | grammar_pattern | business_phrase | general_phrase",
+      difficulty: "A2 | B1 | B2 | C1",
+    },
+  ],
+};
+
+export const exercisesJsonShape = {
+  exercises: [
+    {
+      type: "meaning_choice",
+      phrase: "key phrase",
+      promptVi: "Vietnamese prompt",
+      choices: ["choice", "choice", "choice"],
+      correctAnswer: "exact choice",
+    },
+    {
+      type: "cloze_phrase",
+      phrase: "key phrase",
+      promptVi: "Vietnamese prompt",
+      promptEn: "English sentence with ____",
+      correctAnswer: "phrase",
+      acceptableAnswers: ["phrase"],
+    },
+    {
+      type: "natural_translation",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt asking the learner to translate English into natural Vietnamese",
+      promptEn: "English sentence to translate into Vietnamese",
+      rubricVi: "Vietnamese grading rubric",
+    },
+    {
+      type: "focus_question",
+      focus: "lesson focus title",
+      promptVi:
+        "Vietnamese open-ended prompt about whole-text meaning, tone, structure, or purpose",
+      promptEn: "optional English source sentence or excerpt",
+      rubricVi: "Vietnamese grading rubric",
+    },
+    {
+      type: "trap_choice",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt asking the learner to choose the natural Vietnamese translation, avoiding literal traps",
+      promptEn: "English sentence containing the key phrase",
+      choices: [
+        "natural translation (correct)",
+        "literal trap 1 (wrong)",
+        "literal trap 2 (wrong)",
+      ],
+      correctAnswer: "natural translation (correct)",
+      acceptableAnswers: ["natural translation (correct)"],
+    },
+    {
+      type: "phrase_production",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt asking the learner to write/dịch an English sentence containing the key phrase to express a specific Vietnamese concept",
+      promptEn: "optional English hint or reference structure",
+      correctAnswer: "expected English sentence",
+      acceptableAnswers: [
+        "alternative correct English sentence 1",
+        "alternative correct English sentence 2",
+      ],
+      rubricVi:
+        "Vietnamese grading rubric detailing correct phrase use and grammar",
+    },
+    {
+      type: "dialogue_completion",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt asking the learner to write B's response in a mock dialogue using the key phrase",
+      promptEn:
+        "Dialogue text, e.g. 'A: Hey, can we move the meeting to Friday?\nB: [Write your reply using 'push back']'",
+      correctAnswer: "expected B's reply sentence",
+      acceptableAnswers: [
+        "alternative correct reply 1",
+        "alternative correct reply 2",
+      ],
+      rubricVi:
+        "Vietnamese grading rubric checking dialogue appropriateness and key phrase usage",
+    },
+    {
+      type: "register_shift",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt asking the learner to rewrite a dry or awkward English sentence to use the key phrase naturally",
+      promptEn: "awkward or dry English sentence to rewrite",
+      correctAnswer:
+        "expected natural/idiomatic English sentence using the phrase",
+      acceptableAnswers: ["alternative natural English sentence 1"],
+      rubricVi: "Vietnamese grading rubric checking register and phrase usage",
+    },
+    {
+      type: "trap_detect",
+      phrase: "key phrase",
+      promptVi:
+        "Vietnamese prompt presenting a bad word-by-word literal translation trap, asking to choose why it is wrong",
+      promptEn:
+        "English sentence containing the phrase, followed by its bad literal translation",
+      choices: [
+        "correct explanation of the translation trap",
+        "incorrect explanation 1",
+        "incorrect explanation 2",
+      ],
+      correctAnswer: "correct explanation of the translation trap",
+    },
+  ],
+};
+
+export class AnalysisPrompt implements Prompt<AnalysisResult> {
+  public readonly purpose = "analysis";
+  public readonly promptVersion = PROMPT_VERSIONS.analysis;
+  public readonly schemaVersion = SCHEMA_VERSIONS.analysis;
+  public readonly schema = analysisSchema;
+  public readonly modelKind = "analysis";
+  public readonly expectedShape = analysisJsonShape;
+
+  constructor(
+    private readonly sourceText: string,
+    private readonly userHighlights?: string[],
+    private readonly requestedMode?: string
+  ) {}
+
+  render(): string {
+    const list = [
+      "You are English Context Coach for Vietnamese learners.",
+      "Analyze the English source text in context. Do not translate word by word.",
+      "First, classify the source text into one of these 'inputMode' categories:",
+      "  - `understand_and_practice`: Standard, grammatically correct English text.",
+      "  - `fix_and_understand`: Grammatically incorrect English (e.g. Vietlish: 'Yesterday I go to office').",
+      "  - `naturalize_english`: Grammatically correct but awkward/unnatural English ('I very like this').",
+      "  - `mixed_language_support`: Mixed English and Vietnamese ('Anh check hộ em this ticket').",
+      "  - `not_english`: Primarily non-English text (French, purely Vietnamese, etc.).",
+      "  - `developer_error_explanation`: Developer error traceback logs (TypeError, SyntaxError, etc.).",
+      "  - `unsupported`: Gibberish, too short, or meaningless input.",
+      "Adapt your output fields dynamically based on the detected inputMode:",
+      "  - For `not_english` / `unsupported`: Set `summaryVi` to a friendly warning/explanation in Vietnamese. Set `keyPhrases`, `lessonFocuses`, and `sentenceBreakdowns` to empty arrays (`[]`). Set `naturalTranslationVi` and `contextExplanationVi` to 'none'.",
+      '  - For `fix_and_understand` / `naturalize_english`: Show grammar corrections and explain why the original was wrong or awkward in `summaryVi`. In `sentenceBreakdowns`, you MUST split the entire source text into individual sentences and generate a breakdown for EVERY sentence in its original order (do not skip any sentence, even if it has no errors). Let `naturalTranslationVi` translate the corrected English. For each corrected sentence, include a `diffSpans` array showing the character-level difference between `sentence` and `correctedSentenceEn`. Each span has `type` (\'equal\', \'delete\', or \'insert\') and `text`. Example: sentence=\'I want go home\', correctedSentenceEn=\'I want to go home\', diffSpans=[{"type":"equal","text":"I want "},{"type":"insert","text":"to "},{"type":"equal","text":"go home"}]. If the sentence has no error and equals correctedSentenceEn, set `correctedSentenceEn` to the same as `sentence`, and emit diffSpans=[{"type":"equal","text":"<the full sentence>"}] or omit diffSpans entirely. Keep `structureNotesVi` brief (e.g., "Câu này viết đúng ngữ pháp và tự nhiên.") for error-free sentences.',
+      "  - For `developer_error_explanation`: Explain the developer error stack trace clearly in Vietnamese in `summaryVi` and common causes/resolutions in `contextExplanationVi`.",
+      "Return strict JSON only. No markdown.",
+      `Generate 1-${MAX_LESSON_ITEMS} distinct key phrases. Short source texts may have only 1-2 key phrases; do not add filler.`,
+      "For each keyPhrase and lessonFocus, you MUST identify its underlying general concept. Generate:",
+      "  - `conceptKey`: A snake_case identifier that groups this phrase or focus semantically (e.g., `push_back` for 'push this back' or 'push the meeting back').",
+      "  - `conceptPhrase`: The generalized canonical form in English (e.g., `push back` for 'push this back').",
+      "  - `conceptMeaningVi`: The generalized Vietnamese meaning (e.g., `dời lại / trì hoãn`).",
+      "For standard `understand_and_practice` and other modes, generate `sentenceBreakdowns` for the important source sentences. For `fix_and_understand` / `naturalize_english` modes, you MUST generate `sentenceBreakdowns` for ALL sentences of the source text in sequence.",
+      "Generate 1-3 lessonFocuses for whole-text tone, structure, purpose, or context.",
+      "Choose key phrases that are useful as learner-facing list rows, including single words only when their contextual sense matters.",
+      "Prefer key phrases that appear directly in the source text so the UI can highlight them.",
+      "Do not include duplicate or overlapping key phrases when they teach the same thing; keep the phrase that best matches the source text.",
+      "Keep meaningVi as reusable general meaning and meaningInContextVi as the specific meaning in this source text.",
+      "For every key phrase, generate exactly 3 context-relevant example sentences in the `examples` array. Each example must have `exampleEn` (the English sentence using the phrase) and `exampleVi` (its natural Vietnamese translation). These examples must be related to the source context but should not expose private names, project identifiers, URLs, or sensitive snippets.",
+      "Do not include a full literal translation of the whole source text; only include literalTranslationVi for a key phrase when it is a real trap.",
+      "Keep meaningInContextVi concise, and include whyConfusingVi only when there is a real learner trap.",
+      "Use natural learner-friendly Vietnamese.",
+      "When referencing English key phrases, grammatical structures, or technical terms within Vietnamese descriptions (such as structureNotesVi, whyConfusingVi, contextExplanationVi, or explanationVi), format them using markdown backticks (e.g., `concerned with` or `Rooted in`). Use standard markdown (**bold**, *italic*) for other inline emphasis. Avoid using raw single quotes ('...') for these items.",
+      "CRITICAL: Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English or Vietnamese sentences (such as examples in `examples` or corrected sentences in `correctedSentenceEn`). The sentences must look natural as they would appear in regular written text.",
+      "For technical/workplace terms, keep English when that is natural in Vietnamese, then explain it.",
+      "The title must be neutral and must avoid names, company names, project identifiers, URLs, and sensitive snippets.",
+      "JSON shape:",
+      JSON.stringify(analysisJsonShape),
+      `Source text:\n${this.sourceText}`,
+    ];
+
+    if (this.requestedMode && this.requestedMode !== "auto") {
+      list.push(
+        `CRITICAL: The user has requested to process this text in mode: \`${this.requestedMode}\`. You MUST classify the inputMode as \`${this.requestedMode}\` and adapt the content fields accordingly.`
+      );
+    }
+
+    if (this.userHighlights && this.userHighlights.length > 0) {
+      list.push(
+        `CRITICAL REQUIREMENT: The user has explicitly highlighted the following phrases from the text that they want to learn. You MUST include each of these highlighted phrases in the 'keyPhrases' array of the output, explaining their category, difficulty, contextual meaning, and literal/natural translations: ${JSON.stringify(this.userHighlights)}.\n` +
+          `You MUST include them even if they are single, common, or simple words. This overrides any rules about ignoring simple or single words.\n` +
+          `IMPORTANT: In addition to these user-highlighted phrases, you should still identify and generate other key phrases from the remaining text as normal, up to the maximum limit of ${MAX_LESSON_ITEMS} total key phrases. Do not restrict your analysis to only the user-highlighted phrases.`
+      );
+    }
+
+    return list.join("\n\n");
+  }
+}
+
+export class ExercisesPrompt implements Prompt<ExercisesResult> {
+  public readonly purpose = "exercise_generation";
+  public readonly promptVersion = PROMPT_VERSIONS.exercises;
+  public readonly schemaVersion = SCHEMA_VERSIONS.exercises;
+  public readonly schema = exercisesSchema;
+  public readonly modelKind = "fast";
+  public readonly expectedShape = exercisesJsonShape;
+
+  constructor(private readonly analysis: AnalysisResult) {}
+
+  render(): string {
+    const phraseCount = this.analysis.keyPhrases?.length ?? 0;
+    const focusCount = this.analysis.lessonFocuses?.length ?? 0;
+    const totalConcepts = phraseCount + focusCount;
+
+    let minCount = 5;
+    let maxCount = 10;
+
+    if (totalConcepts <= 1) {
+      minCount = 2;
+      maxCount = 3;
+    } else if (totalConcepts <= 3) {
+      minCount = 4;
+      maxCount = 5;
+    } else if (totalConcepts <= 5) {
+      minCount = 6;
+      maxCount = 8;
+    }
+
+    return [
+      `Create ${minCount}-${maxCount} practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. Strict JSON only.`,
+      `Exercise types:
+- meaning_choice: Multiple-choice on phrase meaning. Requires "choices" array (3-4 items). Graded locally.
+- cloze_phrase: Fill in the blank. "promptEn" must contain "____" (4 underscores) for the missing phrase. Graded locally.
+- natural_translation: Translate English sentence into natural Vietnamese. No choices. AI-graded.
+- focus_question: Open-ended question about text meaning/tone/structure. Targets a lessonFocus. No choices. AI-graded.
+- trap_choice: Choose natural translation avoiding literal traps. "choices" array must have 1 natural (correct) + 2-3 literal traps (wrong). Graded locally.
+- phrase_production: Write English sentence containing key phrase. No choices. AI-graded.
+- dialogue_completion: Complete B's response in A/B dialogue using key phrase. "promptEn" shows dialogue with B's placeholder. No choices. AI-graded.
+- register_shift: Rewrite dry/awkward English sentence using key phrase naturally. No choices. AI-graded.
+- trap_detect: Identify/explain translation trap. Requires "choices" array (3-4 items) for explanation. Graded locally.`,
+      `Wording constraints for promptVi:
+- cloze_phrase: "Điền từ/cụm từ phù hợp vào chỗ trống."
+- meaning_choice: "Cụm \`X\` trong câu trên có nghĩa gần nhất với?"
+- trap_choice: "Chọn bản dịch tự nhiên nhất, tránh dịch từng từ."
+- phrase_production: "Viết một câu tiếng Anh sử dụng cụm \`X\` để diễn đạt ý: ..."
+- dialogue_completion: "Viết câu trả lời của B bằng tiếng Anh, sử dụng cụm \`X\`."
+- register_shift: "Viết lại câu dưới đây tự nhiên hơn bằng cách sử dụng cụm \`X\`."
+- natural_translation: "Dịch câu sau sang tiếng Việt tự nhiên."
+- Do not reveal the answer or hint at the correct response in promptVi.`,
+      "Include at least one focus_question. Ensure every key phrase has 1-2 associated exercises (mix passive and active types).",
+      "Wrap English phrases/terms in markdown backticks (e.g. `unlike`) ONLY when referencing them inside Vietnamese prompts or instructions (promptVi). Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English sentences (promptEn), dialogue texts, correct answers, or acceptable answers.",
+      "JSON shape:",
+      JSON.stringify(exercisesJsonShape),
+      "Analysis data:",
+      JSON.stringify(this.analysis),
+    ].join("\n\n");
+  }
+}

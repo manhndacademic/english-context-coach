@@ -241,7 +241,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
 
     expect(llm.calls.length).toBe(1);
-    expect(llm.calls[0].purpose).toBe("grading");
+    expect(llm.calls[0].prompt.purpose).toBe("grading");
   });
 
   it("routes dialogue_completion to AI grading (not exact match)", async () => {
@@ -261,7 +261,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
 
     expect(llm.calls.length).toBe(1);
-    expect(llm.calls[0].purpose).toBe("grading");
+    expect(llm.calls[0].prompt.purpose).toBe("grading");
   });
 
   it("routes register_shift to AI grading (not exact match)", async () => {
@@ -281,7 +281,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     });
 
     expect(llm.calls.length).toBe(1);
-    expect(llm.calls[0].purpose).toBe("grading");
+    expect(llm.calls[0].prompt.purpose).toBe("grading");
   });
 
   // ─── AI grading: subjective exercises ───
@@ -304,7 +304,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(result.isCorrect).toBe(true);
     expect(result.score).toBe(90);
     expect(llm.calls.length).toBe(1);
-    expect(llm.calls[0].purpose).toBe("grading");
+    expect(llm.calls[0].prompt.purpose).toBe("grading");
   });
 
   it("calls LLM and returns AI result for subjective exercise (natural_translation)", async () => {
@@ -326,7 +326,7 @@ describe("DefaultGradingEngine Domain Orchestrator", () => {
     expect(result.score).toBe(90);
     expect(result.feedbackVi).toBe("AI: Tốt lắm!");
     expect(llm.calls.length).toBe(1);
-    expect(llm.calls[0].purpose).toBe("grading");
+    expect(llm.calls[0].prompt.purpose).toBe("grading");
     expect(llm.calls[0].userId).toBe("user-1");
     expect(llm.calls[0].lessonId).toBe("lesson-1");
   });

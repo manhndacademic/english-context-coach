@@ -5,14 +5,14 @@ export class JsonParserService {
    * Parses the raw LLM response text into a coerced schema-compatible object.
    * Runs the self-healing pipeline before calling JSON.parse.
    */
-  static parse<T>(
-    rawText: string,
-    schemaVersion: keyof typeof SCHEMA_VERSIONS
-  ): T {
+  static parse<T>(rawText: string, schemaVersion: string): T {
     const extracted = JsonParserService.extractJson(rawText);
     const repaired = JsonParserService.repairJson(extracted);
     const parsedObj = JSON.parse(repaired);
-    return JsonParserService.coerceJsonForSchema(parsedObj, schemaVersion) as T;
+    const shortVersion = schemaVersion.split(
+      "-"
+    )[0] as keyof typeof SCHEMA_VERSIONS;
+    return JsonParserService.coerceJsonForSchema(parsedObj, shortVersion) as T;
   }
 
   /**

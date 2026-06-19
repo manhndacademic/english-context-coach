@@ -1,13 +1,11 @@
 import type { LLMProvider } from "@/domain/ai";
-import { analysisPrompt, exercisesPrompt } from "@/lib/ai/prompts";
-import { analysisSchema, exercisesSchema } from "@/lib/ai/schemas";
-import { PROMPT_VERSIONS } from "@/domain/constants";
+import { AnalysisPrompt, ExercisesPrompt } from "../prompts";
+import { type AnalysisResult, type ExercisesResult } from "../schemas";
 import type {
   GenerationEngine,
   SaveAnalysisInput,
   SaveExercisesInput,
 } from "../ports";
-import type { AnalysisResult, ExercisesResult } from "@/lib/ai/schemas";
 import { cleanEmbeddedQuotesOrBackticks } from "@/lib/utils";
 
 export class GeminiGenerationEngine implements GenerationEngine {
@@ -27,19 +25,10 @@ export class GeminiGenerationEngine implements GenerationEngine {
   ): Promise<SaveAnalysisInput> {
     const activeUserId = userId ?? this.userId;
     const activeLessonId = lessonId ?? this.lessonId;
-    let promptText = analysisPrompt(sourceText, userHighlights);
-    if (requestedMode && requestedMode !== "auto") {
-      promptText += `\n\nCRITICAL: The user has requested to process this text in mode: \`${requestedMode}\`. You MUST classify the inputMode as \`${requestedMode}\` and adapt the content fields accordingly.`;
-    }
     const result = (await this.llm.generateJson({
       userId: activeUserId,
       lessonId: activeLessonId,
-      purpose: "analysis",
-      prompt: promptText,
-      promptVersion: PROMPT_VERSIONS.analysis,
-      schemaVersion: "analysis",
-      schema: analysisSchema,
-      modelKind: "analysis",
+      prompt: new AnalysisPrompt(sourceText, userHighlights, requestedMode),
       onThought,
     })) as AnalysisResult;
 
@@ -103,12 +92,7 @@ export class GeminiGenerationEngine implements GenerationEngine {
     const result = (await this.llm.generateJson({
       userId: activeUserId,
       lessonId: activeLessonId,
-      purpose: "exercise_generation",
-      prompt: exercisesPrompt(analysis as any),
-      promptVersion: PROMPT_VERSIONS.exercises,
-      schemaVersion: "exercises",
-      schema: exercisesSchema,
-      modelKind: "fast",
+      prompt: new ExercisesPrompt(analysis as any),
       onThought,
     })) as ExercisesResult;
 

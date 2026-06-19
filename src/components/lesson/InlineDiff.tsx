@@ -1,4 +1,4 @@
-import type { DiffSpan } from "@/lib/ai/schemas";
+import type { DiffSpan } from "@/domain/lesson/schemas";
 import { computeCharDiff, isNoDiff } from "@/lib/diff";
 
 interface InlineDiffProps {
