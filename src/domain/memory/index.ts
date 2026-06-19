@@ -3,6 +3,8 @@ import {
   DrizzleAttemptRepository,
   DrizzleMistakePatternRepository,
   DrizzleTransactionCoordinator,
+  DrizzlePracticeHistoryRepository,
+  DrizzleMemoryLessonLookup,
 } from "./adapters/drizzle-repositories";
 import { DefaultGradingEngine } from "./grading/engine";
 import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator";
@@ -16,6 +18,7 @@ import type {
   AttemptRepository,
   MistakePatternRepository,
   TransactionCoordinator,
+  PracticeHistoryRepository,
 } from "./ports";
 
 let cachedEngine: LearnerMemoryEngine | null = null;
@@ -23,11 +26,7 @@ let cachedExerciseRepo: ExerciseRepository | null = null;
 let cachedAttemptRepo: AttemptRepository | null = null;
 let cachedMistakePatternRepo: MistakePatternRepository | null = null;
 let cachedTxCoordinator: TransactionCoordinator | null = null;
-let lessonRepoInstance: any = null;
-
-export function setLessonRepositoryForMemory(repo: any) {
-  lessonRepoInstance = repo;
-}
+let cachedPracticeHistoryRepo: PracticeHistoryRepository | null = null;
 
 export function getExerciseRepository(): ExerciseRepository {
   if (!cachedExerciseRepo) {
@@ -57,14 +56,20 @@ export function getTransactionCoordinator(): TransactionCoordinator {
   return cachedTxCoordinator;
 }
 
+export function getPracticeHistoryRepository(): PracticeHistoryRepository {
+  if (!cachedPracticeHistoryRepo) {
+    cachedPracticeHistoryRepo = new DrizzlePracticeHistoryRepository();
+  }
+  return cachedPracticeHistoryRepo;
+}
+
 export function getLearnerMemoryEngine(): LearnerMemoryEngine {
   if (!cachedEngine) {
     const exerciseRepo = getExerciseRepository();
     const attemptRepo = getAttemptRepository();
     const mistakePatternRepo = getMistakePatternRepository();
     const txCoordinator = getTransactionCoordinator();
-    const lessonRepo =
-      lessonRepoInstance || require("@/domain/lesson").getLessonRepository();
+    const lessonRepo = new DrizzleMemoryLessonLookup();
     const llm = getLLMProvider();
     const grader = new DefaultGradingEngine(llm);
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
@@ -103,5 +108,6 @@ export type {
   TransactionCoordinator,
   GradingEngine,
   LearnerGradingResult,
+  PracticeHistoryRepository,
 } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";

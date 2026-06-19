@@ -215,3 +215,14 @@ export interface ReviewPromptGenerator {
     reviewChoices: string[] | null;
   }>;
 }
+
+export interface PracticeHistoryRepository {
+  getLessonPracticeState(
+    lessonId: string,
+    userId: string
+  ): Promise<{
+    attempts: Attempt[];
+    userErrors: UserError[];
+    mistakePatterns: MistakePattern[];
+  }>;
+}

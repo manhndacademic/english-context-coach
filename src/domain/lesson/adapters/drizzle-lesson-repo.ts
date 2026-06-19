@@ -3,7 +3,6 @@ import {
   asc,
   desc,
   eq,
-  inArray,
   count,
   or,
   gt,
@@ -42,8 +41,6 @@ import type {
   LessonFocus as DbLessonFocus,
   SentenceBreakdown as DbSentenceBreakdown,
 } from "@/db/schema";
-import type { Attempt, UserError } from "@/domain/memory/types";
-import { MistakePattern } from "@/domain/memory/mistake-pattern";
 
 export class DrizzleLessonRepository implements LessonRepository {
   constructor(
@@ -512,8 +509,6 @@ export class DrizzleLessonRepository implements LessonRepository {
       sentenceBreakdowns,
       lessonFocuses,
       exercises,
-      attempts,
-      userErrors,
       progress,
     ] = await Promise.all([
       this.dbClient
@@ -546,34 +541,8 @@ export class DrizzleLessonRepository implements LessonRepository {
         .from(schema.exercises)
         .where(eq(schema.exercises.lessonId, lesson.id))
         .orderBy(schema.exercises.orderIndex),
-      this.dbClient
-        .select()
-        .from(schema.attempts)
-        .where(eq(schema.attempts.lessonId, lesson.id))
-        .orderBy(desc(schema.attempts.createdAt)),
-      this.dbClient
-        .select()
-        .from(schema.userErrors)
-        .where(eq(schema.userErrors.lessonId, lesson.id)),
       this.getLessonProgressHelper(lesson.id, userId),
     ]);
-
-    const conceptKeys: string[] = Array.from(
-      new Set(
-        userErrors.map((error: { conceptKey: string }) => error.conceptKey)
-      )
-    );
-    const mistakePatterns = conceptKeys.length
-      ? await this.dbClient
-          .select()
-          .from(schema.mistakePatterns)
-          .where(
-            and(
-              eq(schema.mistakePatterns.userId, userId),
-              inArray(schema.mistakePatterns.conceptKey, conceptKeys)
-            )
-          )
-      : [];
 
     return {
       lesson: lesson as Lesson,
@@ -582,9 +551,6 @@ export class DrizzleLessonRepository implements LessonRepository {
       sentenceBreakdowns: sentenceBreakdowns as SentenceBreakdown[],
       lessonFocuses: lessonFocuses as LessonFocus[],
       exercises: exercises as Exercise[],
-      attempts: attempts as Attempt[],
-      userErrors: userErrors as UserError[],
-      mistakePatterns: mistakePatterns as MistakePattern[],
       progress,
     };
   }

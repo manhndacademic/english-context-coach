@@ -2,7 +2,6 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
 import { MistakePattern } from "./mistake-pattern";
-import type { LessonRepository } from "@/domain/lesson/ports";
 import type {
   ExerciseRepository,
   AttemptRepository,
@@ -10,6 +9,7 @@ import type {
   TransactionCoordinator,
   GradingEngine,
   ReviewPromptGenerator,
+  MemoryLessonLookup,
 } from "./ports";
 
 class MockDatabaseState {
@@ -268,102 +268,12 @@ class MockReviewPromptGenerator implements ReviewPromptGenerator {
   }
 }
 
-class MockLessonRepository implements LessonRepository {
+class MockLessonRepository implements MemoryLessonLookup {
   keyPhrases = new Map<string, any>();
   lessonFocuses = new Map<string, any>();
 
-  async findLesson(_lessonId: string, _userId: string): Promise<any> {
-    return null;
-  }
-  async findSourceText(_sourceTextId: string, _userId: string): Promise<any> {
-    return null;
-  }
-  async findLatestLesson(_sourceTextId: string): Promise<any> {
-    return null;
-  }
-  async createSourceTextAndLessonAndJob(
-    _userId: string,
-    _content: string,
-    _title: string,
-    _contentHash: string,
-    _requestedMode?: string
-  ): Promise<any> {
-    return null as any;
-  }
-  async createLessonAndJob(
-    _userId: string,
-    _sourceTextId: string,
-    _version: number,
-    _stage: "analysis" | "exercises"
-  ): Promise<any> {
-    return null as any;
-  }
-  async createJob(
-    _userId: string,
-    _sourceTextId: string,
-    _lessonId: string,
-    _stage: "analysis" | "exercises"
-  ): Promise<any> {
-    return null as any;
-  }
-  async claimJob(_workerId: string): Promise<any> {
-    return null;
-  }
-  async updateJobStatus(
-    _jobId: string,
-    _status: any,
-    _extra?: any
-  ): Promise<void> {}
-  async assertQueueCapacity(_userId: string): Promise<any> {
-    return null;
-  }
-  async updateLessonStatus(
-    _lessonId: string,
-    _stage: any,
-    _status: any,
-    _extra?: any
-  ): Promise<void> {}
-  async saveAnalysis(
-    _lessonId: string,
-    _userId: string,
-    _analysis: any,
-    _model: string
-  ): Promise<void> {}
-  async saveExercises(
-    _lessonId: string,
-    _userId: string,
-    _exercises: any,
-    _model: string
-  ): Promise<void> {}
-  async buildAnalysisFromLesson(_lessonId: string): Promise<any> {
-    return null as any;
-  }
-  async deleteSourceText(
-    _userId: string,
-    _sourceTextId: string
-  ): Promise<void> {}
-  async resetStuckJob(_userId: string, _lessonId: string): Promise<void> {}
-  async recordMilestone(_input: any): Promise<void> {}
-  async recordThought(_input: any): Promise<void> {}
-  async getLessonProgress(_input: any): Promise<any> {
-    return null;
-  }
-  async getLessonAggregate(_lessonId: string, _userId: string): Promise<any> {
-    return null;
-  }
-  async getRecentLessons(_userId: string, _limit: number): Promise<any[]> {
-    return [];
-  }
-  async getSourceTextsCount(_userId: string): Promise<number> {
-    return 0;
-  }
-
   async findKeyPhrase(keyPhraseId: string) {
     return this.keyPhrases.get(keyPhraseId) ?? null;
-  }
-
-  async findKeyPhrases(_lessonId: string) {
-    return [];
   }
 
   async findLessonFocus(lessonFocusId: string) {

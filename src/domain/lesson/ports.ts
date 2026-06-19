@@ -1,5 +1,3 @@
-import type { Attempt, UserError } from "@/domain/memory/types";
-import type { MistakePattern } from "@/domain/memory/mistake-pattern";
 import type {
   GenerationMilestoneCode,
   GenerationStage,
@@ -170,9 +168,6 @@ export interface LessonAggregate {
   sentenceBreakdowns: SentenceBreakdown[];
   lessonFocuses: LessonFocus[];
   exercises: Exercise[];
-  attempts: Attempt[];
-  userErrors: UserError[];
-  mistakePatterns: MistakePattern[];
   progress: {
     lesson: {
       id: string;

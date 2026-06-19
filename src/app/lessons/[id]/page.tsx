@@ -4,6 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { getLessonRepository } from "@/domain/lesson";
+import { getPracticeHistoryRepository } from "@/domain/memory";
 import { classifyInputMode } from "./lesson-view-model";
 import { StandardLessonLayout } from "@/components/lesson/StandardLessonLayout";
 
@@ -17,11 +18,18 @@ export default async function LessonPage({
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
-  const lessonData = await getLessonRepository().getLessonAggregate(
-    id,
-    user.id
-  );
+  const [lessonData, practiceState] = await Promise.all([
+    getLessonRepository().getLessonAggregate(id, user.id),
+    getPracticeHistoryRepository().getLessonPracticeState(id, user.id),
+  ]);
   if (!lessonData) notFound();
+
+  const combinedLessonData = {
+    ...lessonData,
+    attempts: practiceState.attempts,
+    userErrors: practiceState.userErrors,
+    mistakePatterns: practiceState.mistakePatterns,
+  };
 
   const { lesson } = lessonData;
   const { isNotEnglishOrUnsupported } = classifyInputMode(lesson.inputMode);
@@ -66,7 +74,7 @@ export default async function LessonPage({
   return (
     <StandardLessonLayout
       user={{ email: user.email, role: user.role, image: user.image }}
-      lessonData={lessonData}
+      lessonData={combinedLessonData}
       now={now}
     />
   );

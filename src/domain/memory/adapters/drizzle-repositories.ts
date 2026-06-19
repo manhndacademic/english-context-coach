@@ -18,6 +18,8 @@ import type {
   TransactionCoordinator,
   GradableExercise,
   MemoryKeyPhraseInput,
+  PracticeHistoryRepository,
+  MemoryLessonLookup,
 } from "../ports";
 
 export class DrizzleExerciseRepository implements ExerciseRepository {
@@ -683,5 +685,77 @@ export class DrizzleTransactionCoordinator implements TransactionCoordinator {
       attempts: new DrizzleAttemptRepository(this.dbClient),
       mistakePatterns: new DrizzleMistakePatternRepository(this.dbClient),
     });
+  }
+}
+
+export class DrizzlePracticeHistoryRepository implements PracticeHistoryRepository {
+  constructor(private dbClient: DbClient = db) {}
+
+  async getLessonPracticeState(
+    lessonId: string,
+    userId: string
+  ): Promise<{
+    attempts: Attempt[];
+    userErrors: UserError[];
+    mistakePatterns: MistakePattern[];
+  }> {
+    const [attempts, userErrors] = await Promise.all([
+      this.dbClient
+        .select()
+        .from(schema.attempts)
+        .where(eq(schema.attempts.lessonId, lessonId))
+        .orderBy(desc(schema.attempts.createdAt)),
+      this.dbClient
+        .select()
+        .from(schema.userErrors)
+        .where(eq(schema.userErrors.lessonId, lessonId)),
+    ]);
+
+    const conceptKeys: string[] = Array.from(
+      new Set(
+        userErrors.map((error: { conceptKey: string }) => error.conceptKey)
+      )
+    );
+    const mistakePatterns = conceptKeys.length
+      ? await this.dbClient
+          .select()
+          .from(schema.mistakePatterns)
+          .where(
+            and(
+              eq(schema.mistakePatterns.userId, userId),
+              inArray(schema.mistakePatterns.conceptKey, conceptKeys)
+            )
+          )
+      : [];
+
+    return {
+      attempts: attempts as Attempt[],
+      userErrors: userErrors as UserError[],
+      mistakePatterns: mistakePatterns.map((r) =>
+        MistakePattern.reconstitute(r)
+      ),
+    };
+  }
+}
+
+export class DrizzleMemoryLessonLookup implements MemoryLessonLookup {
+  constructor(private dbClient: DbClient = db) {}
+
+  async findKeyPhrase(keyPhraseId: string) {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.keyPhrases)
+      .where(eq(schema.keyPhrases.id, keyPhraseId))
+      .limit(1);
+    return row ? (row as any) : null;
+  }
+
+  async findLessonFocus(lessonFocusId: string) {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.lessonFocuses)
+      .where(eq(schema.lessonFocuses.id, lessonFocusId))
+      .limit(1);
+    return row ? (row as any) : null;
   }
 }

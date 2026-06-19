@@ -6,7 +6,6 @@ import { getLLMProvider } from "@/domain/ai";
 import {
   getLearnerMemoryEngine,
   getMistakePatternRepository,
-  setLessonRepositoryForMemory,
 } from "@/domain/memory";
 import { getTextProcessor } from "@/domain/text";
 import type {
@@ -21,7 +20,6 @@ let cachedEngine: LessonGenerationEngine | null = null;
 export function getLessonRepository(): LessonRepository {
   if (!cachedLessons) {
     cachedLessons = new DrizzleLessonRepository(db, getTextProcessor());
-    setLessonRepositoryForMemory(cachedLessons);
   }
   return cachedLessons;
 }
