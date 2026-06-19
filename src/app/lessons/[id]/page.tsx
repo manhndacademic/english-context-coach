@@ -24,10 +24,59 @@ export default async function LessonPage({
   ]);
   if (!lessonData) notFound();
 
+  const attemptsByExercise = new Map<string, any[]>();
+  for (const attempt of practiceState.attempts) {
+    const arr = attemptsByExercise.get(attempt.exerciseId) ?? [];
+    arr.push(attempt);
+    attemptsByExercise.set(attempt.exerciseId, arr);
+  }
+
+  const userErrorByAttempt = new Map<string, any>();
+  for (const error of practiceState.userErrors) {
+    if (error.attemptId) {
+      userErrorByAttempt.set(error.attemptId, error);
+    }
+  }
+
+  const patternsByKey = new Map<string, any>();
+  for (const pattern of practiceState.mistakePatterns) {
+    patternsByKey.set(`${pattern.conceptKey}:${pattern.errorType}`, pattern);
+  }
+
+  const phrasesById = new Map(lessonData.keyPhrases.map((p) => [p.id, p]));
+  const focusesById = new Map(lessonData.lessonFocuses.map((f) => [f.id, f]));
+
+  const exercisePractices = lessonData.exercises.map((exercise) => {
+    const attempts = attemptsByExercise.get(exercise.id) ?? [];
+    const latestAttempt = attempts[0];
+    const userError = latestAttempt
+      ? userErrorByAttempt.get(latestAttempt.id)
+      : undefined;
+
+    let mistakePattern;
+    if (userError) {
+      mistakePattern = patternsByKey.get(
+        `${userError.conceptKey}:${userError.errorType}`
+      );
+    }
+
+    return {
+      exercise,
+      attempts,
+      keyPhrase: exercise.keyPhraseId
+        ? phrasesById.get(exercise.keyPhraseId)
+        : undefined,
+      lessonFocus: exercise.lessonFocusId
+        ? focusesById.get(exercise.lessonFocusId)
+        : undefined,
+      userError,
+      mistakePattern,
+    };
+  });
+
   const combinedLessonData = {
     ...lessonData,
-    attempts: practiceState.attempts,
-    userErrors: practiceState.userErrors,
+    exercisePractices,
     mistakePatterns: practiceState.mistakePatterns,
   };
 

@@ -15,7 +15,7 @@ import {
   submitReviewAttemptAction,
   type ReviewResultState,
 } from "@/app/actions/review";
-import type { MistakePatternPlain } from "@/domain/memory";
+import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
 import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
 import { getReviewDisclosureState } from "@/components/review-disclosure";

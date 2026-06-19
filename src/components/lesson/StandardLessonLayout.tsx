@@ -1,7 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { ReadableSourceText } from "@/components/readable-source-text";
 import { KeyPhraseList } from "@/components/key-phrase-list";
-import { completionMistakePatternKey } from "@/components/completion-summary-stats";
 import { LessonHeader } from "./LessonHeader";
 import { DeveloperErrorView } from "./DeveloperErrorView";
 import { GrammarCorrectionView } from "./GrammarCorrectionView";
@@ -9,13 +8,7 @@ import { SourceMeaningPanel } from "./SourceMeaningPanel";
 import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { MixedLanguageView } from "./MixedLanguageView";
-import {
-  groupAttemptsByExercise,
-  indexById,
-  buildStepperItems,
-  indexUserErrorsByAttemptId,
-  classifyInputMode,
-} from "@/app/lessons/[id]/lesson-view-model";
+import { classifyInputMode } from "@/app/lessons/[id]/lesson-view-model";
 
 interface StandardLessonLayoutProps {
   user: {
@@ -46,8 +39,7 @@ interface StandardLessonLayoutProps {
     sentenceBreakdowns: any[];
     lessonFocuses: any[];
     exercises: any[];
-    attempts: any[];
-    userErrors: any[];
+    exercisePractices: any[];
     mistakePatterns: any[];
     progress: any;
   };
@@ -66,35 +58,12 @@ export function StandardLessonLayout({
     sentenceBreakdowns,
     lessonFocuses,
     exercises,
-    attempts,
-    userErrors,
+    exercisePractices,
     mistakePatterns,
     progress,
   } = lessonData;
 
-  const attemptsByExercise = groupAttemptsByExercise(attempts);
-  const phraseById = indexById(phrases);
-  const focusById = indexById(lessonFocuses);
   const sourceContent = sourceText?.content;
-
-  const stepperItems = buildStepperItems(
-    exercises,
-    attemptsByExercise,
-    phraseById,
-    focusById
-  );
-  const serializedUserErrors = indexUserErrorsByAttemptId(userErrors);
-  const serializedMistakePatterns = Object.fromEntries(
-    mistakePatterns.map((pattern) => [
-      completionMistakePatternKey(pattern.conceptKey, pattern.errorType),
-      {
-        conceptKey: pattern.conceptKey,
-        errorType: pattern.errorType,
-        dueAt: pattern.dueAt.toISOString(),
-        masteryState: pattern.masteryState,
-      },
-    ])
-  );
 
   // Map from conceptKey → mistakePatternId for phrase-sourced review cards.
   // Used by the "Đã biết" dismiss button on each key phrase card.
@@ -201,13 +170,7 @@ export function StandardLessonLayout({
                 </section>
               ) : null}
 
-              <ExercisePanel
-                lesson={lesson}
-                exercises={exercises}
-                stepperItems={stepperItems}
-                serializedMistakePatterns={serializedMistakePatterns}
-                serializedUserErrors={serializedUserErrors}
-              />
+              <ExercisePanel lesson={lesson} practices={exercisePractices} />
             </div>
           ) : null}
         </div>

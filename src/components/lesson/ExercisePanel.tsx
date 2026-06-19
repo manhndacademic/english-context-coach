@@ -5,20 +5,11 @@ interface ExercisePanelProps {
     id: string;
     exerciseStatus: string;
   };
-  exercises: any[];
-  stepperItems: any[];
-  serializedMistakePatterns: Record<string, any>;
-  serializedUserErrors: Record<string, any>;
+  practices: any[];
 }
 
-export function ExercisePanel({
-  lesson,
-  exercises,
-  stepperItems,
-  serializedMistakePatterns,
-  serializedUserErrors,
-}: ExercisePanelProps) {
-  if (!exercises.length && lesson.exerciseStatus !== "running") {
+export function ExercisePanel({ lesson, practices }: ExercisePanelProps) {
+  if (!practices.length && lesson.exerciseStatus !== "running") {
     return null;
   }
 
@@ -29,7 +20,7 @@ export function ExercisePanel({
           <h2 className="text-2xl font-bold text-text m-0">
             Luyện tập thực hành
           </h2>
-          {exercises.length ? (
+          {practices.length ? (
             <p className="text-xs text-muted leading-relaxed m-0 mt-1">
               Tập trung dịch sát nghĩa tự nhiên theo ngữ cảnh, tránh bẫy dịch
               từng từ.
@@ -38,12 +29,8 @@ export function ExercisePanel({
         </div>
       </div>
       <div className="mt-3">
-        {exercises.length ? (
-          <ExerciseStepper
-            items={stepperItems}
-            serializedMistakePatterns={serializedMistakePatterns}
-            serializedUserErrors={serializedUserErrors}
-          />
+        {practices.length ? (
+          <ExerciseStepper practices={practices} />
         ) : (
           <p className="text-muted text-sm leading-relaxed m-0">
             {lesson.exerciseStatus === "failed"

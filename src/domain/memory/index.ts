@@ -111,3 +111,5 @@ export type {
   PracticeHistoryRepository,
 } from "./ports";
 export { DefaultLearnerMemoryEngine } from "./engine";
+export { ExercisePractice } from "./exercise-practice";
+export type { ExercisePracticeData } from "./exercise-practice";

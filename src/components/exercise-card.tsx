@@ -10,8 +10,7 @@ import {
   Target,
 } from "lucide-react";
 import { submitAttemptAction } from "@/app/actions/attempts";
-import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
-import type { Attempt } from "@/domain/memory";
+import { ExercisePractice } from "@/domain/memory/exercise-practice";
 import { renderRichText } from "@/lib/rich-text";
 import { GradingFeedback } from "@/components/grading-feedback";
 
@@ -65,23 +64,16 @@ function getPlaceholder(type: string, needsRetry: boolean) {
 }
 
 export function ExerciseCard({
-  attempts,
-  exercise,
+  practice,
   isCurrent = false,
-  keyPhrase,
-  lessonFocus,
-  userErrorsByAttemptId,
 }: {
-  attempts: Attempt[];
-  exercise: Exercise;
+  practice: ExercisePractice;
   isCurrent?: boolean;
-  keyPhrase?: KeyPhrase;
-  lessonFocus?: LessonFocus;
-  userErrorsByAttemptId?: Map<string, any>;
 }) {
+  const { exercise, attempts, keyPhrase, lessonFocus, userError } = practice;
   const latest = attempts[0];
-  const solved = Boolean(latest?.isCorrect);
-  const needsRetry = Boolean(latest && !latest.isCorrect);
+  const solved = practice.isSolved;
+  const needsRetry = practice.needsRetry;
   const showSuggestion = needsRetry && attempts.length >= 2;
   const [answer, setAnswer] = useState(
     latest && !latest.isCorrect ? latest.answer : ""
@@ -109,9 +101,7 @@ export function ExerciseCard({
   );
 
   const isRepeated =
-    latest && !latest.isCorrect
-      ? Boolean(userErrorsByAttemptId?.get(latest.id)?.isRepeated)
-      : false;
+    latest && !latest.isCorrect ? Boolean(userError?.isRepeated) : false;
 
   const metadata = latest?.gradingMetadata as
     | {

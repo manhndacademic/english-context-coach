@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ReviewSession } from "./session";
-import type { MistakePatternPlain } from "@/domain/memory";
+import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({

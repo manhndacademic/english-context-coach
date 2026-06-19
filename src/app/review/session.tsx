@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReviewCard } from "@/components/review-card";
-import type { MistakePatternPlain } from "@/domain/memory";
+import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

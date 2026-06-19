@@ -10,73 +10,45 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ExerciseCard } from "./exercise-card";
-import type { Exercise, KeyPhrase, LessonFocus } from "@/domain/lesson";
-import type { Attempt } from "@/domain/memory";
+import {
+  ExercisePractice,
+  type ExercisePracticeData,
+} from "@/domain/memory/exercise-practice";
 import { Button } from "@/components/ui/button";
 import { CompletionSummary } from "@/components/completion-summary";
 import {
   buildCompletionStats,
   type CompletionStats,
-  type CompletionMistakePatternSummary,
-  type CompletionUserErrorSummary,
 } from "@/components/completion-summary-stats";
 
-interface ExerciseItem {
-  exercise: Exercise;
-  attempts: Attempt[];
-  isSolved: boolean;
-  needsRetry: boolean;
-  keyPhrase?: KeyPhrase;
-  lessonFocus?: LessonFocus;
-}
-
 export function ExerciseStepper({
-  items,
-  serializedMistakePatterns,
-  serializedUserErrors,
+  practices,
 }: {
-  items: ExerciseItem[];
-  serializedMistakePatterns: Record<string, CompletionMistakePatternSummary>;
-  serializedUserErrors: Record<string, any>;
+  practices: ExercisePracticeData[];
 }) {
-  // Find the first unsolved exercise index to focus on initially
+  const items = useMemo(() => {
+    return practices.map((p) => new ExercisePractice(p));
+  }, [practices]);
+
   const initialIndex = useMemo(() => {
     const firstUnsolved = items.findIndex((item) => !item.isSolved);
     return firstUnsolved === -1 ? 0 : firstUnsolved;
   }, [items]);
 
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  // Track whether the user dismissed the CompletionSummary to redo exercises
   const [showSummary, setShowSummary] = useState(true);
 
-  // Clamp index if items change or if it is out of bounds
   const currentIndex =
     activeIndex >= items.length ? Math.max(0, items.length - 1) : activeIndex;
-
-  const userErrorsMap = useMemo(() => {
-    return new Map(Object.entries(serializedUserErrors)) as Map<
-      string,
-      CompletionUserErrorSummary
-    >;
-  }, [serializedUserErrors]);
-
-  const mistakePatternsMap = useMemo(() => {
-    return new Map(Object.entries(serializedMistakePatterns));
-  }, [serializedMistakePatterns]);
 
   const activeItem = items[currentIndex];
   const total = items.length;
   const solvedCount = items.filter((item) => item.isSolved).length;
   const allSolved = solvedCount === total;
 
-  // Derive CompletionStats from server-rendered data (attempts + userErrors)
   const completionStats = useMemo<CompletionStats>(() => {
-    return buildCompletionStats({
-      items,
-      userErrorsByAttemptId: userErrorsMap,
-      mistakePatternsByKey: mistakePatternsMap,
-    });
-  }, [items, mistakePatternsMap, userErrorsMap]);
+    return buildCompletionStats(items);
+  }, [items]);
 
   const handleRetry = useCallback(() => {
     setActiveIndex(0);
@@ -99,7 +71,6 @@ export function ExerciseStepper({
     }
   };
 
-  // Show CompletionSummary when all exercises are solved and user hasn't dismissed
   if (allSolved && showSummary) {
     return <CompletionSummary stats={completionStats} onRetry={handleRetry} />;
   }
@@ -172,12 +143,8 @@ export function ExerciseStepper({
       <div className="animate-in fade-in slide-in-from-bottom-1.5 duration-200">
         <ExerciseCard
           key={activeItem.exercise.id}
-          attempts={activeItem.attempts}
-          exercise={activeItem.exercise}
+          practice={activeItem}
           isCurrent={true}
-          keyPhrase={activeItem.keyPhrase}
-          lessonFocus={activeItem.lessonFocus}
-          userErrorsByAttemptId={userErrorsMap}
         />
       </div>
 

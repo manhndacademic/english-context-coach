@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ExerciseCard } from "./exercise-card";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Exercise, KeyPhrase } from "@/domain/lesson";
-import type { Attempt } from "@/domain/memory";
+import type { Attempt } from "@/domain/memory/types";
+import { ExercisePractice } from "@/domain/memory/exercise-practice";
 
 // Mock the server action to avoid loading next-auth/guards/next/server during unit tests
 vi.mock("@/app/actions/attempts", () => ({
@@ -54,9 +55,13 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
 
     const html = renderToStaticMarkup(
       <ExerciseCard
-        exercise={exercise}
-        attempts={attempts}
-        keyPhrase={mockKeyPhrase}
+        practice={
+          new ExercisePractice({
+            exercise,
+            attempts,
+            keyPhrase: mockKeyPhrase,
+          })
+        }
       />
     );
 
@@ -94,9 +99,13 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
 
     const html = renderToStaticMarkup(
       <ExerciseCard
-        exercise={exercise}
-        attempts={attempts}
-        keyPhrase={mockKeyPhrase}
+        practice={
+          new ExercisePractice({
+            exercise,
+            attempts,
+            keyPhrase: mockKeyPhrase,
+          })
+        }
       />
     );
 
@@ -122,9 +131,13 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
 
     const html = renderToStaticMarkup(
       <ExerciseCard
-        exercise={exercise}
-        attempts={attempts}
-        keyPhrase={mockKeyPhrase}
+        practice={
+          new ExercisePractice({
+            exercise,
+            attempts,
+            keyPhrase: mockKeyPhrase,
+          })
+        }
       />
     );
 
@@ -159,7 +172,14 @@ describe("ExerciseCard Conditional Key Phrase Visibility", () => {
     ];
 
     const html = renderToStaticMarkup(
-      <ExerciseCard exercise={exercise} attempts={attempts} />
+      <ExerciseCard
+        practice={
+          new ExercisePractice({
+            exercise,
+            attempts,
+          })
+        }
+      />
     );
 
     // Should render the textarea with disabled attribute
