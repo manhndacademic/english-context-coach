@@ -8,8 +8,9 @@ import {
   isTerminalLessonStatus,
 } from "@/domain/generation-progress";
 import { AlertCircle, Copy, Check } from "lucide-react";
+import type { GenerationStatus, JobStatus } from "@/domain/types";
 
-export type StageStatus = "pending" | "running" | "succeeded" | "failed";
+export type StageStatus = GenerationStatus;
 
 type LessonStatus = {
   analysisStatus: StageStatus;
@@ -32,7 +33,7 @@ type ProgressThought = {
 
 type ProgressJob = {
   id: string;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: JobStatus;
   stage: string;
   attempts: number;
   errorMessage?: string | null;

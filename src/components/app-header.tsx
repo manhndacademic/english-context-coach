@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import type { AppTheme } from "@/domain/types";
 
 export function AppHeader({
   email,
@@ -25,7 +26,7 @@ export function AppHeader({
   image?: string | null;
   maxWidthClass?: string;
 }) {
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
+  const [theme, setTheme] = useState<AppTheme>("system");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -33,11 +34,7 @@ export function AppHeader({
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("theme") as
-        | "light"
-        | "dark"
-        | "system"
-        | null;
+      const stored = localStorage.getItem("theme") as AppTheme | null;
       const activeTheme = stored || "system";
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTheme(activeTheme);
@@ -68,7 +65,7 @@ export function AppHeader({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const changeTheme = (newTheme: "light" | "dark" | "system") => {
+  const changeTheme = (newTheme: AppTheme) => {
     setTheme(newTheme);
     try {
       localStorage.setItem("theme", newTheme);

@@ -1,9 +1,11 @@
+import type { ExercisePracticeStatus } from "@/domain/types";
+
 export type ExerciseStatus = "solved" | "needs-retry" | "current" | "upcoming";
 
 export interface ExerciseStatusView {
   label: string;
   className: string;
-  iconType: "solved" | "retry" | "target";
+  iconType: ExercisePracticeStatus;
 }
 
 export function getExerciseStatusView(
@@ -113,7 +115,7 @@ export type StepperItemActiveState = "active" | "inactive";
 
 export interface StepperItemView {
   className: string;
-  iconType: "solved" | "retry" | "target";
+  iconType: ExercisePracticeStatus;
 }
 
 export function getStepperItemView(
@@ -144,7 +146,7 @@ export function getStepperItemView(
     }
   }
 
-  let iconType: "solved" | "retry" | "target" = "target";
+  let iconType: ExercisePracticeStatus = "target";
   switch (state) {
     case "solved":
       iconType = "solved";

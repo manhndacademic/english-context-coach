@@ -26,6 +26,41 @@ import {
   type StepperItemActiveState,
 } from "@/domain/memory/exercise-view-presenter";
 
+interface StepperIconProps {
+  type: "solved" | "retry" | "target";
+}
+
+function StepperIcon({ type }: StepperIconProps) {
+  if (type === "solved") {
+    return <CheckCircle2 size={13} className="shrink-0" />;
+  }
+  if (type === "retry") {
+    return <AlertCircle size={13} className="shrink-0" />;
+  }
+  return <Target size={13} className="shrink-0 text-muted/60" />;
+}
+
+function getStepperItemState(item: {
+  isSolved: boolean;
+  needsRetry: boolean;
+}): StepperItemState {
+  if (item.isSolved) return "solved";
+  if (item.needsRetry) return "needs-retry";
+  return "pending";
+}
+
+function getStepperTitle(
+  item: { isSolved: boolean; needsRetry: boolean },
+  idx: number
+): string {
+  const status = item.isSolved
+    ? "Đã xong"
+    : item.needsRetry
+      ? "Cần sửa lại"
+      : "Chưa làm";
+  return `Bài tập ${idx + 1}: ${status}`;
+}
+
 export function ExerciseStepper({
   practices,
 }: {
@@ -104,11 +139,7 @@ export function ExerciseStepper({
         <div className="flex flex-wrap items-center gap-2">
           {items.map((item, idx) => {
             const isCurrent = idx === currentIndex;
-            const state: StepperItemState = item.isSolved
-              ? "solved"
-              : item.needsRetry
-                ? "needs-retry"
-                : "pending";
+            const state = getStepperItemState(item);
             const activeState: StepperItemActiveState = isCurrent
               ? "active"
               : "inactive";
@@ -121,16 +152,10 @@ export function ExerciseStepper({
                 className={buttonClassName}
                 onClick={() => setActiveIndex(idx)}
                 aria-label={`Đi tới bài tập ${idx + 1}`}
-                title={`Bài tập ${idx + 1}: ${item.isSolved ? "Đã xong" : item.needsRetry ? "Cần sửa lại" : "Chưa làm"}`}
+                title={getStepperTitle(item, idx)}
               >
                 <span>Câu {idx + 1}</span>
-                {stepperIconType === "solved" ? (
-                  <CheckCircle2 size={13} className="shrink-0" />
-                ) : stepperIconType === "retry" ? (
-                  <AlertCircle size={13} className="shrink-0" />
-                ) : (
-                  <Target size={13} className="shrink-0 text-muted/60" />
-                )}
+                <StepperIcon type={stepperIconType} />
               </button>
             );
           })}

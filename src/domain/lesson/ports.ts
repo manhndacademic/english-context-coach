@@ -2,6 +2,14 @@ import type {
   GenerationMilestoneCode,
   GenerationStage,
 } from "@/domain/generation-progress";
+import type {
+  KeyPhraseCategory,
+  ExerciseType,
+  GenerationStatus,
+  JobStatus,
+  LessonFocusCategory,
+  DiffType,
+} from "@/domain/types";
 
 export type TextType =
   | "work_message"
@@ -29,8 +37,8 @@ export interface Lesson {
   userId: string;
   version: number;
   title: string;
-  analysisStatus: "pending" | "running" | "succeeded" | "failed";
-  exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+  analysisStatus: GenerationStatus;
+  exerciseStatus: GenerationStatus;
   textType: TextType | "unknown" | null;
   inputMode: string;
   detectedLevel: DetectedLevel | null;
@@ -58,14 +66,7 @@ export interface KeyPhrase {
   literalTranslationVi: string | null;
   naturalTranslationVi: string | null;
   whyConfusingVi: string | null;
-  category:
-    | "idiom"
-    | "phrasal_verb"
-    | "technical_term"
-    | "collocation"
-    | "grammar_pattern"
-    | "business_phrase"
-    | "general_phrase";
+  category: KeyPhraseCategory;
   difficulty: DetectedLevel;
   isSensitive: boolean;
   createdAt: Date;
@@ -78,7 +79,7 @@ export interface SentenceBreakdown {
   sentence: string;
   correctedSentenceEn: string | null;
   diffSpans: Array<{
-    type: "equal" | "delete" | "insert";
+    type: DiffType;
     text: string;
   }> | null;
   naturalMeaningVi: string;
@@ -96,7 +97,7 @@ export interface LessonFocus {
   conceptKey: string;
   conceptPhrase: string;
   conceptMeaningVi: string;
-  category: "tone" | "structure" | "purpose" | "context";
+  category: LessonFocusCategory;
   explanationVi: string;
   difficulty: DetectedLevel;
   createdAt: Date;
@@ -108,16 +109,7 @@ export interface Exercise {
   userId: string;
   keyPhraseId: string | null;
   lessonFocusId: string | null;
-  type:
-    | "meaning_choice"
-    | "cloze_phrase"
-    | "natural_translation"
-    | "focus_question"
-    | "trap_choice"
-    | "phrase_production"
-    | "dialogue_completion"
-    | "register_shift"
-    | "trap_detect";
+  type: ExerciseType;
   promptVi: string;
   promptEn: string | null;
   choices: string[] | null;
@@ -133,7 +125,7 @@ export interface GenerationJob {
   userId: string;
   sourceTextId: string;
   lessonId: string;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: JobStatus;
   stage: string;
   attempts: number;
   errorMessage: string | null;
@@ -324,7 +316,7 @@ export interface GenerationJobRepository {
   claimJob(workerId: string): Promise<GenerationJob | null>;
   updateJobStatus(
     jobId: string,
-    status: "queued" | "running" | "succeeded" | "failed",
+    status: JobStatus,
     extra?: Partial<GenerationJob>
   ): Promise<void>;
   assertQueueCapacity(userId: string): Promise<string | null>;

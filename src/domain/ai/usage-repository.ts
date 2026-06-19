@@ -1,7 +1,8 @@
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db, schema, type DbClient } from "@/db";
+import type { Timeframe } from "@/domain/types";
 
-export type UsageTimeframe = "today" | "7days" | "30days";
+export type UsageTimeframe = Timeframe;
 
 export interface UsageStats {
   summary: {
@@ -91,8 +92,12 @@ export class DrizzleUsageRepository implements UsageRepository {
       .groupBy(sql`to_char(created_at, 'YYYY-MM-DD')`)
       .orderBy(sql`to_char(created_at, 'YYYY-MM-DD') asc`);
 
-    const daysCount =
-      timeframe === "today" ? 1 : timeframe === "7days" ? 7 : 30;
+    const timeframeDays: Record<Timeframe, number> = {
+      today: 1,
+      "7days": 7,
+      "30days": 30,
+    };
+    const daysCount = timeframeDays[timeframe];
     const dailyMap = new Map(dailyDb.map((row) => [row.dateStr, row]));
     const daily: UsageStats["daily"] = [];
     for (let i = daysCount - 1; i >= 0; i -= 1) {

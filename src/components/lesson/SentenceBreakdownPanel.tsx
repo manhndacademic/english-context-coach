@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { renderRichText } from "@/lib/rich-text";
 import { InlineDiff } from "./InlineDiff";
 import type { DiffSpan } from "@/domain/lesson/schemas";
+import type { LessonViewMode, DiffViewMode } from "@/domain/types";
 
 interface SentenceBreakdownItem {
   id: string;
@@ -18,14 +19,14 @@ interface SentenceBreakdownItem {
 interface SentenceBreakdownPanelProps {
   sentenceBreakdowns: SentenceBreakdownItem[];
   /** "grammar" = correction comparison view (default); "standard" = clean analysis without comparison */
-  mode?: "grammar" | "standard";
+  mode?: LessonViewMode;
 }
 
 export function SentenceBreakdownPanel({
   sentenceBreakdowns,
   mode = "grammar",
 }: SentenceBreakdownPanelProps) {
-  const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
+  const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -37,7 +38,7 @@ export function SentenceBreakdownPanel({
     }
   }, []);
 
-  const handleViewModeChange = (newMode: "unified" | "split") => {
+  const handleViewModeChange = (newMode: DiffViewMode) => {
     setViewMode(newMode);
     localStorage.setItem("sentence-diff-view-mode", newMode);
   };

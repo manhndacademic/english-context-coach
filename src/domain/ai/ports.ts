@@ -1,11 +1,12 @@
 import { z } from "zod";
+import type { AiPurpose, AiRequestStatus, AiModelKind } from "@/domain/types";
 
 export interface Prompt<T> {
-  purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+  purpose: AiPurpose;
   promptVersion: string;
   schemaVersion: string;
   schema: z.ZodType<T>;
-  modelKind: "analysis" | "fast";
+  modelKind: AiModelKind;
   render(): string;
   expectedShape?: Record<string, any>;
 }
@@ -40,13 +41,13 @@ export interface AiRequestRecorder {
   recordRequest(options: {
     userId?: string;
     lessonId?: string;
-    purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+    purpose: AiPurpose;
     provider: string;
     model: string;
     promptVersion: string;
     schemaVersion: string;
     payloadHash: string;
-    status: "succeeded" | "failed";
+    status: AiRequestStatus;
     latencyMs: number;
     inputTokens: number | null;
     outputTokens: number | null;

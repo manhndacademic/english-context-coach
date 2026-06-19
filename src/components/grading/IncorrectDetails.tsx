@@ -3,6 +3,17 @@
 import { useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
+
+interface ChevronIconProps {
+  expanded: boolean;
+}
+
+function ChevronIcon({ expanded }: ChevronIconProps) {
+  if (expanded) {
+    return <ChevronUp size={14} />;
+  }
+  return <ChevronDown size={14} />;
+}
 import { WordDiff } from "@/components/lesson/WordDiff";
 
 export interface IncorrectDetailsProps {
@@ -84,11 +95,7 @@ export function IncorrectDetails({
             className="w-full flex items-center justify-between p-3 px-4 text-xs font-bold text-muted hover:bg-surface-active cursor-pointer transition-all leading-none"
           >
             <span>Giải thích thêm (Explain more)</span>
-            {showExplainMore ? (
-              <ChevronUp size={14} />
-            ) : (
-              <ChevronDown size={14} />
-            )}
+            <ChevronIcon expanded={showExplainMore} />
           </button>
           <div
             data-state={showExplainMore ? "open" : "closed"}

@@ -1,7 +1,8 @@
 import { renderRichText } from "@/lib/rich-text";
+import type { LessonViewMode } from "@/domain/types";
 
 interface SourceMeaningPanelProps {
-  mode: "standard" | "grammar";
+  mode: LessonViewMode;
   lesson: {
     summaryVi: string | null;
     naturalTranslationVi: string | null;

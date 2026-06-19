@@ -1,6 +1,12 @@
 import crypto from "crypto";
 import type { TextProcessor } from "@/domain/text";
 import { getLogger, parseDbDate } from "@/lib/logger";
+import type {
+  KeyPhraseCategory,
+  LessonFocusCategory,
+  ReviewPromptJobState,
+  MistakePatternStatus,
+} from "@/domain/types";
 
 const log = getLogger("d.m.engine.LearnerMemoryEngine");
 import { MistakePattern } from "./mistake-pattern";
@@ -27,14 +33,7 @@ import type {
 
 const MIN_USER_ERROR_CONFIDENCE = 70;
 
-type MemoryCategory =
-  | "idiom"
-  | "phrasal_verb"
-  | "technical_term"
-  | "collocation"
-  | "grammar_pattern"
-  | "business_phrase"
-  | "general_phrase";
+type MemoryCategory = KeyPhraseCategory;
 
 type ResolvedMemoryConcept = {
   keyPhraseId: string | null;
@@ -50,9 +49,7 @@ type ResolvedMemoryConcept = {
   isSensitive: boolean;
 };
 
-function categoryForLessonFocus(
-  category: "tone" | "structure" | "purpose" | "context"
-): MemoryCategory {
+function categoryForLessonFocus(category: LessonFocusCategory): MemoryCategory {
   if (category === "structure") return "grammar_pattern";
   if (category === "tone") return "business_phrase";
   return "general_phrase";
@@ -295,11 +292,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
 
   async processNextReviewPromptJob(
     workerId: string
-  ): Promise<
-    | { status: "processed"; patternId: string; success: boolean }
-    | { status: "idle" }
-    | { status: "failed"; error: string }
-  > {
+  ): Promise<ReviewPromptJobState> {
     try {
       const pattern =
         await this.mistakePatternRepo.claimReviewPromptJob(workerId);
@@ -406,7 +399,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
   ): Promise<{
     attempt: Attempt;
     userErrorCreated: boolean;
-    mistakePatternStatus: "new" | "repeated" | "none";
+    mistakePatternStatus: MistakePatternStatus;
     reviewPromptJob?: { patternId: string };
   }> {
     const attempt = await repos.attempts.createAttempt({

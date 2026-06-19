@@ -1,5 +1,9 @@
 import { MistakePattern } from "./mistake-pattern";
 import type { MemoryKeyPhraseInput } from "./ports";
+import type {
+  MistakePatternStatus,
+  ReviewPromptJobState,
+} from "@/domain/types";
 
 export interface Attempt {
   id: string;
@@ -59,7 +63,7 @@ export interface AttemptFormResult {
   score: number;
   feedbackVi: string;
   userErrorCreated: boolean;
-  mistakePatternStatus: "new" | "repeated" | "none";
+  mistakePatternStatus: MistakePatternStatus;
   feedbackDetails?: {
     whatWasWrong: string;
     whyItWasWrong: string;
@@ -103,13 +107,7 @@ export interface LearnerMemoryEngine {
     input: SubmitReviewAttemptInput
   ): Promise<ReviewFormResult>;
   generateReviewPrompt(patternId: string): Promise<void>;
-  processNextReviewPromptJob(
-    workerId: string
-  ): Promise<
-    | { status: "processed"; patternId: string; success: boolean }
-    | { status: "idle" }
-    | { status: "failed"; error: string }
-  >;
+  processNextReviewPromptJob(workerId: string): Promise<ReviewPromptJobState>;
   getDashboardMetrics(
     userId: string,
     dueAt: Date

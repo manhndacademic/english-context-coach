@@ -11,6 +11,7 @@ import { validatedAction } from "@/lib/action-builder";
 import { requireUser } from "@/lib/auth/guards";
 import { z } from "zod";
 import { verifyGeminiApiKey } from "@/domain/ai/adapters/gemini-utils";
+import type { Timeframe } from "@/domain/types";
 
 const saveUserApiKeySchema = z.object({ apiKey: z.string().trim() });
 
@@ -107,9 +108,7 @@ export const reverifyUserApiKeyAction = validatedAction(
   }
 );
 
-export async function getUsageStatsAction(
-  timeframe: "today" | "7days" | "30days"
-) {
+export async function getUsageStatsAction(timeframe: Timeframe) {
   const user = await requireUser();
   return getUsageRepository().getUserUsageStats(user.id, timeframe);
 }

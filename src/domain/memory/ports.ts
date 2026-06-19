@@ -1,20 +1,14 @@
 import type { Attempt, UserError, ReviewAttempt } from "./types";
 import type { GradingResult } from "./schemas";
 import { MistakePattern } from "./mistake-pattern";
+import type { KeyPhraseCategory, ExerciseType } from "@/domain/types";
 
 export interface MemoryKeyPhraseInput {
   id: string;
   conceptKey: string;
   normalizedPhrase: string;
   senseKey: string;
-  category:
-    | "idiom"
-    | "phrasal_verb"
-    | "technical_term"
-    | "collocation"
-    | "grammar_pattern"
-    | "business_phrase"
-    | "general_phrase";
+  category: KeyPhraseCategory;
   conceptMeaningVi: string;
   isSensitive: boolean;
 }
@@ -24,16 +18,7 @@ export type LearnerGradingResult = GradingResult & {
 };
 
 export interface GradableExercise {
-  type:
-    | "meaning_choice"
-    | "cloze_phrase"
-    | "natural_translation"
-    | "focus_question"
-    | "trap_choice"
-    | "phrase_production"
-    | "dialogue_completion"
-    | "register_shift"
-    | "trap_detect";
+  type: ExerciseType;
   promptVi: string;
   promptEn: string | null;
   choices: string[] | null;
@@ -47,14 +32,7 @@ export interface MemoryLessonLookup {
     id: string;
     normalizedPhrase: string;
     senseKey: string;
-    category:
-      | "idiom"
-      | "phrasal_verb"
-      | "technical_term"
-      | "collocation"
-      | "grammar_pattern"
-      | "business_phrase"
-      | "general_phrase";
+    category: KeyPhraseCategory;
     meaningVi: string;
     conceptKey: string;
     conceptPhrase: string;

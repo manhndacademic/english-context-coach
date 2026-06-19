@@ -1,4 +1,10 @@
 import type { MasteryState } from "./types";
+import type {
+  KeyPhraseCategory,
+  UserErrorType,
+  JobStatus,
+  MistakePatternSource,
+} from "@/domain/types";
 
 export class MistakePattern {
   public static readonly REVIEW_INTERVALS = [1, 3, 7, 14];
@@ -43,24 +49,8 @@ export class MistakePattern {
     public readonly conceptKey: string,
     public readonly normalizedPhrase: string,
     public readonly senseKey: string | null,
-    public readonly category:
-      | "idiom"
-      | "phrasal_verb"
-      | "technical_term"
-      | "collocation"
-      | "grammar_pattern"
-      | "business_phrase"
-      | "general_phrase",
-    public readonly errorType:
-      | "literal_translation"
-      | "phrase_misunderstanding"
-      | "technical_term_misunderstanding"
-      | "phrasal_verb_error"
-      | "collocation_error"
-      | "grammar_structure_misread"
-      | "pronoun_reference_misread"
-      | "tone_register_misread"
-      | "missing_context",
+    public readonly category: KeyPhraseCategory,
+    public readonly errorType: UserErrorType,
     public readonly meaningVi: string,
     public readonly safeReviewPromptVi: string,
     public readonly isSensitive: boolean,
@@ -80,12 +70,12 @@ export class MistakePattern {
     private _reviewAcceptableAnswers: string[] | null,
     private _reviewType: string,
     private _reviewChoices: string[] | null,
-    private _reviewPromptStatus: "queued" | "running" | "succeeded" | "failed",
+    private _reviewPromptStatus: JobStatus,
     private _reviewPromptAttempts: number,
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
     private _reviewPromptLockedBy: string | null,
-    public readonly source: "mistake" | "phrase" | "manual" = "mistake",
+    public readonly source: MistakePatternSource = "mistake",
     public readonly keyPhraseId: string | null = null
   ) {}
 
@@ -504,29 +494,13 @@ export class MistakePattern {
 export interface MistakePatternPlain {
   id: string;
   userId: string;
-  source: "mistake" | "phrase" | "manual";
+  source: MistakePatternSource;
   keyPhraseId: string | null;
   conceptKey: string;
   normalizedPhrase: string;
   senseKey: string | null;
-  category:
-    | "idiom"
-    | "phrasal_verb"
-    | "technical_term"
-    | "collocation"
-    | "grammar_pattern"
-    | "business_phrase"
-    | "general_phrase";
-  errorType:
-    | "literal_translation"
-    | "phrase_misunderstanding"
-    | "technical_term_misunderstanding"
-    | "phrasal_verb_error"
-    | "collocation_error"
-    | "grammar_structure_misread"
-    | "pronoun_reference_misread"
-    | "tone_register_misread"
-    | "missing_context";
+  category: KeyPhraseCategory;
+  errorType: UserErrorType;
   meaningVi: string;
   safeReviewPromptVi: string;
   isSensitive: boolean;
@@ -546,7 +520,7 @@ export interface MistakePatternPlain {
   reviewAcceptableAnswers: string[] | null;
   reviewType: string;
   reviewChoices: string[] | null;
-  reviewPromptStatus: "queued" | "running" | "succeeded" | "failed";
+  reviewPromptStatus: JobStatus;
   reviewPromptAttempts: number;
   reviewPromptError: string | null;
   reviewPromptLockedAt: string | null;

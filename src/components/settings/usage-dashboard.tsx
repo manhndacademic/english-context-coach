@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getUsageStatsAction } from "@/app/actions/settings";
+import type { Timeframe } from "@/domain/types";
 import {
   BarChart,
   Bar,
@@ -39,10 +40,14 @@ function formatLabelDate(dateStr: string): string {
   }
 }
 
+const TIMEFRAME_LABELS: Record<Timeframe, string> = {
+  today: "Hôm nay",
+  "7days": "7 ngày qua",
+  "30days": "30 ngày qua",
+};
+
 export function UsageDashboard({ initialStats }: UsageDashboardProps) {
-  const [timeframe, setTimeframe] = useState<"today" | "7days" | "30days">(
-    "7days"
-  );
+  const [timeframe, setTimeframe] = useState<Timeframe>("7days");
   const [data, setData] = useState(initialStats);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -69,9 +74,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
     setMounted(true);
   }, []);
 
-  const handleTimeframeChange = async (
-    newTimeframe: "today" | "7days" | "30days"
-  ) => {
+  const handleTimeframeChange = async (newTimeframe: Timeframe) => {
     if (newTimeframe === timeframe) return;
     setLoading(true);
     setTimeframe(newTimeframe);
@@ -139,11 +142,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
                   : "text-muted hover:text-text border border-transparent"
               } disabled:opacity-50`}
             >
-              {t === "today"
-                ? "Hôm nay"
-                : t === "7days"
-                  ? "7 ngày qua"
-                  : "30 ngày qua"}
+              {TIMEFRAME_LABELS[t]}
             </button>
           ))}
         </div>
