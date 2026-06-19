@@ -44,6 +44,10 @@ _Avoid_: Literal translation, raw translation
 A practice prompt fixed to a specific Lesson. Exercises test KeyPhrases or LessonFocuses using various smart types (multiple choice on meaning, fill-in-the-blank, natural translation, focus questions, literal trap choice, active phrase production, dialogue completion, register shift, or translation trap detection). Each Exercise has a primary target for judging the learner's answer.
 _Avoid_: Quiz question, task
 
+**ExercisePractice**:
+An aggregate in the `memory` package that groups an `Exercise` with its associated practice history (attempts, user errors, and mistake patterns). It simplifies UI rendering and statistics calculations by encapsulating the relationship between content and learner performance.
+_Avoid_: PracticeDetail, ExerciseAttemptGroup
+
 **Attempt**:
 A learner's submitted answer to an Exercise. An Attempt may be partially correct when it captures some meaning but misses the Exercise's primary target.
 _Avoid_: Response, submission
