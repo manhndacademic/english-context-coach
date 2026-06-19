@@ -122,6 +122,11 @@ export class GeminiLLMProvider implements LLMProvider {
       globalThinkingLevel
     );
 
+    const isThinkingModel =
+      options.model.toLowerCase().includes("gemini-2") ||
+      options.model.toLowerCase().includes("gemini-3") ||
+      options.model.toLowerCase().includes("-thinking");
+
     const ai = new GoogleGenAI({ apiKey: options.apiKey });
     const purposeConfig = generationConfigForPurpose(options.purpose);
     const config = {
@@ -135,7 +140,11 @@ export class GeminiLLMProvider implements LLMProvider {
             includeThoughts: true,
             thinkingLevel,
           }
-        : undefined,
+        : isThinkingModel
+          ? {
+              thinkingBudget: 0,
+            }
+          : undefined,
     };
 
     let text = "";
