@@ -392,10 +392,7 @@ export class MistakePattern {
     this._updatedAt = new Date();
   }
 
-  setJobStatus(
-    status: "queued" | "running" | "succeeded" | "failed",
-    extra?: any
-  ) {
+  setJobStatus(status: JobStatus, extra?: any) {
     this._reviewPromptStatus = status;
     this._updatedAt = new Date();
     if (extra) {

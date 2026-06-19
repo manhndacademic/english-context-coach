@@ -163,8 +163,8 @@ export interface LessonAggregate {
   progress: {
     lesson: {
       id: string;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      analysisStatus: GenerationStatus;
+      exerciseStatus: GenerationStatus;
     };
     job: GenerationJob | null;
     milestones: GenerationMilestone[];
@@ -191,20 +191,13 @@ export interface SaveAnalysisInput {
     literalTranslationVi?: string;
     naturalTranslationVi?: string;
     whyConfusingVi?: string;
-    category:
-      | "idiom"
-      | "phrasal_verb"
-      | "technical_term"
-      | "collocation"
-      | "grammar_pattern"
-      | "business_phrase"
-      | "general_phrase";
+    category: KeyPhraseCategory;
     difficulty: DetectedLevel;
   }>;
   sentenceBreakdowns: Array<{
     sentence: string;
     correctedSentenceEn?: string;
-    diffSpans?: Array<{ type: "equal" | "delete" | "insert"; text: string }>;
+    diffSpans?: Array<{ type: DiffType; text: string }>;
     naturalMeaningVi: string;
     structureNotesVi: string;
     toneOrContextVi?: string;
@@ -214,7 +207,7 @@ export interface SaveAnalysisInput {
     conceptKey: string;
     conceptPhrase: string;
     conceptMeaningVi: string;
-    category: "tone" | "structure" | "purpose" | "context";
+    category: LessonFocusCategory;
     explanationVi: string;
     difficulty: DetectedLevel;
   }>;
@@ -263,8 +256,8 @@ export interface SourceTextRepository {
       id: string;
       title: string | null;
       version: number;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      analysisStatus: GenerationStatus;
+      exerciseStatus: GenerationStatus;
       textType: TextType | "unknown";
       inputMode: string;
       detectedLevel: DetectedLevel | null;
@@ -285,7 +278,7 @@ export interface LessonContentRepository {
   updateLessonStatus(
     lessonId: string,
     stage: "analysis" | "exercise",
-    status: "pending" | "running" | "succeeded" | "failed",
+    status: GenerationStatus,
     extra?: Partial<Lesson>
   ): Promise<void>;
 
@@ -347,8 +340,8 @@ export interface GenerationProgressRepository {
   }): Promise<{
     lesson: {
       id: string;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      analysisStatus: GenerationStatus;
+      exerciseStatus: GenerationStatus;
     };
     job: GenerationJob | null;
     milestones: GenerationMilestone[];
@@ -435,8 +428,8 @@ export type JobProcessResult =
 
 export interface GenerationProgress {
   lessonId: string;
-  analysisStatus: "pending" | "running" | "succeeded" | "failed";
-  exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+  analysisStatus: GenerationStatus;
+  exerciseStatus: GenerationStatus;
   latestMilestone: string | null;
   thoughts: Array<{
     stage: "analysis" | "exercises";

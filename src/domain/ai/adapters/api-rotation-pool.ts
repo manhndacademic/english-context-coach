@@ -3,6 +3,7 @@ import { getLogger } from "@/lib/logger";
 import { DrizzleKeyResolver } from "./key-resolver";
 import type { KeyResolver } from "../ports";
 import { isRateLimitError, isInvalidKeyError, AiError } from "./gemini-utils";
+import type { AiModelKind, AiPurpose } from "@/domain/types";
 
 const logger = getLogger("d.m.ai.ApiRotationPool", "ai-provider");
 
@@ -81,12 +82,12 @@ export class ApiRotationPool {
     return 30_000;
   }
 
-  getModels(kind: "analysis" | "fast"): string[] {
+  getModels(kind: AiModelKind): string[] {
     return kind === "analysis" ? this.analysisModels : this.fastModels;
   }
 
   getNextAvailable(
-    kind: "analysis" | "fast",
+    kind: AiModelKind,
     excluded?: Set<string>,
     hasSchema?: boolean
   ): string {
@@ -157,8 +158,8 @@ export class ApiRotationPool {
 
   async executeWithRotation<T>(options: {
     userId?: string;
-    modelKind: "analysis" | "fast";
-    purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+    modelKind: AiModelKind;
+    purpose: AiPurpose;
     hasSchema?: boolean;
     execute: (context: {
       key: string;
@@ -219,7 +220,7 @@ export class ApiRotationPool {
     model: string,
     options: {
       userId?: string;
-      purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+      purpose: AiPurpose;
       execute: (context: {
         key: string;
         model: string;

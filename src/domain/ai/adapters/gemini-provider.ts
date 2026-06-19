@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { getLogger } from "@/lib/logger";
+import type { AiPurpose, AiRequestStatus } from "@/domain/types";
 import type {
   LLMProvider,
   KeyResolver,
@@ -20,8 +21,6 @@ import {
 import { JsonParserService } from "./json-parser-service";
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
-
-type AiPurpose = "analysis" | "exercise_generation" | "grading" | "repair";
 
 function getEnvTokenLimit(envVar: string, defaultValue: number): number {
   const envVal = process.env[envVar];
@@ -230,7 +229,7 @@ export class GeminiLLMProvider implements LLMProvider {
       undefined,
       true
     );
-    let status: "succeeded" | "failed" = "failed";
+    let status: AiRequestStatus = "failed";
     let errorClass: string | null = null;
     let errorMessage: string | null = null;
 

@@ -1,6 +1,7 @@
 import { db, schema } from "@/db";
 import { getLogger } from "@/lib/logger";
 import { AiRequestRecorder } from "../ports";
+import type { AiPurpose, AiRequestStatus } from "@/domain/types";
 
 const logger = getLogger("d.m.ai.DrizzleAiRequestRecorder", "ai-provider");
 
@@ -8,13 +9,13 @@ export class DrizzleAiRequestRecorder implements AiRequestRecorder {
   async recordRequest(options: {
     userId?: string;
     lessonId?: string;
-    purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+    purpose: AiPurpose;
     provider: string;
     model: string;
     promptVersion: string;
     schemaVersion: string;
     payloadHash: string;
-    status: "succeeded" | "failed";
+    status: AiRequestStatus;
     latencyMs: number;
     inputTokens: number | null;
     outputTokens: number | null;

@@ -1,10 +1,11 @@
+import type { DiffType } from "@/domain/types";
 /**
  * Character-level diff utility using Myers LCS algorithm.
  * Used for GitHub-style inline diffs in grammar correction views.
  */
 
 export type DiffSpan = {
-  type: "equal" | "delete" | "insert";
+  type: DiffType;
   text: string;
 };
 
@@ -60,7 +61,7 @@ export function computeCharDiff(
   }
 
   // Traceback to build raw diff operations
-  const ops: Array<{ type: "equal" | "delete" | "insert"; char: string }> = [];
+  const ops: Array<{ type: DiffType; char: string }> = [];
   let i = m;
   let j = n;
 
@@ -132,7 +133,7 @@ export function computeWordDiff(
   }
 
   // Traceback to build raw diff operations
-  const ops: Array<{ type: "equal" | "delete" | "insert"; word: string }> = [];
+  const ops: Array<{ type: DiffType; word: string }> = [];
   let i = m;
   let j = n;
 

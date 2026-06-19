@@ -19,6 +19,7 @@ import {
   type GenerationStage,
   sanitizeGenerationThought,
 } from "@/domain/generation-progress";
+import type { GenerationStatus, JobStatus, DiffType } from "@/domain/types";
 import type {
   LessonRepository,
   Lesson,
@@ -143,7 +144,7 @@ export class DrizzleLessonRepository implements LessonRepository {
   async updateLessonStatus(
     lessonId: string,
     stage: "analysis" | "exercise",
-    status: "pending" | "running" | "succeeded" | "failed",
+    status: GenerationStatus,
     extra?: Partial<Lesson>
   ): Promise<void> {
     const field = stage === "analysis" ? "analysisStatus" : "exerciseStatus";
@@ -389,7 +390,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           correctedSentenceEn: breakdown.correctedSentenceEn ?? undefined,
           diffSpans:
             (breakdown.diffSpans as Array<{
-              type: "equal" | "delete" | "insert";
+              type: DiffType;
               text: string;
             }> | null) ?? undefined,
           naturalMeaningVi: breakdown.naturalMeaningVi,
@@ -563,8 +564,8 @@ export class DrizzleLessonRepository implements LessonRepository {
       id: string;
       title: string;
       version: number;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      analysisStatus: GenerationStatus;
+      exerciseStatus: GenerationStatus;
       textType: TextType;
       inputMode: string;
       detectedLevel: DetectedLevel | null;
@@ -638,7 +639,7 @@ export class DrizzleLessonRepository implements LessonRepository {
 
   async updateJobStatus(
     jobId: string,
-    status: "queued" | "running" | "succeeded" | "failed",
+    status: JobStatus,
     extra?: Partial<GenerationJob>
   ): Promise<void> {
     await this.dbClient
@@ -768,8 +769,8 @@ export class DrizzleLessonRepository implements LessonRepository {
   }): Promise<{
     lesson: {
       id: string;
-      analysisStatus: "pending" | "running" | "succeeded" | "failed";
-      exerciseStatus: "pending" | "running" | "succeeded" | "failed";
+      analysisStatus: GenerationStatus;
+      exerciseStatus: GenerationStatus;
     };
     job: GenerationJob | null;
     milestones: GenerationMilestone[];
@@ -850,16 +851,8 @@ export class DrizzleLessonRepository implements LessonRepository {
     return {
       lesson: {
         id: lesson.id,
-        analysisStatus: lesson.analysisStatus as
-          | "pending"
-          | "running"
-          | "succeeded"
-          | "failed",
-        exerciseStatus: lesson.exerciseStatus as
-          | "pending"
-          | "running"
-          | "succeeded"
-          | "failed",
+        analysisStatus: lesson.analysisStatus as GenerationStatus,
+        exerciseStatus: lesson.exerciseStatus as GenerationStatus,
       },
       job: job ?? null,
       milestones: milestones as GenerationMilestone[],

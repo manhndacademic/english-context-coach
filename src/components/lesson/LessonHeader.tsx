@@ -8,6 +8,7 @@ import {
   GenerationProgress,
   type StageStatus,
 } from "@/components/generation-progress";
+import type { JobStatus } from "@/domain/types";
 
 interface LessonHeaderProps {
   lesson: {
@@ -24,7 +25,7 @@ interface LessonHeaderProps {
   progress: {
     job: {
       id: string;
-      status: "queued" | "running" | "succeeded" | "failed";
+      status: JobStatus;
       stage: string;
       attempts: number;
       errorMessage: string | null;

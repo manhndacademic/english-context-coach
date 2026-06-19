@@ -18,14 +18,15 @@ import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Prompt } from "@/domain/ai/ports";
+import type { AiPurpose, AiModelKind } from "@/domain/types";
 
 function createTestPrompt(options: {
-  purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+  purpose: AiPurpose;
   prompt: string;
   promptVersion: string;
   schemaVersion: string;
   schema: z.ZodTypeAny;
-  modelKind: "analysis" | "fast";
+  modelKind: AiModelKind;
   expectedShape?: Record<string, any>;
 }): Prompt<any> {
   return {
