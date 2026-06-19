@@ -107,3 +107,59 @@ export function getChoiceStyle(input: ChoiceStyleInput): string {
 
   return "border-border hover:bg-surface-active";
 }
+
+export type StepperItemState = "solved" | "needs-retry" | "pending";
+export type StepperItemActiveState = "active" | "inactive";
+
+export interface StepperItemView {
+  className: string;
+  iconType: "solved" | "retry" | "target";
+}
+
+export function getStepperItemView(
+  state: StepperItemState,
+  activeState: StepperItemActiveState
+): StepperItemView {
+  const baseClass =
+    "relative flex items-center justify-center gap-1.5 px-3.5 h-[38px] rounded-md cursor-pointer transition-all duration-200 font-bold text-xs hover:-translate-y-px hover:border-accent hover:bg-surface-strong border";
+
+  let classNameSuffix = "";
+  if (activeState === "active") {
+    classNameSuffix =
+      "border-accent text-accent-strong ring-3 ring-accent-light bg-surface";
+  } else {
+    switch (state) {
+      case "solved":
+        classNameSuffix =
+          "bg-success-light border-success/30 text-success-strong";
+        break;
+      case "needs-retry":
+        classNameSuffix =
+          "bg-warning-light border-warning/30 text-warning-strong";
+        break;
+      case "pending":
+      default:
+        classNameSuffix = "bg-surface border-border text-muted";
+        break;
+    }
+  }
+
+  let iconType: "solved" | "retry" | "target" = "target";
+  switch (state) {
+    case "solved":
+      iconType = "solved";
+      break;
+    case "needs-retry":
+      iconType = "retry";
+      break;
+    case "pending":
+    default:
+      iconType = "target";
+      break;
+  }
+
+  return {
+    className: `${baseClass} ${classNameSuffix}`,
+    iconType,
+  };
+}

@@ -20,6 +20,7 @@ import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
 import { GradingFeedback } from "@/components/grading-feedback";
+import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
 
 function formatReviewDate(value?: string) {
   if (!value) return null;
@@ -193,13 +194,15 @@ export function ReviewCard({
                 return (
                   <label
                     key={`${pattern.id}-choice-${index}`}
-                    className={`flex items-center gap-3 p-3 px-4 rounded-xl border text-left cursor-pointer transition-all ${
-                      showSuccess
-                        ? "bg-success-light border-success text-success font-semibold"
-                        : isSelected
-                          ? "border-accent bg-accent-light/30 ring-2 ring-accent/30 font-medium"
-                          : "border-border hover:bg-surface-active"
-                    }`}
+                    className={`flex items-center gap-3 p-3 px-4 rounded-xl border text-left cursor-pointer transition-all ${getChoiceStyle(
+                      {
+                        choice,
+                        answer,
+                        solved: !!state.isCorrect,
+                        isPracticingAgain: false,
+                        isCorrectChoice: isChoiceCorrect,
+                      }
+                    )}`}
                   >
                     <input
                       disabled={isPending || state.isCorrect}

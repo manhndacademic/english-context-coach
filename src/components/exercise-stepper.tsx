@@ -20,6 +20,11 @@ import {
   buildCompletionStats,
   type CompletionStats,
 } from "@/components/completion-summary-stats";
+import {
+  getStepperItemView,
+  type StepperItemState,
+  type StepperItemActiveState,
+} from "@/domain/memory/exercise-view-presenter";
 
 export function ExerciseStepper({
   practices,
@@ -98,41 +103,34 @@ export function ExerciseStepper({
         {/* Stepper Indicators */}
         <div className="flex flex-wrap items-center gap-2">
           {items.map((item, idx) => {
-            let dotClass =
-              "relative flex items-center justify-center gap-1.5 px-3.5 h-[38px] rounded-md cursor-pointer transition-all duration-200 font-bold text-xs hover:-translate-y-px hover:border-accent hover:bg-surface-strong border ";
-            let icon = null;
-
-            if (idx === currentIndex) {
-              dotClass +=
-                "border-accent text-accent-strong ring-3 ring-accent-light bg-surface ";
-            } else if (item.isSolved) {
-              dotClass +=
-                "bg-success-light border-success/30 text-success-strong ";
-            } else if (item.needsRetry) {
-              dotClass +=
-                "bg-warning-light border-warning/30 text-warning-strong ";
-            } else {
-              dotClass += "bg-surface border-border text-muted ";
-            }
-
-            if (item.isSolved) {
-              icon = <CheckCircle2 size={13} className="shrink-0" />;
-            } else if (item.needsRetry) {
-              icon = <AlertCircle size={13} className="shrink-0" />;
-            } else {
-              icon = <Target size={13} className="shrink-0 text-muted/60" />;
-            }
+            const isCurrent = idx === currentIndex;
+            const state: StepperItemState = item.isSolved
+              ? "solved"
+              : item.needsRetry
+                ? "needs-retry"
+                : "pending";
+            const activeState: StepperItemActiveState = isCurrent
+              ? "active"
+              : "inactive";
+            const { className: buttonClassName, iconType: stepperIconType } =
+              getStepperItemView(state, activeState);
 
             return (
               <button
                 key={item.exercise.id}
-                className={dotClass}
+                className={buttonClassName}
                 onClick={() => setActiveIndex(idx)}
                 aria-label={`Đi tới bài tập ${idx + 1}`}
                 title={`Bài tập ${idx + 1}: ${item.isSolved ? "Đã xong" : item.needsRetry ? "Cần sửa lại" : "Chưa làm"}`}
               >
                 <span>Câu {idx + 1}</span>
-                {icon}
+                {stepperIconType === "solved" ? (
+                  <CheckCircle2 size={13} className="shrink-0" />
+                ) : stepperIconType === "retry" ? (
+                  <AlertCircle size={13} className="shrink-0" />
+                ) : (
+                  <Target size={13} className="shrink-0 text-muted/60" />
+                )}
               </button>
             );
           })}

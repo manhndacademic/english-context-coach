@@ -4,6 +4,7 @@ import {
   getExerciseTypeLabel,
   getExercisePlaceholder,
   getChoiceStyle,
+  getStepperItemView,
 } from "./exercise-view-presenter";
 
 describe("exercise-view-presenter", () => {
@@ -143,6 +144,38 @@ describe("exercise-view-presenter", () => {
         isCorrectChoice: false,
       });
       expect(style).toBe("border-border hover:bg-surface-active");
+    });
+  });
+
+  describe("getStepperItemView", () => {
+    it("should return active class and target icon when active", () => {
+      const result = getStepperItemView("pending", "active");
+      expect(result.className).toContain(
+        "border-accent text-accent-strong ring-3 ring-accent-light bg-surface"
+      );
+      expect(result.iconType).toBe("target");
+    });
+
+    it("should return success class and solved icon when inactive and solved", () => {
+      const result = getStepperItemView("solved", "inactive");
+      expect(result.className).toContain(
+        "bg-success-light border-success/30 text-success-strong"
+      );
+      expect(result.iconType).toBe("solved");
+    });
+
+    it("should return warning class and retry icon when inactive and needs-retry", () => {
+      const result = getStepperItemView("needs-retry", "inactive");
+      expect(result.className).toContain(
+        "bg-warning-light border-warning/30 text-warning-strong"
+      );
+      expect(result.iconType).toBe("retry");
+    });
+
+    it("should return default class and target icon when inactive and pending", () => {
+      const result = getStepperItemView("pending", "inactive");
+      expect(result.className).toContain("bg-surface border-border text-muted");
+      expect(result.iconType).toBe("target");
     });
   });
 });
