@@ -122,6 +122,27 @@ describe("ApiRotationPool", () => {
       vi.advanceTimersByTime(30_001);
       expect(pool.getNextAvailable("analysis")).toBe("model-a");
     });
+
+    it("filters out non-Gemini models if hasSchema is true", () => {
+      const customPool = new ApiRotationPool(
+        undefined,
+        ["gemini-1.5-pro", "gemma-2b", "gemini-2.0-flash"],
+        ["gemma-7b", "gemini-1.5-flash"]
+      );
+      expect(customPool.getNextAvailable("analysis", undefined, true)).toBe(
+        "gemini-1.5-pro"
+      );
+      expect(
+        customPool.getNextAvailable(
+          "analysis",
+          new Set(["gemini-1.5-pro"]),
+          true
+        )
+      ).toBe("gemini-2.0-flash");
+      expect(customPool.getNextAvailable("fast", undefined, true)).toBe(
+        "gemini-1.5-flash"
+      );
+    });
   });
 
   // ─── getCooldowns ────────────────────────────────────────────────────────────

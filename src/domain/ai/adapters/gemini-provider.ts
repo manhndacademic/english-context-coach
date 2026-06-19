@@ -219,7 +219,9 @@ export class GeminiLLMProvider implements LLMProvider {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let resolvedModel = this.apiRotationPool.getNextAvailable(
-      options.modelKind
+      options.modelKind,
+      undefined,
+      true
     );
     let status: "succeeded" | "failed" = "failed";
     let errorClass: string | null = null;
@@ -230,6 +232,7 @@ export class GeminiLLMProvider implements LLMProvider {
         userId: options.userId,
         modelKind: options.modelKind,
         purpose: options.purpose,
+        hasSchema: true,
         execute: async ({ key, model, keyId }) => {
           resolvedModel = model;
           return await this.executeCallAndValidation(

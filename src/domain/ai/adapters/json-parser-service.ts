@@ -232,6 +232,33 @@ export class JsonParserService {
       cleaned = cleaned.replace(/\s*\(?null\)?\s*\(?null\)?\s*,?\s*$/i, "");
       cleaned = cleaned.replace(/^\s*\(?null\)?\s*\(?null\)?\s*,?\s*/i, "");
 
+      // 3. Remove swallowed JSON fields
+      const technicalKeys = [
+        "literalTranslationTrap",
+        "literalTrap",
+        "feedbackDetails",
+        "error",
+        "score",
+        "isCorrect",
+        "feedbackVi",
+        "naturalAnswer",
+        "whatWasWrong",
+        "whyItWasWrong",
+        "correctUnderstanding",
+        "detailedExplanation",
+        "mistakeType",
+        "nextPracticeItem",
+      ];
+      const technicalKeysRegex = new RegExp(
+        `\\b(${technicalKeys.join("|")})\\b\\s*:\\s*[\\s\\S]*$`,
+        "i"
+      );
+      if (technicalKeysRegex.test(cleaned)) {
+        cleaned = cleaned.replace(technicalKeysRegex, "").trim();
+        // Clean up any trailing formatting remnants left from swallowed JSON (e.g. commas, braces, quotes, backslashes)
+        cleaned = cleaned.replace(/[,\\\{\}\[\]"'\s]+$/, "").trim();
+      }
+
       const lower = cleaned.trim().toLowerCase();
       if (
         lower === "null" ||

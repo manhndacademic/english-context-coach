@@ -85,9 +85,20 @@ export class ApiRotationPool {
     return kind === "analysis" ? this.analysisModels : this.fastModels;
   }
 
-  getNextAvailable(kind: "analysis" | "fast", excluded?: Set<string>): string {
+  getNextAvailable(
+    kind: "analysis" | "fast",
+    excluded?: Set<string>,
+    hasSchema?: boolean
+  ): string {
     const now = Date.now();
-    const pool = this.getModels(kind);
+    const allModels = this.getModels(kind);
+    const hasGeminiModels = allModels.some((model) =>
+      model.toLowerCase().startsWith("gemini-")
+    );
+    const pool =
+      hasSchema && hasGeminiModels
+        ? allModels.filter((model) => model.toLowerCase().startsWith("gemini-"))
+        : allModels;
 
     for (const model of pool) {
       if (excluded?.has(model)) continue;
@@ -148,6 +159,7 @@ export class ApiRotationPool {
     userId?: string;
     modelKind: "analysis" | "fast";
     purpose: "analysis" | "exercise_generation" | "grading" | "repair";
+    hasSchema?: boolean;
     execute: (context: {
       key: string;
       model: string;
@@ -155,12 +167,27 @@ export class ApiRotationPool {
       isUserKey: boolean;
     }) => Promise<T>;
   }): Promise<{ result: T; resolvedModel: string }> {
-    const models = this.getModels(options.modelKind);
+    const allModels = this.getModels(options.modelKind);
+    const hasGeminiModels = allModels.some((model) =>
+      model.toLowerCase().startsWith("gemini-")
+    );
+    const models =
+      options.hasSchema && hasGeminiModels
+        ? allModels.filter((model) => model.toLowerCase().startsWith("gemini-"))
+        : allModels;
     const exhaustedModels = new Set<string>();
-    let resolvedModel = this.getNextAvailable(options.modelKind);
+    let resolvedModel = this.getNextAvailable(
+      options.modelKind,
+      undefined,
+      options.hasSchema
+    );
 
     for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
-      const model = this.getNextAvailable(options.modelKind, exhaustedModels);
+      const model = this.getNextAvailable(
+        options.modelKind,
+        exhaustedModels,
+        options.hasSchema
+      );
       exhaustedModels.add(model);
       resolvedModel = model;
 

@@ -80,15 +80,25 @@ export function isInvalidKeyError(err: any): boolean {
 export function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
   let schema = zodSchema;
   let isNullable = false;
-  while (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
+
+  // Unwrap nested optionals, nullables, effects (refinements), defaults, and readonly recursively
+  while (
+    schema instanceof z.ZodOptional ||
+    schema instanceof z.ZodNullable ||
+    schema instanceof z.ZodEffects ||
+    schema instanceof z.ZodDefault ||
+    schema instanceof z.ZodReadonly
+  ) {
     if (schema instanceof z.ZodNullable) {
       isNullable = true;
     }
-    schema = schema.unwrap();
-  }
-
-  if (schema instanceof z.ZodEffects) {
-    schema = schema.innerType();
+    if (schema instanceof z.ZodEffects) {
+      schema = schema.innerType();
+    } else if (schema instanceof z.ZodDefault) {
+      schema = schema._def.innerType;
+    } else {
+      schema = schema.unwrap();
+    }
   }
 
   let result: any = {};
@@ -124,14 +134,26 @@ export function zodToGeminiSchema(zodSchema: z.ZodTypeAny): any {
 
       let isOptional = false;
       let valSchema = value as z.ZodTypeAny;
-      while (valSchema instanceof z.ZodEffects) {
-        valSchema = valSchema.innerType();
-      }
-      if (
+      while (
         valSchema instanceof z.ZodOptional ||
-        valSchema instanceof z.ZodNullable
+        valSchema instanceof z.ZodNullable ||
+        valSchema instanceof z.ZodEffects ||
+        valSchema instanceof z.ZodDefault ||
+        valSchema instanceof z.ZodReadonly
       ) {
-        isOptional = true;
+        if (
+          valSchema instanceof z.ZodOptional ||
+          valSchema instanceof z.ZodNullable
+        ) {
+          isOptional = true;
+        }
+        if (valSchema instanceof z.ZodEffects) {
+          valSchema = valSchema.innerType();
+        } else if (valSchema instanceof z.ZodDefault) {
+          valSchema = valSchema._def.innerType;
+        } else {
+          valSchema = valSchema.unwrap();
+        }
       }
       if (!isOptional) {
         required.push(key);

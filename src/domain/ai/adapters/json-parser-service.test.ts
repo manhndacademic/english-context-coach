@@ -167,6 +167,17 @@ describe("JsonParserService", () => {
         confidence: 80,
       });
     });
+
+    it("should strip swallowed technical json noise and keys from string values", () => {
+      const input = {
+        naturalAnswer:
+          'Chúng tôi đã lắp đặt hệ thống cảnh báo động mới để ngăn chặn burglars vào nhà.literalTranslationTrap: null, feedbackDetails: { whatWasWrong: "Sử dụng từ tránh và cần dịch từ burglars" }',
+      };
+      const output = JsonParserService.coerceJsonForSchema(input, "grading");
+      expect(output.naturalAnswer).toBe(
+        "Chúng tôi đã lắp đặt hệ thống cảnh báo động mới để ngăn chặn burglars vào nhà."
+      );
+    });
   });
 
   describe("parse", () => {

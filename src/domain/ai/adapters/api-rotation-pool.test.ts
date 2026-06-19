@@ -164,4 +164,32 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
     expect(resolvedModel).toBe("model-fast-2");
     expect(keyResolver.rateLimitedKeys.has("key-1")).toBe(true);
   });
+
+  it("should filter out non-Gemini models when hasSchema is true", async () => {
+    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
+    const customPool = new ApiRotationPool(
+      keyResolver,
+      ["gemini-analysis-1", "gemma-analysis-2", "gemini-analysis-3"],
+      ["gemma-fast-1", "gemini-fast-2"]
+    );
+
+    const executeSpy = vi.fn().mockResolvedValue("parsed-data");
+
+    const { result, resolvedModel } = await customPool.executeWithRotation({
+      userId: "user-123",
+      modelKind: "fast",
+      purpose: "grading",
+      hasSchema: true,
+      execute: executeSpy,
+    });
+
+    expect(result).toBe("parsed-data");
+    expect(resolvedModel).toBe("gemini-fast-2");
+    expect(executeSpy).toHaveBeenCalledWith({
+      key: "secret-1",
+      model: "gemini-fast-2",
+      keyId: "key-1",
+      isUserKey: false,
+    });
+  });
 });
