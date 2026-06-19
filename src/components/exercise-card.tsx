@@ -13,54 +13,16 @@ import { submitAttemptAction } from "@/app/actions/attempts";
 import { ExercisePractice } from "@/domain/memory/exercise-practice";
 import { renderRichText } from "@/lib/rich-text";
 import { GradingFeedback } from "@/components/grading-feedback";
+import {
+  getExerciseStatusView,
+  getExerciseTypeLabel,
+  getExercisePlaceholder,
+  getChoiceStyle,
+  type ExerciseStatus,
+} from "@/domain/memory/exercise-view-presenter";
 
 function formatLabel(value: string) {
   return value.replaceAll("_", " ");
-}
-
-function getExerciseTypeLabel(type: string) {
-  switch (type) {
-    case "meaning_choice":
-      return "Trắc nghiệm nghĩa";
-    case "cloze_phrase":
-      return "Điền từ vào ô trống";
-    case "natural_translation":
-      return "Dịch sang tiếng Việt";
-    case "focus_question":
-      return "Câu hỏi trọng tâm";
-    case "trap_choice":
-      return "Tránh bẫy dịch";
-    case "phrase_production":
-      return "Đặt câu tiếng Anh";
-    case "dialogue_completion":
-      return "Hoàn thành hội thoại";
-    case "register_shift":
-      return "Viết lại tự nhiên hơn";
-    case "trap_detect":
-      return "Phát hiện bẫy dịch";
-    default:
-      return "Luyện tập";
-  }
-}
-
-function getPlaceholder(type: string, needsRetry: boolean) {
-  if (needsRetry) {
-    return "Thử lại...";
-  }
-  switch (type) {
-    case "cloze_phrase":
-      return "Điền từ hoặc cụm từ phù hợp vào chỗ trống...";
-    case "phrase_production":
-      return "Viết câu tiếng Anh hoàn chỉnh chứa cụm từ...";
-    case "dialogue_completion":
-      return "Viết câu phản hồi tiếng Anh của B có chứa cụm từ...";
-    case "register_shift":
-      return "Viết lại câu tiếng Anh tự nhiên/idiomatic hơn...";
-    case "natural_translation":
-    case "focus_question":
-    default:
-      return "Viết câu dịch hoặc câu trả lời tiếng Việt tự nhiên của bạn...";
-  }
 }
 
 export function ExerciseCard({
@@ -80,13 +42,18 @@ export function ExerciseCard({
   );
   const [isPracticingAgain, setIsPracticingAgain] = useState(false);
 
-  const statusLabel = solved
-    ? "Đã xong"
+  const status: ExerciseStatus = solved
+    ? "solved"
     : needsRetry
-      ? "Cần thử lại"
+      ? "needs-retry"
       : isCurrent
-        ? "Lượt tiếp theo"
-        : "Chưa bắt đầu";
+        ? "current"
+        : "upcoming";
+  const {
+    label: statusLabel,
+    className: statusClassName,
+    iconType: statusIconType,
+  } = getExerciseStatusView(status);
   const canSubmit = answer.trim().length > 0;
   const promptId = `exercise-${exercise.id}-prompt`;
   const submitLabel = needsRetry ? "Thử lại" : "Gửi câu trả lời";
@@ -182,17 +149,11 @@ export function ExerciseCard({
             {typeLabel}
           </span>
           <span
-            className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${
-              solved
-                ? "bg-success-light border-success text-success"
-                : needsRetry
-                  ? "bg-danger-light border-danger text-danger"
-                  : "bg-surface-strong border-border text-muted"
-            }`}
+            className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${statusClassName}`}
           >
-            {solved ? (
+            {statusIconType === "solved" ? (
               <CheckCircle2 size={15} aria-hidden="true" />
-            ) : needsRetry ? (
+            ) : statusIconType === "retry" ? (
               <AlertCircle size={15} aria-hidden="true" />
             ) : (
               <Target size={15} aria-hidden="true" />
@@ -268,13 +229,15 @@ export function ExerciseCard({
             {exercise.choices?.map((choice, index) => (
               <label
                 key={`${exercise.id}-choice-${index}`}
-                className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${
-                  solved && !isPracticingAgain && choiceSet.has(choice)
-                    ? "bg-success-light border-success text-success font-semibold"
-                    : answer === choice
-                      ? "border-accent bg-accent-light/30 ring-2 ring-accent/30 font-medium"
-                      : "border-border hover:bg-surface-active"
-                }`}
+                className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${getChoiceStyle(
+                  {
+                    choice,
+                    answer,
+                    solved,
+                    isPracticingAgain,
+                    isCorrectChoice: choiceSet.has(choice),
+                  }
+                )}`}
               >
                 <input
                   disabled={solved && !isPracticingAgain}
@@ -306,7 +269,7 @@ export function ExerciseCard({
               name="answer"
               disabled={solved && !isPracticingAgain}
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder={getPlaceholder(exercise.type, needsRetry)}
+              placeholder={getExercisePlaceholder(exercise.type, needsRetry)}
               required
               value={answer}
               className="w-full border border-border rounded-md bg-surface text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light mt-1 min-h-[100px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50"

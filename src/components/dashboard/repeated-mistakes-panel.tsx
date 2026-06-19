@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { retryReviewPromptGenerationAction } from "@/app/actions/review";
+import { RepeatedMistakeStatus } from "@/components/dashboard/repeated-mistake-status";
 
 interface RepeatedMistakesPanelProps {
   repeatedMistakes: Array<{
@@ -44,70 +44,12 @@ export function RepeatedMistakesPanel({
                 <span className="inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold bg-danger-light border border-danger text-danger uppercase tracking-wider leading-none whitespace-nowrap">
                   {pattern.errorType.replaceAll("_", " ")}
                 </span>
-                {pattern.reviewPromptStatus === "succeeded" ? (
-                  (() => {
-                    let nextReviewText = "";
-                    if (pattern.dueAt) {
-                      const dueTime = new Date(pattern.dueAt).getTime();
-                      const nowTime = Date.now();
-                      if (dueTime > nowTime) {
-                        const diffMs = dueTime - nowTime;
-                        const diffDays = Math.ceil(
-                          diffMs / (1000 * 60 * 60 * 24)
-                        );
-                        if (diffDays <= 1) {
-                          nextReviewText = "Hẹn ôn tập: Ngày mai";
-                        } else {
-                          nextReviewText = `Chờ ôn tập: ${diffDays} ngày nữa`;
-                        }
-                      }
-                    }
-
-                    if (nextReviewText) {
-                      return (
-                        <span className="inline-flex items-center text-[10px] font-bold text-muted bg-surface-strong px-2 py-0.5 rounded leading-none shrink-0 border border-border">
-                          {nextReviewText}
-                        </span>
-                      );
-                    }
-
-                    return (
-                      <Link
-                        href={`/review?patternId=${pattern.id}`}
-                        className="inline-flex items-center gap-1 text-[10px] font-bold text-accent no-underline hover:underline"
-                      >
-                        Ôn tập <ArrowRight size={10} />
-                      </Link>
-                    );
-                  })()
-                ) : pattern.reviewPromptStatus === "failed" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-danger text-[10px] font-bold bg-danger-light border border-danger/10 px-2 py-0.5 rounded leading-none shrink-0">
-                      Lỗi tạo câu hỏi
-                    </span>
-                    <form
-                      action={retryReviewPromptGenerationAction}
-                      className="inline-flex items-center"
-                    >
-                      <input
-                        type="hidden"
-                        name="patternId"
-                        value={pattern.id}
-                      />
-                      <button
-                        type="submit"
-                        className="text-[10px] font-extrabold text-accent bg-transparent border-none p-0 cursor-pointer hover:underline leading-none"
-                      >
-                        Tạo lại
-                      </button>
-                    </form>
-                  </div>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted bg-surface-strong border border-border px-2 py-0.5 rounded leading-none shrink-0">
-                    <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse shrink-0" />
-                    Đang chuẩn bị...
-                  </span>
-                )}
+                <RepeatedMistakeStatus
+                  patternId={pattern.id}
+                  reviewPromptStatus={pattern.reviewPromptStatus}
+                  dueAt={pattern.dueAt}
+                  retryAction={retryReviewPromptGenerationAction}
+                />
               </div>
             </div>
           ))
