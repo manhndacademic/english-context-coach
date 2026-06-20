@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Introduce phrase practice as a separate review surface for new KeyPhrases
 

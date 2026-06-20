@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Keep mistake review exclusive to repeated weakness
 

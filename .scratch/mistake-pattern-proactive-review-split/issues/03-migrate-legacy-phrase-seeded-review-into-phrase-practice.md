@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Migrate legacy phrase-seeded review into phrase practice
 

@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Correct dashboard and history metrics to separate practice from mistake memory
 

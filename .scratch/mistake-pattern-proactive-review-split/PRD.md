@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # PRD: Split MistakePattern from Proactive Review
 
