@@ -173,17 +173,14 @@ class MockMistakePatternRepository implements MistakePatternRepository {
           pattern.userId === userId &&
           pattern.masteryState === "active" &&
           pattern.reviewPromptStatus === "succeeded" &&
-          pattern.dueAt <= dueAt &&
-          pattern.source === "mistake"
+          pattern.dueAt <= dueAt
       )
       .slice(0, limit);
   }
 
   async findAllMistakePatterns(userId: string) {
     return Array.from(this.state.mistakePatterns.values())
-      .filter(
-        (pattern) => pattern.userId === userId && pattern.source === "mistake"
-      )
+      .filter((pattern) => pattern.userId === userId)
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 

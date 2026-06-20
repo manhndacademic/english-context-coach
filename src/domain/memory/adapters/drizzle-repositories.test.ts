@@ -283,7 +283,6 @@ describe("DrizzlePhrasePracticeRepository", () => {
             id: "practice-1",
             userId: "user-1",
             keyPhraseId: "phrase-1",
-            source: "phrase",
             conceptKey: "run",
             normalizedPhrase: "run into",
             senseKey: "meet-unexpectedly",

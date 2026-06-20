@@ -57,15 +57,19 @@ A valid learner misunderstanding detected from an Attempt when the learner misse
 _Avoid_: Mistake, failure
 
 **MistakePattern**:
-A repeated learner weakness aggregated from UserErrors and scheduled for review. A MistakePattern represents the underlying misunderstanding concept, whether it came from KeyPhrase or LessonFocus practice, and has a MasteryState.
+A repeated learner weakness aggregated from UserErrors and scheduled for review. A MistakePattern represents the underlying concept-level misunderstanding (not tied to a specific KeyPhrase) and has a MasteryState.
 _Avoid_: ReviewItem, MemoryItem
+
+**PhrasePractice**:
+A proactive vocabulary review scheduled for a KeyPhrase that the user studied in a Lesson, designed to reinforce learning before mistakes are made. A PhrasePractice has a MasteryState.
+_Avoid_: VocabularyReview, ProactiveReview, MistakePattern
 
 **Concept**:
 A generalized language understanding unit (e.g., a phrasal verb root or grammatical pattern) that groups related KeyPhrases or LessonFocuses. MistakePatterns aggregate UserErrors by Concept rather than exact phrase spelling, helping the learner review related mistakes together.
 _Avoid_: Lemma, root phrase, category key
 
 **MasteryState**:
-The learner-facing learning state of a MistakePattern, either active or mastered. A mastered MistakePattern is kept in history and can become active again when a new UserError or failed ReviewAttempt shows the learner still has that weakness.
+The learner-facing learning state of a MistakePattern or PhrasePractice, either active or mastered. A mastered item is kept in history and can become active again when a new UserError or failed review attempt shows the learner still has that weakness.
 _Avoid_: Status, due
 
 **Due MistakePattern**:
@@ -75,6 +79,10 @@ _Avoid_: ReviewItem, due state
 **ReviewAttempt**:
 A learner's app-graded answer to a privacy-safe review prompt for a MistakePattern. A ReviewAttempt updates review progress for old misunderstandings, not Lesson-grounded UserError evidence.
 _Avoid_: Attempt, self-check
+
+**PhrasePracticeAttempt**:
+A learner's app-graded answer to a review prompt for a PhrasePractice. A PhrasePracticeAttempt updates the review progress for the proactive phrase.
+_Avoid_: ReviewAttempt, Attempt
 
 **User**:
 The learner identity in the system.

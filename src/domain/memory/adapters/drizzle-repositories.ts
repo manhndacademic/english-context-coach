@@ -257,9 +257,8 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       where id = (
         select id
         from mistake_patterns
-        where (review_prompt_status = 'queued'
-           or (review_prompt_status = 'running' and review_prompt_locked_at < now() - interval '10 minutes'))
-          and source = 'mistake'
+        where review_prompt_status = 'queued'
+           or (review_prompt_status = 'running' and review_prompt_locked_at < now() - interval '10 minutes')
         order by created_at asc
         for update skip locked
         limit 1
@@ -310,8 +309,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
           eq(schema.mistakePatterns.userId, userId),
           eq(schema.mistakePatterns.masteryState, "active"),
           lte(schema.mistakePatterns.dueAt, dueAt),
-          eq(schema.mistakePatterns.reviewPromptStatus, "succeeded"),
-          eq(schema.mistakePatterns.source, "mistake")
+          eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
         )
       )
       .orderBy(asc(schema.mistakePatterns.dueAt))
@@ -323,12 +321,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     const rows = await this.dbClient
       .select()
       .from(schema.mistakePatterns)
-      .where(
-        and(
-          eq(schema.mistakePatterns.userId, userId),
-          eq(schema.mistakePatterns.source, "mistake")
-        )
-      )
+      .where(eq(schema.mistakePatterns.userId, userId))
       .orderBy(desc(schema.mistakePatterns.updatedAt));
     return rows.map((r) => MistakePattern.reconstitute(r));
   }
@@ -362,24 +355,14 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     }
 
     const keyPhraseIds = keyPhraseRows.map((phrase) => phrase.id);
-    await Promise.all([
-      this.dbClient
-        .delete(schema.mistakePatterns)
-        .where(
-          and(
-            eq(schema.mistakePatterns.userId, userId),
-            inArray(schema.mistakePatterns.keyPhraseId, keyPhraseIds)
-          )
-        ),
-      this.dbClient
-        .delete(schema.phrasePractices)
-        .where(
-          and(
-            eq(schema.phrasePractices.userId, userId),
-            inArray(schema.phrasePractices.keyPhraseId, keyPhraseIds)
-          )
-        ),
-    ]);
+    await this.dbClient
+      .delete(schema.phrasePractices)
+      .where(
+        and(
+          eq(schema.phrasePractices.userId, userId),
+          inArray(schema.phrasePractices.keyPhraseId, keyPhraseIds)
+        )
+      );
   }
 
   async getLessonsForPatterns(
@@ -513,20 +496,14 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
             eq(schema.mistakePatterns.userId, userId),
             eq(schema.mistakePatterns.masteryState, "active"),
             lte(schema.mistakePatterns.dueAt, dueAt),
-            eq(schema.mistakePatterns.reviewPromptStatus, "succeeded"),
-            eq(schema.mistakePatterns.source, "mistake")
+            eq(schema.mistakePatterns.reviewPromptStatus, "succeeded")
           )
         ),
       // patternCount
       this.dbClient
         .select({ value: count() })
         .from(schema.mistakePatterns)
-        .where(
-          and(
-            eq(schema.mistakePatterns.userId, userId),
-            eq(schema.mistakePatterns.source, "mistake")
-          )
-        ),
+        .where(eq(schema.mistakePatterns.userId, userId)),
       // masteredCount
       this.dbClient
         .select({ value: count() })
@@ -534,8 +511,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         .where(
           and(
             eq(schema.mistakePatterns.userId, userId),
-            eq(schema.mistakePatterns.masteryState, "mastered"),
-            eq(schema.mistakePatterns.source, "mistake")
+            eq(schema.mistakePatterns.masteryState, "mastered")
           )
         ),
       // repeatedMistakes
@@ -545,8 +521,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         .where(
           and(
             eq(schema.mistakePatterns.userId, userId),
-            eq(schema.mistakePatterns.masteryState, "active"),
-            eq(schema.mistakePatterns.source, "mistake")
+            eq(schema.mistakePatterns.masteryState, "active")
           )
         )
         .orderBy(
@@ -565,12 +540,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
           schema.mistakePatterns,
           eq(schema.reviewAttempts.mistakePatternId, schema.mistakePatterns.id)
         )
-        .where(
-          and(
-            eq(schema.reviewAttempts.userId, userId),
-            eq(schema.mistakePatterns.source, "mistake")
-          )
-        ),
+        .where(eq(schema.reviewAttempts.userId, userId)),
       // masteredTrend
       this.dbClient
         .select({
@@ -580,8 +550,7 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         .where(
           and(
             eq(schema.mistakePatterns.userId, userId),
-            eq(schema.mistakePatterns.masteryState, "mastered"),
-            eq(schema.mistakePatterns.source, "mistake")
+            eq(schema.mistakePatterns.masteryState, "mastered")
           )
         )
         .orderBy(schema.mistakePatterns.updatedAt),
@@ -933,7 +902,6 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
       returning
         id,
         user_id as "userId",
-        source,
         key_phrase_id as "keyPhraseId",
         concept_key as "conceptKey",
         normalized_phrase as "normalizedPhrase",

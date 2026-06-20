@@ -3,7 +3,6 @@ import type {
   KeyPhraseCategory,
   UserErrorType,
   JobStatus,
-  MistakePatternSource,
 } from "@/domain/types";
 
 export class MistakePattern {
@@ -74,9 +73,7 @@ export class MistakePattern {
     private _reviewPromptAttempts: number,
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
-    private _reviewPromptLockedBy: string | null,
-    public readonly source: MistakePatternSource = "mistake",
-    public readonly keyPhraseId: string | null = null
+    private _reviewPromptLockedBy: string | null
   ) {}
 
   static createNew(input: {
@@ -122,9 +119,7 @@ export class MistakePattern {
       0,
       null,
       null,
-      null,
-      "mistake", // source
-      null // keyPhraseId
+      null
     );
   }
 
@@ -177,9 +172,7 @@ export class MistakePattern {
       0,
       null,
       null,
-      null,
-      "phrase", // source
-      input.keyPhraseId
+      null
     );
   }
 
@@ -226,9 +219,7 @@ export class MistakePattern {
       state.reviewPromptAttempts,
       state.reviewPromptError,
       parseDate(state.reviewPromptLockedAt),
-      state.reviewPromptLockedBy,
-      state.source ?? "mistake",
-      state.keyPhraseId ?? null
+      state.reviewPromptLockedBy
     );
   }
 
@@ -415,8 +406,6 @@ export class MistakePattern {
     return {
       id: this.id,
       userId: this.userId,
-      source: this.source,
-      keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
       senseKey: this.senseKey,
@@ -453,8 +442,6 @@ export class MistakePattern {
     return {
       id: this.id,
       userId: this.userId,
-      source: this.source,
-      keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
       senseKey: this.senseKey,
@@ -491,8 +478,6 @@ export class MistakePattern {
 export interface MistakePatternPlain {
   id: string;
   userId: string;
-  source: MistakePatternSource;
-  keyPhraseId: string | null;
   conceptKey: string;
   normalizedPhrase: string;
   senseKey: string | null;

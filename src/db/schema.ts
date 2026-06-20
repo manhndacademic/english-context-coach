@@ -104,12 +104,6 @@ export const userStatusEnum = pgEnum("user_status", [
   "rejected",
 ]);
 
-export const reviewSourceEnum = pgEnum("review_source", [
-  "mistake",
-  "phrase",
-  "manual",
-]);
-
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -509,12 +503,6 @@ export const mistakePatterns = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    // source discriminates how the card entered the review queue
-    source: reviewSourceEnum("source").notNull().default("mistake"),
-    // set when source = 'phrase', links back to the originating key phrase
-    keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
-      onDelete: "set null",
-    }),
     conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
     senseKey: text("sense_key"),
@@ -574,7 +562,7 @@ export const phrasePractices = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    source: reviewSourceEnum("source").notNull().default("phrase"),
+
     keyPhraseId: uuid("key_phrase_id").references(() => keyPhrases.id, {
       onDelete: "set null",
     }),

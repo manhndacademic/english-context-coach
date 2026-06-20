@@ -3,6 +3,7 @@ import { getLessonRepository } from "@/domain/lesson";
 import {
   getLearnerMemoryEngine,
   getMistakePatternRepository,
+  getPhrasePracticeRepository,
 } from "@/domain/memory";
 import { getMistakePatternLessonsMap } from "@/app/actions/review";
 import Link from "next/link";
@@ -26,15 +27,22 @@ export default async function HistoryPage() {
 
   const lessonRepo = getLessonRepository();
   const memoryRepo = getMistakePatternRepository();
+  const phraseRepo = getPhrasePracticeRepository();
   const memoryEngine = getLearnerMemoryEngine();
 
-  const [patterns, recentLessons, dashboardMetrics, lessonsMap] =
-    await Promise.all([
-      memoryRepo.findAllMistakePatterns(user.id),
-      lessonRepo.getRecentLessons(user.id, 100),
-      memoryEngine.getDashboardMetrics(user.id, now),
-      getMistakePatternLessonsMap(user.id),
-    ]);
+  const [
+    patterns,
+    phrasePractices,
+    recentLessons,
+    dashboardMetrics,
+    lessonsMap,
+  ] = await Promise.all([
+    memoryRepo.findAllMistakePatterns(user.id),
+    phraseRepo.findAllPhrasePractices(user.id),
+    lessonRepo.getRecentLessons(user.id, 100),
+    memoryEngine.getDashboardMetrics(user.id, now),
+    getMistakePatternLessonsMap(user.id),
+  ]);
 
   const {
     dueCount,
@@ -44,11 +52,15 @@ export default async function HistoryPage() {
     lessonsCompleted,
   } = dashboardMetrics;
 
-  // Compute average repetitions for active or mastered patterns
+  const totalSavedCount = patterns.length + phrasePractices.length;
+
+  // Compute average repetitions for active or mastered patterns and practices
   const avgRepetitions =
-    patterns.length > 0
+    totalSavedCount > 0
       ? (
-          patterns.reduce((sum, p) => sum + p.repetitions, 0) / patterns.length
+          (patterns.reduce((sum, p) => sum + p.repetitions, 0) +
+            phrasePractices.reduce((sum, p) => sum + p.repetitions, 0)) /
+          totalSavedCount
         ).toFixed(1)
       : "0";
 
@@ -64,7 +76,7 @@ export default async function HistoryPage() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 min-[960px]:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 min-[960px]:grid-cols-7 gap-4">
         <StatCard label="Bài học đã học" value={lessonsCompleted} />
         <StatCard
           label="Luyện tập đúng"
@@ -72,6 +84,7 @@ export default async function HistoryPage() {
           valueVariant="accent"
         />
         <StatCard label="Mẫu lỗi lưu" value={patternCount} />
+        <StatCard label="Cụm từ lưu" value={phrasePractices.length} />
         <StatCard
           label="Cần ôn tập"
           value={dueCount}
@@ -149,113 +162,204 @@ export default async function HistoryPage() {
         {/* Learned Mistakes Panel */}
         <SectionCard className="p-5 sm:p-5">
           <SectionCard.Header
-            title={`Cụm từ & Mẫu lỗi đã lưu (${patterns.length})`}
+            title={`Cụm từ & Mẫu lỗi đã lưu (${totalSavedCount})`}
             icon={<TrendingUp size={18} className="text-accent" />}
           />
 
           <SectionCard.Body className="gap-4">
-            {patterns.length === 0 ? (
+            {totalSavedCount === 0 ? (
               <p className="text-muted text-sm m-0 py-8 text-center">
-                Chưa có mẫu lỗi nào được ghi nhận. Hãy trả lời câu hỏi bài học
-                để hệ thống lưu lại các lỗi cần ôn tập.
+                Chưa có mẫu lỗi hay cụm từ nào được ghi nhận. Hãy trả lời câu
+                hỏi bài học để hệ thống lưu lại.
               </p>
             ) : (
               <div className="flex flex-col gap-4 max-h-150 overflow-y-auto pr-1">
-                {patterns.map((p) => {
-                  const lessonsList =
-                    lessonsMap[`${p.conceptKey}_${p.errorType}`] || [];
-                  return (
-                    <div
-                      key={p.id}
-                      className="bg-surface-strong border border-border rounded-md p-4 flex flex-col gap-2.5 transition-all hover:border-accent/20"
-                    >
-                      <div className="flex justify-between items-start gap-2 flex-wrap sm:flex-nowrap">
-                        <div>
-                          <strong className="text-accent-strong text-[15px] font-bold block">
-                            {p.normalizedPhrase}
-                          </strong>
-                          <span className="text-muted text-xs leading-relaxed mt-0.5 block">
-                            Nghĩa đúng: {p.meaningVi}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {p.masteryState === "mastered" ? (
-                            <Badge
-                              variant="success"
-                              size="sm"
-                              className="text-[9px] uppercase px-2 py-0.5 leading-none"
-                            >
-                              Thành thạo
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="warning"
-                              size="sm"
-                              className="text-[9px] uppercase px-2 py-0.5 leading-none"
-                            >
-                              Đang học
-                            </Badge>
-                          )}
-                          <Badge
-                            variant="default"
-                            size="sm"
-                            className="bg-surface border-border leading-none text-muted rounded text-[10px] px-1.5 py-0.5"
-                          >
-                            Lặp {p.repetitions} lần
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Related lessons backlinks */}
-                      {lessonsList.length > 0 && (
-                        <div className="flex flex-col gap-1 bg-surface/40 p-2 rounded border border-border/40">
-                          <span className="text-[10px] text-muted font-bold block">
-                            GẶP LỖI TRONG CÁC BÀI HỌC:
-                          </span>
-                          <div className="flex flex-wrap gap-x-2 gap-y-1.5 mt-0.5">
-                            {lessonsList.map((l) => (
-                              <Link
-                                key={l.id}
-                                href={`/lessons/${l.id}`}
-                                className="inline-flex items-center gap-0.5 text-[10px] text-accent hover:underline font-semibold"
+                {[
+                  ...patterns.map((p) => ({
+                    ...p.toPlainObject(),
+                    isMistake: true,
+                  })),
+                  ...phrasePractices.map((p) => ({
+                    ...p.toPlainObject(),
+                    isMistake: false,
+                  })),
+                ]
+                  .sort(
+                    (a, b) =>
+                      new Date(b.updatedAt).getTime() -
+                      new Date(a.updatedAt).getTime()
+                  )
+                  .map((item) => {
+                    if (item.isMistake) {
+                      const mistake = item as any;
+                      const lessonsList =
+                        lessonsMap[
+                          `${mistake.conceptKey}_${mistake.errorType}`
+                        ] || [];
+                      return (
+                        <div
+                          key={mistake.id}
+                          className="bg-surface-strong border border-border rounded-md p-4 flex flex-col gap-2.5 transition-all hover:border-accent/20"
+                        >
+                          <div className="flex justify-between items-start gap-2 flex-wrap sm:flex-nowrap">
+                            <div>
+                              <strong className="text-accent-strong text-[15px] font-bold block">
+                                {mistake.normalizedPhrase}
+                              </strong>
+                              <span className="text-muted text-xs leading-relaxed mt-0.5 block">
+                                Nghĩa đúng: {mistake.meaningVi}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {mistake.masteryState === "mastered" ? (
+                                <Badge
+                                  variant="success"
+                                  size="sm"
+                                  className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                                >
+                                  Thành thạo
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="warning"
+                                  size="sm"
+                                  className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                                >
+                                  Đang học
+                                </Badge>
+                              )}
+                              <Badge
+                                variant="default"
+                                size="sm"
+                                className="bg-surface border-border leading-none text-muted rounded text-[10px] px-1.5 py-0.5"
                               >
-                                <ExternalLink size={8} />{" "}
-                                {l.title || "Bài học gốc"}
+                                Lặp {mistake.repetitions} lần
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Related lessons backlinks */}
+                          {lessonsList.length > 0 && (
+                            <div className="flex flex-col gap-1 bg-surface/40 p-2 rounded border border-border/40">
+                              <span className="text-[10px] text-muted font-bold block">
+                                GẶP LỖI TRONG CÁC BÀI HỌC:
+                              </span>
+                              <div className="flex flex-wrap gap-x-2 gap-y-1.5 mt-0.5">
+                                {lessonsList.map((l) => (
+                                  <Link
+                                    key={l.id}
+                                    href={`/lessons/${l.id}`}
+                                    className="inline-flex items-center gap-0.5 text-[10px] text-accent hover:underline font-semibold"
+                                  >
+                                    <ExternalLink size={8} />{" "}
+                                    {l.title || "Bài học gốc"}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-border/50">
+                            <Badge
+                              variant="danger"
+                              size="sm"
+                              className="text-[9px] uppercase tracking-wider px-2 py-0.5 leading-none whitespace-nowrap"
+                            >
+                              {mistake.errorType.replaceAll("_", " ")}
+                            </Badge>
+
+                            {item.reviewPromptStatus === "succeeded" ? (
+                              <Link
+                                href={`/review?patternId=${item.id}`}
+                                className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent-strong no-underline hover:underline bg-accent-light px-2 py-1 rounded"
+                              >
+                                Luyện ôn tập <ArrowRight size={10} />
                               </Link>
-                            ))}
+                            ) : item.reviewPromptStatus === "failed" ? (
+                              <span className="text-danger-strong text-[9px] font-bold leading-none bg-danger-light border border-danger/10 px-2 py-1 rounded">
+                                Lỗi tạo câu hỏi
+                              </span>
+                            ) : (
+                              <span className="text-muted text-[9px] font-bold leading-none bg-surface border border-border px-2 py-1 rounded">
+                                Đang chuẩn bị câu hỏi...
+                              </span>
+                            )}
                           </div>
                         </div>
-                      )}
-
-                      <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-border/50">
-                        <Badge
-                          variant="danger"
-                          size="sm"
-                          className="text-[9px] uppercase tracking-wider px-2 py-0.5 leading-none whitespace-nowrap"
+                      );
+                    } else {
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-surface-strong border border-border rounded-md p-4 flex flex-col gap-2.5 transition-all hover:border-accent/20"
                         >
-                          {p.errorType.replaceAll("_", " ")}
-                        </Badge>
+                          <div className="flex justify-between items-start gap-2 flex-wrap sm:flex-nowrap">
+                            <div>
+                              <strong className="text-accent-strong text-[15px] font-bold block">
+                                {item.normalizedPhrase}
+                              </strong>
+                              <span className="text-muted text-xs leading-relaxed mt-0.5 block">
+                                Nghĩa đúng: {item.meaningVi}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {item.masteryState === "mastered" ? (
+                                <Badge
+                                  variant="success"
+                                  size="sm"
+                                  className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                                >
+                                  Thành thạo
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="warning"
+                                  size="sm"
+                                  className="text-[9px] uppercase px-2 py-0.5 leading-none"
+                                >
+                                  Đang học
+                                </Badge>
+                              )}
+                              <Badge
+                                variant="default"
+                                size="sm"
+                                className="bg-surface border-border leading-none text-muted rounded text-[10px] px-1.5 py-0.5"
+                              >
+                                Lặp {item.repetitions} lần
+                              </Badge>
+                            </div>
+                          </div>
 
-                        {p.reviewPromptStatus === "succeeded" ? (
-                          <Link
-                            href={`/review?patternId=${p.id}`}
-                            className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent-strong no-underline hover:underline bg-accent-light px-2 py-1 rounded"
-                          >
-                            Luyện ôn tập <ArrowRight size={10} />
-                          </Link>
-                        ) : p.reviewPromptStatus === "failed" ? (
-                          <span className="text-danger-strong text-[9px] font-bold leading-none bg-danger-light border border-danger/10 px-2 py-1 rounded">
-                            Lỗi tạo câu hỏi
-                          </span>
-                        ) : (
-                          <span className="text-muted text-[9px] font-bold leading-none bg-surface border border-border px-2 py-1 rounded">
-                            Đang chuẩn bị câu hỏi...
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                          <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-border/50">
+                            <Badge
+                              variant="accent"
+                              size="sm"
+                              className="text-[9px] uppercase tracking-wider px-2 py-0.5 leading-none whitespace-nowrap"
+                            >
+                              Cụm từ chủ động
+                            </Badge>
+
+                            {item.reviewPromptStatus === "succeeded" ? (
+                              <Link
+                                href={`/phrase-practice?practiceId=${item.id}`}
+                                className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent-strong no-underline hover:underline bg-accent-light px-2 py-1 rounded"
+                              >
+                                Luyện tập cụm từ <ArrowRight size={10} />
+                              </Link>
+                            ) : item.reviewPromptStatus === "failed" ? (
+                              <span className="text-danger-strong text-[9px] font-bold leading-none bg-danger-light border border-danger/10 px-2 py-1 rounded">
+                                Lỗi tạo câu hỏi
+                              </span>
+                            ) : (
+                              <span className="text-muted text-[9px] font-bold leading-none bg-surface border border-border px-2 py-1 rounded">
+                                Đang chuẩn bị câu hỏi...
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
               </div>
             )}
           </SectionCard.Body>

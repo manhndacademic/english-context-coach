@@ -35,8 +35,6 @@ export type GenerationStatus = "pending" | "running" | "succeeded" | "failed";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed";
 
-export type MistakePatternSource = "mistake" | "phrase" | "manual";
-
 export type LessonFocusCategory = "tone" | "structure" | "purpose" | "context";
 
 export type DiffType = "equal" | "delete" | "insert";

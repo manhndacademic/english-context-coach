@@ -1,9 +1,5 @@
 import type { MasteryState } from "./types";
-import type {
-  KeyPhraseCategory,
-  JobStatus,
-  MistakePatternSource,
-} from "@/domain/types";
+import type { KeyPhraseCategory, JobStatus } from "@/domain/types";
 
 export class PhrasePractice {
   public static readonly REVIEW_INTERVALS = [1, 3, 7, 14];
@@ -72,7 +68,6 @@ export class PhrasePractice {
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
     private _reviewPromptLockedBy: string | null,
-    public readonly source: MistakePatternSource = "phrase",
     public readonly keyPhraseId: string | null = null,
     public readonly literalTranslationTrapVi: string | null = null,
     public readonly whyConfusingVi: string | null = null,
@@ -122,7 +117,6 @@ export class PhrasePractice {
       null,
       null,
       null,
-      "phrase", // source
       input.keyPhraseId,
       null, // literalTranslationTrapVi
       null, // whyConfusingVi
@@ -179,7 +173,6 @@ export class PhrasePractice {
       state.reviewPromptError,
       parseDate(state.reviewPromptLockedAt),
       state.reviewPromptLockedBy,
-      state.source ?? "phrase",
       state.keyPhraseId ?? null,
       keyPhraseData?.literalTranslationVi ??
         state.literalTranslationTrapVi ??
@@ -356,7 +349,6 @@ export class PhrasePractice {
     return {
       id: this.id,
       userId: this.userId,
-      source: this.source,
       keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
@@ -392,7 +384,6 @@ export class PhrasePractice {
     return {
       id: this.id,
       userId: this.userId,
-      source: this.source,
       keyPhraseId: this.keyPhraseId,
       conceptKey: this.conceptKey,
       normalizedPhrase: this.normalizedPhrase,
@@ -431,7 +422,6 @@ export class PhrasePractice {
 export interface PhrasePracticePlain {
   id: string;
   userId: string;
-  source: MistakePatternSource;
   keyPhraseId: string | null;
   conceptKey: string;
   normalizedPhrase: string;

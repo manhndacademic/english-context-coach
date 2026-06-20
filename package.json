@@ -9,7 +9,7 @@
     "start": "next start",
     "worker": "bun run src/worker.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate && bun run src/scripts/migrate-legacy-phrase-reviews.ts --copy && bun run src/scripts/migrate-legacy-phrase-reviews.ts --cutover",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "docker:local:up": "docker compose -f docker-compose.local.yml up -d",
     "docker:local:down": "docker compose -f docker-compose.local.yml down",
