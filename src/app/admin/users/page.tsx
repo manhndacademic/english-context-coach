@@ -28,16 +28,48 @@ interface PageProps {
   }>;
 }
 
+async function handleUserAction(
+  actionFn: (id: string) => Promise<any>,
+  id: string
+) {
+  "use server";
+  await actionFn(id);
+}
+
+const getStatusBadge = (userStatus: string, role: string) => {
+  if (role === "admin") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 border border-accent/30 text-accent px-2.5 py-0.5 text-xs font-bold">
+        Admin (Duyệt sẵn)
+      </span>
+    );
+  }
+
+  switch (userStatus) {
+    case "approved":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-success text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
+          Đã duyệt
+        </span>
+      );
+    case "rejected":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-danger text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
+          Bị từ chối
+        </span>
+      );
+    case "pending":
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-warning text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold animate-pulse">
+          Chờ duyệt
+        </span>
+      );
+  }
+};
+
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   await requireAdmin();
-
-  const handleUserAction = async (
-    actionFn: (id: string) => Promise<any>,
-    id: string
-  ) => {
-    "use server";
-    await actionFn(id);
-  };
 
   const params = await searchParams;
   const search = params.search || "";
@@ -100,39 +132,6 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
     .orderBy(desc(schema.users.createdAt))
     .limit(pageSize)
     .offset((currentPage - 1) * pageSize);
-
-  // Helper to get status badge UI
-  const getStatusBadge = (userStatus: string, role: string) => {
-    if (role === "admin") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 border border-accent/30 text-accent px-2.5 py-0.5 text-xs font-bold">
-          Admin (Duyệt sẵn)
-        </span>
-      );
-    }
-
-    switch (userStatus) {
-      case "approved":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
-            Đã duyệt
-          </span>
-        );
-      case "rejected":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-danger text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold">
-            Bị từ chối
-          </span>
-        );
-      case "pending":
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-warning text-white dark:text-background border border-transparent px-2.5 py-0.5 text-xs font-bold animate-pulse">
-            Chờ duyệt
-          </span>
-        );
-    }
-  };
 
   return (
     <>

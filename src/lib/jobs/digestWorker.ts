@@ -96,20 +96,39 @@ export async function runDigestWorker(): Promise<{
         continue;
       }
 
-      // 2. Count due items
-      const [{ value: dueCount }] = await db
-        .select({ value: count() })
-        .from(mistakePatterns)
-        .where(
-          and(
-            eq(mistakePatterns.userId, user.id),
-            eq(mistakePatterns.masteryState, "active"),
-            lte(mistakePatterns.dueAt, now),
-            eq(mistakePatterns.reviewPromptStatus, "succeeded")
+      // 2. Fetch count and preview items in parallel
+      const [countResult, previewItems] = await Promise.all([
+        db
+          .select({ value: count() })
+          .from(mistakePatterns)
+          .where(
+            and(
+              eq(mistakePatterns.userId, user.id),
+              eq(mistakePatterns.masteryState, "active"),
+              lte(mistakePatterns.dueAt, now),
+              eq(mistakePatterns.reviewPromptStatus, "succeeded")
+            )
+          ),
+        db
+          .select({
+            phrase: mistakePatterns.normalizedPhrase,
+            meaningVi: mistakePatterns.meaningVi,
+          })
+          .from(mistakePatterns)
+          .where(
+            and(
+              eq(mistakePatterns.userId, user.id),
+              eq(mistakePatterns.masteryState, "active"),
+              lte(mistakePatterns.dueAt, now),
+              eq(mistakePatterns.reviewPromptStatus, "succeeded")
+            )
           )
-        );
+          .orderBy(asc(mistakePatterns.dueAt))
+          .limit(5),
+      ]);
 
-      currentDueCount = dueCount ?? 0;
+      const dueCount = countResult[0]?.value ?? 0;
+      currentDueCount = dueCount;
 
       if (currentDueCount === 0) {
         // No due items. Mark as skipped so we don't send anything.
@@ -130,24 +149,6 @@ export async function runDigestWorker(): Promise<{
         results.skipped++;
         continue;
       }
-
-      // 3. Retrieve preview items and send email
-      const previewItems = await db
-        .select({
-          phrase: mistakePatterns.normalizedPhrase,
-          meaningVi: mistakePatterns.meaningVi,
-        })
-        .from(mistakePatterns)
-        .where(
-          and(
-            eq(mistakePatterns.userId, user.id),
-            eq(mistakePatterns.masteryState, "active"),
-            lte(mistakePatterns.dueAt, now),
-            eq(mistakePatterns.reviewPromptStatus, "succeeded")
-          )
-        )
-        .orderBy(asc(mistakePatterns.dueAt))
-        .limit(5);
 
       await sendDigestEmail({
         to: user.email,

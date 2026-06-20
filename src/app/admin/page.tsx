@@ -52,45 +52,43 @@ export default async function AdminDashboardPage() {
     statsResult.totalInputTokens + statsResult.totalOutputTokens;
   const totalCostUsd = microsToUsd(statsResult.totalCostMicros);
 
-  // 2. Daily metrics (last 30 days)
-  const dailyStats = await adminRepo.getDailyAiMetrics(30);
-
-  // 3. Model breakdown
-  const modelStats = await adminRepo.getAiStatsByModel();
-
-  // 4. Purpose breakdown
-  const purposeStats = await adminRepo.getAiStatsByPurpose();
-
-  // 5. System keys status count
-  const keysCountResult = await adminRepo.getApiKeysStatusCounts();
+  // Fetch all independent metrics in parallel
+  const [
+    dailyStats,
+    modelStats,
+    purposeStats,
+    keysCountResult,
+    dau,
+    wau,
+    errorStats24h,
+    digestStats,
+    topUsers,
+    jobStatsRaw,
+    activeJobs,
+  ] = await Promise.all([
+    adminRepo.getDailyAiMetrics(30),
+    adminRepo.getAiStatsByModel(),
+    adminRepo.getAiStatsByPurpose(),
+    adminRepo.getApiKeysStatusCounts(),
+    adminRepo.getActiveUserCount(oneDayAgo),
+    adminRepo.getActiveUserCount(sevenDaysAgo),
+    adminRepo.getAiErrorStats24h(oneDayAgo),
+    adminRepo.getDigestStatsByDate(currentVnDigestDate()),
+    adminRepo.getTopUsersByResourceUsage(10),
+    adminRepo.getJobStatusBreakdown(),
+    adminRepo.getActiveAndFailedJobs(10),
+  ]);
 
   const activeKeys = keysCountResult.active;
   const rateLimitedKeys = keysCountResult.rateLimited;
   const invalidKeys = keysCountResult.invalid;
   const totalKeys = keysCountResult.total;
 
-  // 5a. User Active (DAU / WAU)
-  const dau = await adminRepo.getActiveUserCount(oneDayAgo);
-  const wau = await adminRepo.getActiveUserCount(sevenDaysAgo);
-
-  // 5b. AI Success Rate (24h)
-  const errorStats24h = await adminRepo.getAiErrorStats24h(oneDayAgo);
-  const digestStats = await adminRepo.getDigestStatsByDate(
-    currentVnDigestDate()
-  );
-
   const total24h = errorStats24h.total;
   const failed24h = errorStats24h.failed;
   const successRate24h = computeSuccessRate(total24h, total24h - failed24h);
 
-  // 5c. Top 10 Users by Resource Usage
-  const topUsers = await adminRepo.getTopUsersByResourceUsage(10);
-
-  // 5d. Background Job Queue status
-  const jobStatsRaw = await adminRepo.getJobStatusBreakdown();
   const jobStats = normalizeJobStats(jobStatsRaw);
-
-  const activeJobs = await adminRepo.getActiveAndFailedJobs(10);
 
   return (
     <>

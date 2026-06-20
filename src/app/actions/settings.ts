@@ -20,10 +20,10 @@ export const saveUserApiKeyAction = validatedAction(
   async (data, user) => {
     let encryptedKey: string | null = null;
     if (data.apiKey) {
-      const rawKeys = data.apiKey
-        .split(/[,\n]+/)
-        .map((k) => k.trim())
-        .filter(Boolean);
+      const rawKeys = data.apiKey.split(/[,\n]+/).flatMap((k) => {
+        const trimmed = k.trim();
+        return trimmed ? [trimmed] : [];
+      });
       if (rawKeys.length > 0) {
         const errors = await Promise.all(rawKeys.map(verifyGeminiApiKey));
         const firstError = errors.find(Boolean);

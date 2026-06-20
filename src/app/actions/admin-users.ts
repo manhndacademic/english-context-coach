@@ -9,17 +9,19 @@ import { recordAdminAuditLog } from "@/domain/admin/audit";
 export async function approveUserAction(userId: string) {
   const admin = await requireAdmin();
 
-  await db
-    .update(schema.users)
-    .set({ status: "approved" })
-    .where(eq(schema.users.id, userId));
-  await recordAdminAuditLog({
-    adminUserId: admin.id,
-    targetUserId: userId,
-    targetResourceType: "user",
-    targetResourceId: userId,
-    action: "approve_user",
-  });
+  await Promise.all([
+    db
+      .update(schema.users)
+      .set({ status: "approved" })
+      .where(eq(schema.users.id, userId)),
+    recordAdminAuditLog({
+      adminUserId: admin.id,
+      targetUserId: userId,
+      targetResourceType: "user",
+      targetResourceId: userId,
+      action: "approve_user",
+    }),
+  ]);
 
   revalidatePath("/admin/users");
   return { success: true };
@@ -28,17 +30,19 @@ export async function approveUserAction(userId: string) {
 export async function rejectUserAction(userId: string) {
   const admin = await requireAdmin();
 
-  await db
-    .update(schema.users)
-    .set({ status: "rejected" })
-    .where(eq(schema.users.id, userId));
-  await recordAdminAuditLog({
-    adminUserId: admin.id,
-    targetUserId: userId,
-    targetResourceType: "user",
-    targetResourceId: userId,
-    action: "reject_user",
-  });
+  await Promise.all([
+    db
+      .update(schema.users)
+      .set({ status: "rejected" })
+      .where(eq(schema.users.id, userId)),
+    recordAdminAuditLog({
+      adminUserId: admin.id,
+      targetUserId: userId,
+      targetResourceType: "user",
+      targetResourceId: userId,
+      action: "reject_user",
+    }),
+  ]);
 
   revalidatePath("/admin/users");
   return { success: true };
@@ -47,17 +51,19 @@ export async function rejectUserAction(userId: string) {
 export async function revokeUserAction(userId: string) {
   const admin = await requireAdmin();
 
-  await db
-    .update(schema.users)
-    .set({ status: "pending" })
-    .where(eq(schema.users.id, userId));
-  await recordAdminAuditLog({
-    adminUserId: admin.id,
-    targetUserId: userId,
-    targetResourceType: "user",
-    targetResourceId: userId,
-    action: "revoke_user",
-  });
+  await Promise.all([
+    db
+      .update(schema.users)
+      .set({ status: "pending" })
+      .where(eq(schema.users.id, userId)),
+    recordAdminAuditLog({
+      adminUserId: admin.id,
+      targetUserId: userId,
+      targetResourceType: "user",
+      targetResourceId: userId,
+      action: "revoke_user",
+    }),
+  ]);
 
   revalidatePath("/admin/users");
   return { success: true };

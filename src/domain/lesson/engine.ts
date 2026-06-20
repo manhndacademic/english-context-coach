@@ -128,13 +128,15 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       requestedMode
     );
 
-    await this.progress.recordMilestone({
-      lessonId: result.lesson.id,
-      generationJobId: result.job.id,
-      code: "queued",
-      stage: null,
-    });
-    await this.collaborators.notifyJobQueued();
+    await Promise.all([
+      this.progress.recordMilestone({
+        lessonId: result.lesson.id,
+        generationJobId: result.job.id,
+        code: "queued",
+        stage: null,
+      }),
+      this.collaborators.notifyJobQueued(),
+    ]);
 
     return {
       ok: true,
@@ -189,13 +191,15 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         "analysis"
       );
 
-      await this.progress.recordMilestone({
-        lessonId: result.lesson.id,
-        generationJobId: result.job.id,
-        code: "queued",
-        stage: null,
-      });
-      await this.collaborators.notifyJobQueued();
+      await Promise.all([
+        this.progress.recordMilestone({
+          lessonId: result.lesson.id,
+          generationJobId: result.job.id,
+          code: "queued",
+          stage: null,
+        }),
+        this.collaborators.notifyJobQueued(),
+      ]);
 
       return {
         ok: true,
@@ -226,13 +230,15 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       stage
     );
 
-    await this.progress.recordMilestone({
-      lessonId: lesson.id,
-      generationJobId: job.id,
-      code: "queued",
-      stage: null,
-    });
-    await this.collaborators.notifyJobQueued();
+    await Promise.all([
+      this.progress.recordMilestone({
+        lessonId: lesson.id,
+        generationJobId: job.id,
+        code: "queued",
+        stage: null,
+      }),
+      this.collaborators.notifyJobQueued(),
+    ]);
 
     return {
       ok: true,
@@ -407,17 +413,19 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         `Starting stage "exercises" for Lesson ${job.lessonId}...`
       );
       const exercisesStart = Date.now();
-      await this.lessonContent.updateLessonStatus(
-        job.lessonId,
-        "exercise",
-        "running"
-      );
-      await this.progress.recordMilestone({
-        lessonId: job.lessonId,
-        generationJobId: job.id,
-        code: "exercises_started",
-        stage: "exercises",
-      });
+      await Promise.all([
+        this.lessonContent.updateLessonStatus(
+          job.lessonId,
+          "exercise",
+          "running"
+        ),
+        this.progress.recordMilestone({
+          lessonId: job.lessonId,
+          generationJobId: job.id,
+          code: "exercises_started",
+          stage: "exercises",
+        }),
+      ]);
 
       const analysis = await this.lessonContent.buildAnalysisFromLesson(
         job.lessonId
@@ -523,41 +531,42 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
       if (transient && job.attempts < 3) {
         const field = currentStage === "analysis" ? "analysis" : "exercise";
-        await this.lessonContent.updateLessonStatus(
-          job.lessonId,
-          field as any,
-          "pending"
-        );
-
-        await this.jobs.updateJobStatus(job.id, "queued", {
-          stage: currentStage,
-          errorMessage: message,
-          lockedAt: null,
-          lockedBy: null,
-        });
-        await this.collaborators.notifyJobQueued();
+        await Promise.all([
+          this.lessonContent.updateLessonStatus(
+            job.lessonId,
+            field as any,
+            "pending"
+          ),
+          this.jobs.updateJobStatus(job.id, "queued", {
+            stage: currentStage,
+            errorMessage: message,
+            lockedAt: null,
+            lockedBy: null,
+          }),
+          this.collaborators.notifyJobQueued(),
+        ]);
 
         throw error;
       }
 
       const field = currentStage === "analysis" ? "analysis" : "exercise";
-      await this.lessonContent.updateLessonStatus(
-        job.lessonId,
-        field as any,
-        "failed"
-      );
-
-      await this.jobs.updateJobStatus(job.id, "failed", {
-        stage: currentStage,
-        errorMessage: message,
-      });
-
-      await this.progress.recordMilestone({
-        lessonId: job.lessonId,
-        generationJobId: job.id,
-        code: "failed",
-        stage: currentStage,
-      });
+      await Promise.all([
+        this.lessonContent.updateLessonStatus(
+          job.lessonId,
+          field as any,
+          "failed"
+        ),
+        this.jobs.updateJobStatus(job.id, "failed", {
+          stage: currentStage,
+          errorMessage: message,
+        }),
+        this.progress.recordMilestone({
+          lessonId: job.lessonId,
+          generationJobId: job.id,
+          code: "failed",
+          stage: currentStage,
+        }),
+      ]);
 
       return {
         status: "processed",

@@ -46,6 +46,21 @@ const TIMEFRAME_LABELS: Record<Timeframe, string> = {
   "30days": "30 ngày qua",
 };
 
+const getPurposeLabel = (purpose: string) => {
+  switch (purpose) {
+    case "analysis":
+      return "Phân tích ngữ cảnh";
+    case "exercise_generation":
+      return "Tạo bài tập";
+    case "grading":
+      return "Chấm điểm";
+    case "repair":
+      return "Sửa lỗi JSON";
+    default:
+      return purpose;
+  }
+};
+
 export function UsageDashboard({ initialStats }: UsageDashboardProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("7days");
   const [data, setData] = useState(initialStats);
@@ -94,21 +109,6 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
     ...d,
     label: formatLabelDate(d.date),
   }));
-
-  const getPurposeLabel = (purpose: string) => {
-    switch (purpose) {
-      case "analysis":
-        return "Phân tích ngữ cảnh";
-      case "exercise_generation":
-        return "Tạo bài tập";
-      case "grading":
-        return "Chấm điểm";
-      case "repair":
-        return "Sửa lỗi JSON";
-      default:
-        return purpose;
-    }
-  };
 
   if (!mounted) {
     return (

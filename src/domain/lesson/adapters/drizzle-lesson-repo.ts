@@ -360,21 +360,23 @@ export class DrizzleLessonRepository implements LessonRepository {
     ) {
       throw new Error("Lesson analysis is incomplete.");
     }
-    const phrases = await this.dbClient
-      .select()
-      .from(schema.keyPhrases)
-      .where(eq(schema.keyPhrases.lessonId, lessonId))
-      .orderBy(asc(schema.keyPhrases.createdAt));
-    const lessonFocuses = await this.dbClient
-      .select()
-      .from(schema.lessonFocuses)
-      .where(eq(schema.lessonFocuses.lessonId, lessonId))
-      .orderBy(asc(schema.lessonFocuses.createdAt));
-    const sentenceBreakdowns = await this.dbClient
-      .select()
-      .from(schema.sentenceBreakdowns)
-      .where(eq(schema.sentenceBreakdowns.lessonId, lessonId))
-      .orderBy(schema.sentenceBreakdowns.orderIndex);
+    const [phrases, lessonFocuses, sentenceBreakdowns] = await Promise.all([
+      this.dbClient
+        .select()
+        .from(schema.keyPhrases)
+        .where(eq(schema.keyPhrases.lessonId, lessonId))
+        .orderBy(asc(schema.keyPhrases.createdAt)),
+      this.dbClient
+        .select()
+        .from(schema.lessonFocuses)
+        .where(eq(schema.lessonFocuses.lessonId, lessonId))
+        .orderBy(asc(schema.lessonFocuses.createdAt)),
+      this.dbClient
+        .select()
+        .from(schema.sentenceBreakdowns)
+        .where(eq(schema.sentenceBreakdowns.lessonId, lessonId))
+        .orderBy(schema.sentenceBreakdowns.orderIndex),
+    ]);
 
     return {
       title: lesson.title,

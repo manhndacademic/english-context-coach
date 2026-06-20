@@ -28,10 +28,10 @@ const GEMMA_UNSUPPORTED_THINKING = new Set<string>(["LOW", "MEDIUM"]);
 
 function parseModelList(env: string | undefined, defaults: string[]): string[] {
   if (!env?.trim()) return defaults;
-  const parsed = env
-    .split(",")
-    .map((m) => m.trim())
-    .filter(Boolean);
+  const parsed = env.split(",").flatMap((m) => {
+    const trimmed = m.trim();
+    return trimmed ? [trimmed] : [];
+  });
   return parsed.length > 0 ? parsed : defaults;
 }
 

@@ -7,21 +7,25 @@ import { sql } from "@/db";
  */
 export async function notifyJobQueued() {
   try {
-    // 1. Notify PostgreSQL to trigger any listeners (e.g. pg_events)
-    await sql`NOTIFY jobs_trigger`.catch((err) => {
-      console.error("[JobTrigger] PostgreSQL NOTIFY error:", err);
-    });
+    // 1. Notify PostgreSQL to trigger any listeners and dynamically import BullMQ queues in parallel
+    const [_, queues] = await Promise.all([
+      sql`NOTIFY jobs_trigger`.catch((err) => {
+        console.error("[JobTrigger] PostgreSQL NOTIFY error:", err);
+      }),
+      import("@/lib/jobs/queue"),
+    ]);
 
-    // 2. Dynamic import to prevent circular dependencies
-    const { lessonQueue, reviewQueue } = await import("@/lib/jobs/queue");
+    const { lessonQueue, reviewQueue } = queues;
 
-    // 3. Queue jobs on BullMQ to wake up workers
-    await lessonQueue.add("process-next-lesson", {}).catch((err) => {
-      console.error("[JobTrigger] BullMQ lesson enqueue error:", err);
-    });
-    await reviewQueue.add("process-next-review-prompt", {}).catch((err) => {
-      console.error("[JobTrigger] BullMQ review enqueue error:", err);
-    });
+    // 2. Queue both jobs on BullMQ concurrently
+    await Promise.all([
+      lessonQueue.add("process-next-lesson", {}).catch((err) => {
+        console.error("[JobTrigger] BullMQ lesson enqueue error:", err);
+      }),
+      reviewQueue.add("process-next-review-prompt", {}).catch((err) => {
+        console.error("[JobTrigger] BullMQ review enqueue error:", err);
+      }),
+    ]);
   } catch (error) {
     console.error("[JobTrigger] Failed to trigger background jobs:", error);
   }

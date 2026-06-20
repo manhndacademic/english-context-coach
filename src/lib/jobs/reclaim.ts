@@ -51,25 +51,25 @@ export async function runReclaimWorker(): Promise<{
             `[ReclaimWorker] Gen job ${job.id} (Lesson ${job.lessonId}) has attempts=${job.attempts} < 3. Re-queuing.`
           );
 
-          // Reset job
-          await tx
-            .update(generationJobs)
-            .set({
-              status: "queued",
-              lockedAt: null,
-              lockedBy: null,
-              updatedAt: new Date(),
-            })
-            .where(eq(generationJobs.id, job.id));
-
-          // Set lesson status back to pending
-          await tx
-            .update(lessons)
-            .set({
-              [field]: "pending",
-              updatedAt: new Date(),
-            })
-            .where(eq(lessons.id, job.lessonId));
+          // Reset job and set lesson status back to pending in parallel
+          await Promise.all([
+            tx
+              .update(generationJobs)
+              .set({
+                status: "queued",
+                lockedAt: null,
+                lockedBy: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(generationJobs.id, job.id)),
+            tx
+              .update(lessons)
+              .set({
+                [field]: "pending",
+                updatedAt: new Date(),
+              })
+              .where(eq(lessons.id, job.lessonId)),
+          ]);
 
           shouldWakeWorkers = true;
         } else {
@@ -77,36 +77,34 @@ export async function runReclaimWorker(): Promise<{
             `[ReclaimWorker] Gen job ${job.id} (Lesson ${job.lessonId}) has attempts=${job.attempts} >= 3. Marking failed.`
           );
 
-          // Fail job
-          await tx
-            .update(generationJobs)
-            .set({
-              status: "failed",
-              errorMessage:
-                "Stale job reclaimed: exceeded maximum execution attempts.",
-              lockedAt: null,
-              lockedBy: null,
-              updatedAt: new Date(),
-            })
-            .where(eq(generationJobs.id, job.id));
-
-          // Fail lesson stage
-          await tx
-            .update(lessons)
-            .set({
-              [field]: "failed",
-              updatedAt: new Date(),
-            })
-            .where(eq(lessons.id, job.lessonId));
-
-          // Record failed milestone
-          await tx.insert(generationMilestones).values({
-            lessonId: job.lessonId,
-            generationJobId: job.id,
-            code: "failed",
-            stage: stage,
-            createdAt: new Date(),
-          });
+          // Fail job, fail lesson stage, and record failed milestone in parallel
+          await Promise.all([
+            tx
+              .update(generationJobs)
+              .set({
+                status: "failed",
+                errorMessage:
+                  "Stale job reclaimed: exceeded maximum execution attempts.",
+                lockedAt: null,
+                lockedBy: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(generationJobs.id, job.id)),
+            tx
+              .update(lessons)
+              .set({
+                [field]: "failed",
+                updatedAt: new Date(),
+              })
+              .where(eq(lessons.id, job.lessonId)),
+            tx.insert(generationMilestones).values({
+              lessonId: job.lessonId,
+              generationJobId: job.id,
+              code: "failed",
+              stage: stage,
+              createdAt: new Date(),
+            }),
+          ]);
         }
       });
     }

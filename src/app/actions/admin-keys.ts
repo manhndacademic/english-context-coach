@@ -94,23 +94,24 @@ export const reverifySystemApiKeyAction = validatedAction(
     const verifyError = await verifyGeminiApiKey(
       decryptApiKey(keyRow.encryptedKey)
     );
-    await db
-      .update(schema.aiApiKeys)
-      .set({
-        status: verifyError ? "invalid" : "active",
-        errorMessage: verifyError,
-        rateLimitedAt: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.aiApiKeys.id, data.keyId));
-
-    await recordAdminAuditLog({
-      adminUserId: user.id,
-      targetResourceType: "system_api_key",
-      targetResourceId: data.keyId,
-      action: "reverify_system_api_key",
-      metadata: { result: verifyError ? "invalid" : "active" },
-    });
+    await Promise.all([
+      db
+        .update(schema.aiApiKeys)
+        .set({
+          status: verifyError ? "invalid" : "active",
+          errorMessage: verifyError,
+          rateLimitedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.aiApiKeys.id, data.keyId)),
+      recordAdminAuditLog({
+        adminUserId: user.id,
+        targetResourceType: "system_api_key",
+        targetResourceId: data.keyId,
+        action: "reverify_system_api_key",
+        metadata: { result: verifyError ? "invalid" : "active" },
+      }),
+    ]);
 
     revalidatePath("/admin/keys");
     return verifyError

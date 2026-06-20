@@ -14,31 +14,32 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const legacyHasCustomKey = !!user.customGeminiApiKey;
 
-  // Fetch initial usage stats on the server
-  const initialStats = await getUsageStatsAction("7days");
+  // Fetch initial usage stats, API keys, and notification preferences in parallel
+  const [initialStats, apiKeys, notifPrefsResult] = await Promise.all([
+    getUsageStatsAction("7days"),
+    db
+      .select({
+        id: userAiApiKeys.id,
+        name: userAiApiKeys.name,
+        provider: userAiApiKeys.provider,
+        status: userAiApiKeys.status,
+        errorMessage: userAiApiKeys.errorMessage,
+        lastUsedAt: userAiApiKeys.lastUsedAt,
+        createdAt: userAiApiKeys.createdAt,
+      })
+      .from(userAiApiKeys)
+      .where(eq(userAiApiKeys.userId, user.id)),
+    db
+      .select({
+        emailDigestEnabled: users.emailDigestEnabled,
+        emailDigestHour: users.emailDigestHour,
+      })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
+  ]);
 
-  const apiKeys = await db
-    .select({
-      id: userAiApiKeys.id,
-      name: userAiApiKeys.name,
-      provider: userAiApiKeys.provider,
-      status: userAiApiKeys.status,
-      errorMessage: userAiApiKeys.errorMessage,
-      lastUsedAt: userAiApiKeys.lastUsedAt,
-      createdAt: userAiApiKeys.createdAt,
-    })
-    .from(userAiApiKeys)
-    .where(eq(userAiApiKeys.userId, user.id));
-
-  // Fetch notification preferences
-  const [notifPrefs] = await db
-    .select({
-      emailDigestEnabled: users.emailDigestEnabled,
-      emailDigestHour: users.emailDigestHour,
-    })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
+  const notifPrefs = notifPrefsResult[0];
 
   return (
     <PageLayout user={user}>

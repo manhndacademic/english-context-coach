@@ -12,6 +12,31 @@ import {
 import { DeleteKeyButton } from "@/components/admin/delete-key-button";
 import { AddSystemKeyForm } from "@/components/admin/add-system-key-form";
 
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case "active":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-success text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
+          <CheckCircle2 size={12} /> Đang hoạt động
+        </span>
+      );
+    case "rate_limited":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none animate-pulse">
+          <AlertTriangle size={12} /> Rate Limited
+        </span>
+      );
+    case "invalid":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-danger text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
+          <XCircle size={12} /> Hỏng (Invalid)
+        </span>
+      );
+    default:
+      return <span className="text-muted text-xs">{status}</span>;
+  }
+};
+
 export default async function AdminKeysPage() {
   await requireAdmin();
 
@@ -20,31 +45,6 @@ export default async function AdminKeysPage() {
     .select()
     .from(schema.aiApiKeys)
     .orderBy(desc(schema.aiApiKeys.createdAt));
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
-            <CheckCircle2 size={12} /> Đang hoạt động
-          </span>
-        );
-      case "rate_limited":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none animate-pulse">
-            <AlertTriangle size={12} /> Rate Limited
-          </span>
-        );
-      case "invalid":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-danger text-white dark:text-background border border-transparent px-2 py-0.5 text-xs font-bold leading-none">
-            <XCircle size={12} /> Hỏng (Invalid)
-          </span>
-        );
-      default:
-        return <span className="text-muted text-xs">{status}</span>;
-    }
-  };
 
   return (
     <>
