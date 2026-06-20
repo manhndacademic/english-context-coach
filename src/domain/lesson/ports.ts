@@ -62,10 +62,11 @@ export interface KeyPhrase {
   senseKey: string;
   meaningVi: string;
   meaningInContextVi: string | null;
-  examples: { exampleEn: string; exampleVi: string }[];
+  examples: { exampleEn: string; exampleVi: string; ipa?: string }[];
   literalTranslationVi: string | null;
   naturalTranslationVi: string | null;
   whyConfusingVi: string | null;
+  ipa?: string | null;
   category: KeyPhraseCategory;
   difficulty: DetectedLevel;
   isSensitive: boolean;
@@ -85,6 +86,7 @@ export interface SentenceBreakdown {
   naturalMeaningVi: string;
   structureNotesVi: string;
   toneOrContextVi: string | null;
+  ipa?: string | null;
   orderIndex: number;
   createdAt: Date;
 }
@@ -187,10 +189,11 @@ export interface SaveAnalysisInput {
     conceptMeaningVi: string;
     meaningVi: string;
     meaningInContextVi: string;
-    examples: { exampleEn: string; exampleVi: string }[];
+    examples: { exampleEn: string; exampleVi: string; ipa?: string }[];
     literalTranslationVi?: string;
     naturalTranslationVi?: string;
     whyConfusingVi?: string;
+    ipa?: string;
     category: KeyPhraseCategory;
     difficulty: DetectedLevel;
   }>;
@@ -201,6 +204,7 @@ export interface SaveAnalysisInput {
     naturalMeaningVi: string;
     structureNotesVi: string;
     toneOrContextVi?: string;
+    ipa?: string;
   }>;
   lessonFocuses: Array<{
     title: string;
@@ -405,7 +409,8 @@ export interface GenerationEngine {
     analysis: SaveAnalysisInput,
     onThought?: (text: string) => Promise<void>,
     userId?: string,
-    lessonId?: string
+    lessonId?: string,
+    activeMistakePatterns?: Array<{ conceptKey: string; category: string }>
   ): Promise<SaveExercisesInput>;
 }
 

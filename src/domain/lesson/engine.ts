@@ -36,6 +36,9 @@ interface LessonEngineCollaborators {
     userId: string,
     sourceTextId: string
   ): Promise<void>;
+  getActiveMistakePatterns?(
+    userId: string
+  ): Promise<Array<{ conceptKey: string; category: string }>>;
 }
 
 const defaultCollaborators: LessonEngineCollaborators = {
@@ -46,6 +49,9 @@ const defaultCollaborators: LessonEngineCollaborators = {
     return { inserted: 0, skipped: 0 };
   },
   async scrubSensitiveContentForSourceText() {},
+  async getActiveMistakePatterns() {
+    return [];
+  },
 };
 
 function isTransientGenerationError(error: unknown) {
@@ -431,6 +437,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
         job.lessonId
       );
       let exercises: SaveExercisesInput | null = null;
+      const activePatterns = this.collaborators.getActiveMistakePatterns
+        ? await this.collaborators.getActiveMistakePatterns(job.userId)
+        : [];
 
       const runExerciseGeneration = async (
         attempt: number
@@ -452,7 +461,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
             }
           },
           job.userId,
-          job.lessonId
+          job.lessonId,
+          activePatterns
         );
 
         try {

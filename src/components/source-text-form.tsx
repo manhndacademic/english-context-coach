@@ -48,6 +48,24 @@ function getPlainTextLength(value: string): number {
   return value.trim().length;
 }
 
+const CONTEXT_TEMPLATES = [
+  {
+    label: "💬 Tin nhắn Slack",
+    text: "Could you take a look at the PR when you get a chance? We need to push back the release date if there are any blocker bugs.",
+    mode: "understand_and_practice",
+  },
+  {
+    label: "📝 Lỗi Vietlish",
+    text: "Yesterday I go to office and my manager say we must make a plan for draw up new feature.",
+    mode: "fix_and_understand",
+  },
+  {
+    label: "💻 Lỗi Code (Lập trình)",
+    text: "TypeError: Cannot read properties of undefined (reading 'map')\n    at getLessonsForPatterns (drizzle-repositories.ts:143:30)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)",
+    mode: "developer_error_explanation",
+  },
+];
+
 export function SourceTextForm() {
   const [state, action, pending] = useActionState<
     SourceTextActionState,
@@ -57,16 +75,59 @@ export function SourceTextForm() {
 
   const plainTextLength = getPlainTextLength(value);
 
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setValue(text);
+      }
+    } catch {
+      alert(
+        "Không thể tự động đọc clipboard. Bạn vui lòng dán thủ công bằng tổ hợp phím Ctrl+V / Cmd+V."
+      );
+    }
+  };
+
   return (
     <form action={action} className="grid gap-5">
       <div className="grid gap-2 text-left text-sm font-semibold text-text">
-        Dán tài liệu tiếng Anh cần phân tích
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <span>Dán tài liệu tiếng Anh cần phân tích</span>
+          <button
+            type="button"
+            onClick={handlePaste}
+            className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
+          >
+            📋 Dán từ Clipboard
+          </button>
+        </div>
         <input type="hidden" name="content" value={value} />
         <RichTextEditor
           value={value}
           onChange={setValue}
           placeholder="Dán tin nhắn Slack, email, GitHub issue, PR comment, tài liệu API hoặc đoạn văn bản tiếng Anh bất kỳ. Bôi đen từ/cụm từ khó để AI phân tích chi tiết..."
         />
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="text-xs text-muted font-normal">Thử mẫu nhanh:</span>
+          {CONTEXT_TEMPLATES.map((tmpl, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setValue(tmpl.text);
+                const selectEl = document.querySelector(
+                  'select[name="inputMode"]'
+                ) as HTMLSelectElement;
+                if (selectEl) {
+                  selectEl.value = tmpl.mode;
+                }
+              }}
+              className="text-xs bg-surface border border-border text-text hover:bg-surface-strong px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm select-none"
+            >
+              {tmpl.label}
+            </button>
+          ))}
+        </div>
         <p className="text-xs text-muted font-normal mt-1">
           💡 <strong>Mẹo:</strong> Bạn có thể bôi đen bất kỳ cụm từ nào trong
           văn bản và nhấn <strong>Đánh dấu từ khó</strong> để yêu cầu AI ưu tiên

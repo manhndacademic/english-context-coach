@@ -363,6 +363,7 @@ class MockGenerationEngine implements GenerationEngine {
   lastAnalysisLessonId?: string;
   lastExercisesUserId?: string;
   lastExercisesLessonId?: string;
+  lastActiveMistakePatterns?: Array<{ conceptKey: string; category: string }>;
 
   async generateAnalysis(
     _sourceText: string,
@@ -385,10 +386,12 @@ class MockGenerationEngine implements GenerationEngine {
     _analysis: any,
     onThought?: any,
     userId?: string,
-    lessonId?: string
+    lessonId?: string,
+    activeMistakePatterns?: Array<{ conceptKey: string; category: string }>
   ) {
     this.lastExercisesUserId = userId;
     this.lastExercisesLessonId = lessonId;
+    this.lastActiveMistakePatterns = activeMistakePatterns;
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");
@@ -663,6 +666,70 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       expect(savedLesson.keyPhrases[0].phrase).toBe(
         "take a look when you get a chance"
       );
+    });
+
+    it("queries active mistake patterns and passes them to generateExercises", async () => {
+      let calledUserId = "";
+      const activePatterns = [
+        { conceptKey: "passive_voice", category: "grammar_pattern" },
+      ];
+
+      const customCollaborators = {
+        notifyJobQueued: async () => {},
+        bulkCreateSrsCardsFromKeyPhrases: async () => ({
+          inserted: 0,
+          skipped: 0,
+        }),
+        scrubSensitiveContentForSourceText: async () => {},
+        getActiveMistakePatterns: async (userId: string) => {
+          calledUserId = userId;
+          return activePatterns;
+        },
+      };
+
+      const testEngine = new DefaultLessonGenerationEngine(
+        repo,
+        repo,
+        repo,
+        repo,
+        repo,
+        genEngine,
+        getTextProcessor(),
+        customCollaborators as any
+      );
+
+      const job = {
+        id: "job-exercises-targeted",
+        userId: "user-targeted-123",
+        sourceTextId: "st-1",
+        lessonId: "les-1",
+        status: "queued",
+        stage: "exercises",
+        attempts: 0,
+      };
+      repo.generationJobs.set(job.id, job);
+
+      const lesson = repo.lessons.get("les-1");
+      if (lesson) {
+        lesson.userId = "user-targeted-123";
+      }
+      const st = repo.sourceTexts.get("st-1");
+      if (st) {
+        st.userId = "user-targeted-123";
+      }
+
+      genEngine.lastExercisesUserId = undefined;
+      genEngine.lastExercisesLessonId = undefined;
+      genEngine.lastActiveMistakePatterns = undefined;
+
+      const result = await testEngine.processNext("worker-1");
+      expect(result.status).toBe("processed");
+      if (result.status === "processed") {
+        expect(result.success).toBe(true);
+      }
+
+      expect(calledUserId).toBe("user-targeted-123");
+      expect(genEngine.lastActiveMistakePatterns).toEqual(activePatterns);
     });
   });
 

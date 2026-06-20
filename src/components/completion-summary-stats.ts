@@ -6,6 +6,7 @@ export interface PracticeLike {
     isRepeated: boolean;
     conceptKey: string;
     errorType: string;
+    explanationVi?: string;
   } | null;
   mistakePattern?: { dueAt: Date; masteryState: MasteryState } | null;
 }

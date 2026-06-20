@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { ReadableSourceText } from "@/components/readable-source-text";
 import { KeyPhraseList } from "@/components/key-phrase-list";
@@ -62,6 +65,15 @@ export function StandardLessonLayout({
     mistakePatterns,
     progress,
   } = lessonData;
+
+  const [currentPhase, setCurrentPhase] = useState<"understand" | "practice">(
+    () => {
+      const hasPreviousAttempts = exercisePractices.some(
+        (p) => p.attempts && p.attempts.length > 0
+      );
+      return hasPreviousAttempts ? "practice" : "understand";
+    }
+  );
 
   const sourceContent = sourceText?.content;
 
@@ -155,6 +167,31 @@ export function StandardLessonLayout({
                 )}
               </>
             )}
+
+            {hasSideColumn && currentPhase === "understand" && (
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentPhase("practice");
+                    setTimeout(() => {
+                      const element = document.getElementById(
+                        "exercise-panel-section"
+                      );
+                      if (element) {
+                        element.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      }
+                    }, 50);
+                  }}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-white bg-accent hover:bg-accent-hover hover:-translate-y-px active:translate-y-0 transition-all shadow-md cursor-pointer text-base"
+                >
+                  Đã hiểu ngữ cảnh, bắt đầu thực hành 🚀
+                </button>
+              </div>
+            )}
           </div>
 
           {hasSideColumn ? (
@@ -171,7 +208,36 @@ export function StandardLessonLayout({
                 </section>
               ) : null}
 
-              <ExercisePanel lesson={lesson} practices={exercisePractices} />
+              <div className="relative" id="exercise-panel-section">
+                <ExercisePanel lesson={lesson} practices={exercisePractices} />
+                {currentPhase === "understand" && (
+                  <div className="absolute inset-0 bg-surface/85 backdrop-blur-[2px] rounded-lg flex flex-col items-center justify-center p-6 text-center select-none z-10 pointer-events-auto border border-dashed border-border/80">
+                    <div className="bg-accent-light p-3 rounded-full mb-3 text-accent border border-accent/15">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
+                        stroke="currentColor"
+                        className="w-6 h-6"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-bold text-text mb-1">
+                      Bài tập thực hành đang khóa
+                    </h3>
+                    <p className="text-xs text-muted max-w-[240px] leading-relaxed">
+                      Đọc hiểu văn bản và cụm từ then chốt bên trái để mở khóa
+                      bài tập.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

@@ -10,6 +10,8 @@ import {
 import { AlertCircle, Copy, Check } from "lucide-react";
 import type { GenerationStatus, JobStatus } from "@/domain/types";
 
+import { TranslationTrapTrivia } from "./translation-trap-trivia";
+
 export type StageStatus = GenerationStatus;
 
 type LessonStatus = {
@@ -272,79 +274,88 @@ Error Message: ${job.errorMessage}`;
   }
 
   return (
-    <div
-      className="grid gap-4 bg-surface-strong border border-border rounded-md p-5"
-      aria-live="polite"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <strong className="text-base font-bold text-text">
-          {successfullyCompleted
-            ? "Tạo bài học thành công"
-            : terminal
-              ? "Đã dừng tiến trình"
-              : "Đang tạo bài học tự động"}
-        </strong>
-        {job?.attempts && job.attempts > 1 && active ? (
-          <span className="text-muted text-xs sm:text-sm">
-            Đang thử lại do sự cố tạm thời...
-          </span>
-        ) : null}
-      </div>
-      <ol className="list-none m-0 p-0 grid gap-2.5">
-        {visibleMilestones.map((milestone, index) => {
-          const isLatest = index === visibleMilestones.length - 1;
-          const done =
-            milestone.code === "completed" || milestone.code.endsWith("_saved");
-          return (
-            <li
-              className="flex items-center gap-2.5 text-sm text-text"
-              key={milestone.id}
-            >
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  done ? "bg-accent" : "bg-muted"
-                } ${isLatest && active ? "animate-pulse bg-accent" : ""}`}
-              />
-              <span>{milestoneLabels[milestone.code]}</span>
-            </li>
-          );
-        })}
-      </ol>
-      {latestThought ? (
-        <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
-          <div className="grid gap-1.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
-              Chi tiết xử lý
+    <div className="grid gap-4.5">
+      <div
+        className="grid gap-4 bg-surface-strong border border-border rounded-md p-5"
+        aria-live="polite"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <strong className="text-base font-bold text-text">
+            {successfullyCompleted
+              ? "Tạo bài học thành công"
+              : terminal
+                ? "Đã dừng tiến trình"
+                : "Đang tạo bài học tự động"}
+          </strong>
+          {job?.attempts && job.attempts > 1 && active ? (
+            <span className="text-muted text-xs sm:text-sm">
+              Đang thử lại do sự cố tạm thời...
             </span>
-            <p className="text-sm leading-relaxed m-0 text-text">
-              {latestThought.text}
-            </p>
-          </div>
-          {recentThoughts.length > 1 ? (
-            <ol className="m-0 mt-1 pl-5 list-decimal grid gap-1.5 text-xs sm:text-sm text-muted">
-              {recentThoughts.slice(1).map((thought) => (
-                <li key={thought.id}>{thought.text}</li>
-              ))}
-            </ol>
           ) : null}
         </div>
-      ) : active ? (
-        <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
-          <div className="grid gap-1.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
-              Chi tiết xử lý
-            </span>
-            <p className="text-sm leading-relaxed m-0 text-muted">
-              Đang phân tích cấu trúc ngữ cảnh và suy nghĩ phản hồi...
-            </p>
+        <ol className="list-none m-0 p-0 grid gap-2.5">
+          {visibleMilestones.map((milestone, index) => {
+            const isLatest = index === visibleMilestones.length - 1;
+            const done =
+              milestone.code === "completed" ||
+              milestone.code.endsWith("_saved");
+            return (
+              <li
+                className="flex items-center gap-2.5 text-sm text-text"
+                key={milestone.id}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    done ? "bg-accent" : "bg-muted"
+                  } ${isLatest && active ? "animate-pulse bg-accent" : ""}`}
+                />
+                <span>{milestoneLabels[milestone.code]}</span>
+              </li>
+            );
+          })}
+        </ol>
+        {latestThought ? (
+          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+            <div className="grid gap-1.5">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
+                Chi tiết xử lý
+              </span>
+              <p className="text-sm leading-relaxed m-0 text-text">
+                {latestThought.text}
+              </p>
+            </div>
+            {recentThoughts.length > 1 ? (
+              <ol className="m-0 mt-1 pl-5 list-decimal grid gap-1.5 text-xs sm:text-sm text-muted">
+                {recentThoughts.slice(1).map((thought) => (
+                  <li key={thought.id}>{thought.text}</li>
+                ))}
+              </ol>
+            ) : null}
           </div>
+        ) : active ? (
+          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+            <div className="grid gap-1.5">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
+                Chi tiết xử lý
+              </span>
+              <p className="text-sm leading-relaxed m-0 text-muted">
+                Đang phân tích cấu trúc ngữ cảnh và suy nghĩ phản hồi...
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {usingFallback && active ? (
+          <p className="text-xs text-muted leading-relaxed m-0">
+            Không thể xem trực tiếp. Đang tự động làm mới tiến độ mỗi 2.5 giây.
+          </p>
+        ) : null}
+      </div>
+
+      {active && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <TranslationTrapTrivia />
         </div>
-      ) : null}
-      {usingFallback && active ? (
-        <p className="text-xs text-muted leading-relaxed m-0">
-          Không thể xem trực tiếp. Đang tự động làm mới tiến độ mỗi 2.5 giây.
-        </p>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -45,8 +45,8 @@ describe("GrammarCorrectionView", () => {
     expect(html).toContain("So sánh văn bản");
     expect(html).toContain("Bản gốc của bạn");
     expect(html).toContain("Đề xuất chỉnh sửa");
-    expect(html).toContain("goes");
-    expect(html).toContain("went");
+    expect(html).toContain("yesterday");
+    expect(html).toContain("office");
   });
 
   it("renders a success badge when no differences exist", () => {

@@ -30,7 +30,7 @@ export function ExercisePanel({ lesson, practices }: ExercisePanelProps) {
       </div>
       <div className="mt-3">
         {practices.length ? (
-          <ExerciseStepper practices={practices} />
+          <ExerciseStepper key={lesson.id} practices={practices} />
         ) : (
           <p className="text-muted text-sm leading-relaxed m-0">
             {lesson.exerciseStatus === "failed"

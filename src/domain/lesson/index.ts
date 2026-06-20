@@ -57,6 +57,16 @@ export function getLessonGenerationEngine(): LessonGenerationEngine {
             userId,
             sourceTextId
           ),
+        getActiveMistakePatterns: async (userId) => {
+          const allPatterns =
+            await getMistakePatternRepository().findAllMistakePatterns(userId);
+          return allPatterns
+            .filter((p) => p.masteryState === "active")
+            .map((p) => ({
+              conceptKey: p.conceptKey,
+              category: p.category,
+            }));
+        },
       }
     );
   }

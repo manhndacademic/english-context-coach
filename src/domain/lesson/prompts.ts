@@ -50,6 +50,7 @@ export const analysisJsonShape = {
       structureNotesVi:
         "Vietnamese explanation of grammar, reference, or structure that affects understanding",
       toneOrContextVi: "optional Vietnamese note about tone or context",
+      ipa: "optional string: US English IPA phonetic representation of the corrected/correct version of the sentence (without slashes or brackets, e.g. aɪ wɛnt tu ðə ˈɔːfɪs ˈjɛstədeɪ)",
     },
   ],
   keyPhrases: [
@@ -66,19 +67,23 @@ export const analysisJsonShape = {
         {
           exampleEn: "related English example sentence 1 using the phrase",
           exampleVi: "natural Vietnamese translation of example 1",
+          ipa: "optional string: US English IPA phonetic representation of the example sentence (without slashes or brackets)",
         },
         {
           exampleEn: "related English example sentence 2 using the phrase",
           exampleVi: "natural Vietnamese translation of example 2",
+          ipa: "optional string: US English IPA phonetic representation of the example sentence (without slashes or brackets)",
         },
         {
           exampleEn: "related English example sentence 3 using the phrase",
           exampleVi: "natural Vietnamese translation of example 3",
+          ipa: "optional string: US English IPA phonetic representation of the example sentence (without slashes or brackets)",
         },
       ],
       literalTranslationVi: "optional string",
       naturalTranslationVi: "optional string",
       whyConfusingVi: "optional string",
+      ipa: "optional string: US English IPA phonetic representation of the key phrase (without slashes or brackets, e.g. pʊʃ bæk)",
       category:
         "idiom | phrasal_verb | technical_term | collocation | grammar_pattern | business_phrase | general_phrase",
       difficulty: "A2 | B1 | B2 | C1",
@@ -232,9 +237,10 @@ export class AnalysisPrompt implements Prompt<AnalysisResult> {
       "Prefer key phrases that appear directly in the source text so the UI can highlight them.",
       "Do not include duplicate or overlapping key phrases when they teach the same thing; keep the phrase that best matches the source text.",
       "Keep meaningVi as reusable general meaning and meaningInContextVi as the specific meaning in this source text.",
-      "For every key phrase, generate exactly 3 context-relevant example sentences in the `examples` array. Each example must have `exampleEn` (the English sentence using the phrase) and `exampleVi` (its natural Vietnamese translation). These examples must be related to the source context but should not expose private names, project identifiers, URLs, or sensitive snippets.",
+      "For every key phrase, generate exactly 3 context-relevant example sentences in the `examples` array. Each example must have `exampleEn` (the English sentence using the phrase), `exampleVi` (its natural Vietnamese translation), and `ipa` (its US English IPA phonetic representation). These examples must be related to the source context but should not expose private names, project identifiers, URLs, or sensitive snippets.",
       "Do not include a full literal translation of the whole source text; only include literalTranslationVi for a key phrase when it is a real trap.",
       "Keep meaningInContextVi concise, and include whyConfusingVi only when there is a real learner trap.",
+      "CRITICAL: For every keyPhrase (the phrase itself), example sentence in examples, and sentence in sentenceBreakdowns (the corrected or correct version), you MUST generate the standard International Phonetic Alphabet (IPA) representation following US English (General American) pronunciation standards. Store the IPA representation inside the 'ipa' field of each object strictly without wrapping it in forward slashes or square brackets.",
       "Use natural learner-friendly Vietnamese.",
       "When referencing English key phrases, grammatical structures, or technical terms within Vietnamese descriptions (such as structureNotesVi, whyConfusingVi, contextExplanationVi, or explanationVi), format them using markdown backticks (e.g., `concerned with` or `Rooted in`). Use standard markdown (**bold**, *italic*) for other inline emphasis. Avoid using raw single quotes ('...') for these items.",
       "CRITICAL: Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English or Vietnamese sentences (such as examples in `examples` or corrected sentences in `correctedSentenceEn`). The sentences must look natural as they would appear in regular written text.",
@@ -271,7 +277,13 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
   public readonly modelKind = "fast";
   public readonly expectedShape = exercisesJsonShape;
 
-  constructor(private readonly analysis: AnalysisResult) {}
+  constructor(
+    private readonly analysis: AnalysisResult,
+    private readonly activeMistakePatterns?: Array<{
+      conceptKey: string;
+      category: string;
+    }>
+  ) {}
 
   render(): string {
     const phraseCount = this.analysis.keyPhrases?.length ?? 0;
@@ -292,7 +304,7 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
       maxCount = 8;
     }
 
-    return [
+    const promptSections = [
       `Create ${minCount}-${maxCount} practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. Strict JSON only.`,
       `Exercise types:
 - meaning_choice: Multiple-choice on phrase meaning. Requires "choices" array (3-4 items). Graded locally.
@@ -319,6 +331,19 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
       JSON.stringify(exercisesJsonShape),
       "Analysis data:",
       JSON.stringify(this.analysis),
-    ].join("\n\n");
+    ];
+
+    if (this.activeMistakePatterns && this.activeMistakePatterns.length > 0) {
+      const patternsSummary = this.activeMistakePatterns
+        .map((p) => `- Concept: "${p.conceptKey}", Category: "${p.category}"`)
+        .join("\n");
+      promptSections.push(
+        `CRITICAL PERSONALIZATION REQUIREMENT:\n` +
+          `The learner frequently makes mistakes in the following concepts or categories:\n${patternsSummary}\n` +
+          `If any key phrase or lesson focus in this lesson matches these concepts or categories, you MUST prioritize creating challenging or trap-avoiding exercises for them (such as 'phrase_production', 'trap_choice', or 'trap_detect') to help the learner overcome their weaknesses.`
+      );
+    }
+
+    return promptSections.join("\n\n");
   }
 }

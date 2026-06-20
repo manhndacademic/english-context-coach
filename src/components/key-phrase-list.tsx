@@ -85,6 +85,11 @@ export function KeyPhraseList({
               <div className="grid gap-1.5 flex-1">
                 <span className="font-serif text-lg font-extrabold text-accent-strong block">
                   {phrase.phrase}
+                  {phrase.ipa && (
+                    <span className="font-sans text-xs font-semibold text-muted ml-2 italic select-all font-normal">
+                      /{phrase.ipa}/
+                    </span>
+                  )}
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
@@ -145,9 +150,14 @@ export function KeyPhraseList({
                             className="text-sm md:text-base leading-relaxed pl-1"
                           >
                             {ex.exampleEn && (
-                              <span className="font-serif italic font-semibold text-accent-strong block">
+                              <div className="font-serif italic font-semibold text-accent-strong block">
                                 {ex.exampleEn}
-                              </span>
+                                {ex.ipa && (
+                                  <span className="font-sans text-xs font-normal text-muted/80 block mt-0.5 select-all">
+                                    /{ex.ipa}/
+                                  </span>
+                                )}
+                              </div>
                             )}
                             {ex.exampleVi && (
                               <span className="text-muted text-sm block mt-0.5">

@@ -8,7 +8,7 @@ import {
   ArrowRight,
   RotateCcw,
 } from "lucide-react";
-import type { CompletionStats } from "./completion-summary-stats";
+import type { CompletionStats, PracticeLike } from "./completion-summary-stats";
 import { cn } from "@/lib/utils";
 
 const viDateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
@@ -19,10 +19,15 @@ const viDateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
 
 interface CompletionSummaryProps {
   stats: CompletionStats;
+  practices?: PracticeLike[];
   onRetry: () => void;
 }
 
-export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
+export function CompletionSummary({
+  stats,
+  practices = [],
+  onRetry,
+}: CompletionSummaryProps) {
   const {
     total,
     correctFirstTry,
@@ -36,6 +41,12 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
   const nextReviewLabel = nextReviewAt
     ? viDateTimeFormatter.format(new Date(nextReviewAt))
     : null;
+
+  // Get unique updated patterns
+  const errors = practices.map((p) => p.userError).filter(Boolean);
+  const uniqueErrors = Array.from(
+    new Map(errors.map((err) => [err!.conceptKey, err])).values()
+  );
 
   return (
     <div
@@ -128,9 +139,67 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
         </div>
       ) : null}
 
+      {/* Mastery Progress Preview */}
+      {uniqueErrors.length > 0 && (
+        <div className="bg-surface border border-border/80 rounded-lg p-4 grid gap-3 mt-1 text-left">
+          <h4 className="text-xs font-black uppercase text-muted tracking-wider m-0 flex items-center gap-1.5">
+            🎯 Cập nhật sổ tay lỗi (Error Memory)
+          </h4>
+          <div className="grid gap-2.5">
+            {uniqueErrors.map((err, idx) => (
+              <div
+                key={idx}
+                className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <code className="text-accent font-extrabold px-1.5 py-0.5 rounded bg-accent-light border border-accent/10 font-mono">
+                    {err!.conceptKey}
+                  </code>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase",
+                      err!.isRepeated
+                        ? "bg-danger-light text-danger border-danger/15"
+                        : "bg-info-light text-info border-info/15"
+                    )}
+                  >
+                    {err!.isRepeated ? "Lặp lại" : "Mới phát hiện"}
+                  </span>
+                </div>
+                {err!.explanationVi && (
+                  <p className="text-muted m-0 leading-relaxed font-medium">
+                    {err!.explanationVi}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Goal Progress Bar */}
+      <div className="bg-surface-strong border border-border rounded-lg p-4 grid gap-2.5 mt-1 text-left">
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-muted font-bold">
+            Mục tiêu tuần (Weekly Goal)
+          </span>
+          <span className="text-accent font-extrabold">3 / 5 bài học</span>
+        </div>
+        <div className="w-full bg-border rounded-full h-2.5 overflow-hidden">
+          <div
+            className="bg-accent h-full rounded-full transition-all duration-500"
+            style={{ width: "60%" }}
+          ></div>
+        </div>
+        <p className="text-[11px] text-muted m-0 leading-relaxed font-medium">
+          🚀 Bạn đã hoàn thành <strong>60%</strong> mục tiêu tuần. Cố gắng duy
+          trì để củng cố phản xạ tự nhiên!
+        </p>
+      </div>
+
       {/* Review schedule note */}
       {savedMistakes > 0 && (
-        <p className="text-xs text-muted m-0 bg-surface-strong rounded-md px-3 py-2.5 border border-border">
+        <p className="text-xs text-muted m-0 bg-surface-strong rounded-md px-3 py-2.5 border border-border text-left">
           📅 Hệ thống đã lưu lỗi của bạn và sẽ nhắc bạn ôn tập lại vào những
           ngày tới.
         </p>

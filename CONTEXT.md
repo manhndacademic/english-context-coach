@@ -100,6 +100,22 @@ _Avoid_: Streak, daily streak, login streak
 A learner-facing summary shown after the learner completes all Exercises in a Lesson, including new phrases learned, mistakes made, and next review date. CompletionSummary is distinct from a Lesson's SourceMeaning summary.
 _Avoid_: LessonSummary, report, recap
 
+**ContextTemplate**:
+A predefined English source text sample (with a title, text category, and coaching mode) shown on the dashboard to allow learners to generate a demonstration Lesson instantly.
+_Avoid_: Sample text, example article
+
+**TranslationTrapTrivia**:
+A quick, single-question game about a common word-by-word translation trap, displayed to the learner during GenerationProgress to keep them engaged while their Lesson is being created.
+_Avoid_: Loading quiz, trivia question
+
+**ErrorRepairSession**:
+An immediate practice loop triggered at the end of a Lesson if the learner made any UserErrors, allowing them to retry only the failed Exercises in that Lesson until they answer correctly.
+_Avoid_: Retry quiz, error correction
+
+**LessonPhase**:
+One of the two distinct learning states of a Lesson: the _Understand Phase_ (focusing on the SourceText meaning and KeyPhrases) and the _Practice Phase_ (focusing on completing Exercises).
+_Avoid_: Tab, step
+
 **ReviewNudge**:
 A dashboard prompt showing due MistakePatterns that encourages the learner to start reviewing before pasting new text.
 _Avoid_: Reminder, notification, alert

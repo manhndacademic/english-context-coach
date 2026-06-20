@@ -230,6 +230,7 @@ export class DrizzleLessonRepository implements LessonRepository {
             literalTranslationVi: phrase.literalTranslationVi || null,
             naturalTranslationVi: phrase.naturalTranslationVi || null,
             whyConfusingVi: phrase.whyConfusingVi || null,
+            ipa: phrase.ipa || null,
             category: phrase.category,
             difficulty: phrase.difficulty,
             isSensitive:
@@ -251,6 +252,7 @@ export class DrizzleLessonRepository implements LessonRepository {
             naturalMeaningVi: breakdown.naturalMeaningVi,
             structureNotesVi: breakdown.structureNotesVi,
             toneOrContextVi: breakdown.toneOrContextVi ?? null,
+            ipa: breakdown.ipa || null,
             orderIndex: index,
           }))
         );
@@ -400,6 +402,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           naturalMeaningVi: breakdown.naturalMeaningVi,
           structureNotesVi: breakdown.structureNotesVi,
           toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
+          ipa: breakdown.ipa ?? undefined,
         })
       ),
       keyPhrases: phrases.map((phrase: DbKeyPhrase) => ({
@@ -413,6 +416,7 @@ export class DrizzleLessonRepository implements LessonRepository {
         literalTranslationVi: phrase.literalTranslationVi ?? undefined,
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
         whyConfusingVi: phrase.whyConfusingVi ?? undefined,
+        ipa: phrase.ipa ?? undefined,
         category: phrase.category,
         difficulty: phrase.difficulty as DetectedLevel,
       })),

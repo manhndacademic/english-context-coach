@@ -85,14 +85,15 @@ export class GeminiGenerationEngine implements GenerationEngine {
     analysis: SaveAnalysisInput,
     onThought?: (text: string) => Promise<void>,
     userId?: string,
-    lessonId?: string
+    lessonId?: string,
+    activeMistakePatterns?: Array<{ conceptKey: string; category: string }>
   ): Promise<SaveExercisesInput> {
     const activeUserId = userId ?? this.userId;
     const activeLessonId = lessonId ?? this.lessonId;
     const result = (await this.llm.generateJson({
       userId: activeUserId,
       lessonId: activeLessonId,
-      prompt: new ExercisesPrompt(analysis as any),
+      prompt: new ExercisesPrompt(analysis as any, activeMistakePatterns),
       onThought,
     })) as ExercisesResult;
 

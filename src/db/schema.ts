@@ -337,12 +337,13 @@ export const keyPhrases = pgTable(
     meaningVi: text("meaning_vi").notNull(),
     meaningInContextVi: text("meaning_in_context_vi").notNull(),
     examples: jsonb("examples")
-      .$type<{ exampleEn: string; exampleVi: string }[]>()
+      .$type<{ exampleEn: string; exampleVi: string; ipa?: string }[]>()
       .default([])
       .notNull(),
     literalTranslationVi: text("literal_translation_vi"),
     naturalTranslationVi: text("natural_translation_vi"),
     whyConfusingVi: text("why_confusing_vi"),
+    ipa: text("ipa"),
     category: phraseCategoryEnum("category").notNull(),
     difficulty: levelEnum("difficulty").notNull(),
     isSensitive: boolean("is_sensitive").notNull().default(false),
@@ -369,6 +370,7 @@ export const sentenceBreakdowns = pgTable(
     naturalMeaningVi: text("natural_meaning_vi").notNull(),
     structureNotesVi: text("structure_notes_vi").notNull(),
     toneOrContextVi: text("tone_or_context_vi"),
+    ipa: text("ipa"),
     orderIndex: integer("order_index").notNull().default(0),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },

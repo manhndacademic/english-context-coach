@@ -48,11 +48,13 @@ export const keyPhraseSchema = z.object({
     z.object({
       exampleEn: z.string().min(1),
       exampleVi: z.string().min(1),
+      ipa: z.string().optional(),
     })
   ),
   literalTranslationVi: z.string().optional(),
   naturalTranslationVi: z.string().optional(),
   whyConfusingVi: z.string().optional(),
+  ipa: z.string().optional(),
   category: categorySchema,
   difficulty: levelSchema,
 });
@@ -69,6 +71,7 @@ export const sentenceBreakdownSchema = z.object({
   naturalMeaningVi: z.string().min(1),
   structureNotesVi: z.string().min(1),
   toneOrContextVi: z.string().optional(),
+  ipa: z.string().optional(),
 });
 
 export const lessonFocusSchema = z.object({

@@ -1,7 +1,10 @@
 import { requireUser } from "@/lib/auth/guards";
 import { SourceTextForm } from "@/components/source-text-form";
 import { getLessonRepository } from "@/domain/lesson";
-import { getLearnerMemoryEngine } from "@/domain/memory";
+import {
+  getLearnerMemoryEngine,
+  getMistakePatternRepository,
+} from "@/domain/memory";
 import { StreakBadge } from "@/components/dashboard/streak-badge";
 import { ReviewNudge } from "@/components/dashboard/review-nudge";
 import { LessonCard } from "@/components/dashboard/lesson-card";
@@ -42,11 +45,13 @@ export default async function DashboardPage() {
 
   const lessonRepo = getLessonRepository();
   const memoryEngine = getLearnerMemoryEngine();
+  const mistakePatternRepo = getMistakePatternRepository();
 
-  const [recentLessons, _, dashboardMetrics] = await Promise.all([
+  const [recentLessons, _, dashboardMetrics, duePatterns] = await Promise.all([
     lessonRepo.getRecentLessons(user.id, 6),
     lessonRepo.getSourceTextsCount(user.id),
     memoryEngine.getDashboardMetrics(user.id, now),
+    mistakePatternRepo.findDueMistakePatterns(user.id, now, 1),
   ]);
 
   const {
@@ -61,6 +66,10 @@ export default async function DashboardPage() {
     lessonsCompleted,
     literalErrorTrend,
   } = dashboardMetrics;
+
+  const firstDuePattern = duePatterns[0]
+    ? duePatterns[0].toPlainObject()
+    : null;
 
   return (
     <PageLayout user={user}>
@@ -89,7 +98,7 @@ export default async function DashboardPage() {
 
         <aside className="grid gap-layout-gap">
           {/* Review Nudge — shown when there are due review items */}
-          <ReviewNudge count={dueCount} />
+          <ReviewNudge count={dueCount} firstDuePattern={firstDuePattern} />
 
           {/* Learning Streak */}
           <StreakBadge days={streakDays} />
