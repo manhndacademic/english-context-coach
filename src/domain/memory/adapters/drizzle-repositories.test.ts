@@ -17,6 +17,7 @@ function mockChain(result: any) {
     select: () => chain,
     selectDistinct: () => chain,
     from: () => chain,
+    innerJoin: () => chain,
     where: () => chain,
     groupBy: () => chain,
     orderBy: () => chain,
