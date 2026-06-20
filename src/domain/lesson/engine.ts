@@ -253,6 +253,64 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
     };
   }
 
+  async queueExerciseGeneration(
+    userId: string,
+    lessonId: string
+  ): Promise<LessonGenerationResult> {
+    const lesson = await this.lessonContent.findLesson(lessonId, userId);
+    if (!lesson) {
+      return {
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Lesson not found.",
+      };
+    }
+
+    if (
+      lesson.exerciseStatus !== "idle" &&
+      lesson.exerciseStatus !== "failed"
+    ) {
+      return {
+        ok: false,
+        error: "INVALID_STATE",
+        message: "Exercises are already generating or completed.",
+      };
+    }
+
+    const capacityError = await this.jobs.assertQueueCapacity(userId);
+    if (capacityError) {
+      return {
+        ok: false,
+        error: "CAPACITY_EXCEEDED",
+        message: capacityError,
+      };
+    }
+
+    const job = await this.tx.createJob(
+      userId,
+      lesson.sourceTextId,
+      lesson.id,
+      "exercises"
+    );
+
+    await Promise.all([
+      this.lessonContent.updateLessonStatus(lesson.id, "exercise", "pending"),
+      this.progress.recordMilestone({
+        lessonId: lesson.id,
+        generationJobId: job.id,
+        code: "queued",
+        stage: "exercises",
+      }),
+      this.collaborators.notifyJobQueued(),
+    ]);
+
+    return {
+      ok: true,
+      lessonId: lesson.id,
+      sourceTextId: lesson.sourceTextId,
+    };
+  }
+
   async deleteSourceText(userId: string, sourceTextId: string): Promise<void> {
     await this.sourceTexts.deleteSourceText(userId, sourceTextId);
     await this.collaborators.scrubSensitiveContentForSourceText(
@@ -407,10 +465,34 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           `Stage "analysis" succeeded in ${analysisDuration}ms.`
         );
 
-        await this.jobs.updateJobStatus(job.id, "running", {
-          stage: "exercises",
+        await this.jobs.updateJobStatus(job.id, "succeeded", {
+          errorMessage: null,
         });
-        currentStage = "exercises";
+
+        await this.progress.recordMilestone({
+          lessonId: job.lessonId,
+          generationJobId: job.id,
+          code: "completed",
+          stage: null,
+        });
+
+        const totalProcessingTime = Date.now() - jobClaimTime;
+        const parsedCreatedVal2 = parseDbDate(job.createdAt);
+        const totalJobLifetime = parsedCreatedVal2
+          ? Date.now() - parsedCreatedVal2.getTime()
+          : 0;
+        logSpringStyle(
+          "INFO",
+          workerId,
+          `Job ${job.id} (Stage: analysis) completed successfully. Active processing: ${totalProcessingTime}ms (Total lifetime: ${totalJobLifetime}ms).`
+        );
+
+        return {
+          status: "processed",
+          jobId: job.id,
+          lessonId: job.lessonId,
+          success: true,
+        };
       }
 
       logSpringStyle(

@@ -1,0 +1,1 @@
+ALTER TABLE "lessons" ALTER COLUMN "exercise_status" SET DEFAULT 'idle';

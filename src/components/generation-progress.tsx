@@ -7,7 +7,7 @@ import {
   isDataAvailabilityMilestone,
   isTerminalLessonStatus,
 } from "@/domain/generation-progress";
-import { AlertCircle, Copy, Check } from "lucide-react";
+import { AlertCircle, Copy, Check, Loader2 } from "lucide-react";
 import type { GenerationStatus, JobStatus } from "@/domain/types";
 
 import { TranslationTrapTrivia } from "./translation-trap-trivia";
@@ -60,17 +60,6 @@ type ThoughtStreamPayload = {
   job: ProgressJob;
 };
 
-const milestoneLabels: Record<GenerationMilestoneCode, string> = {
-  queued: "Đang xếp hàng chờ",
-  claimed: "Tiến trình đã bắt đầu",
-  analysis_started: "Đang phân tích văn bản gốc",
-  analysis_saved: "Phân tích hoàn tất",
-  exercises_started: "Đang tạo bài tập thực hành",
-  exercises_saved: "Bài tập đã sẵn sàng",
-  completed: "Hoàn tất tạo bài học",
-  failed: "Xử lý lỗi",
-};
-
 function mergeMilestone(
   existing: ProgressMilestone[],
   next: ProgressMilestone
@@ -90,12 +79,14 @@ export function GenerationProgress({
   initialJob,
   initialMilestones,
   initialThoughts,
+  stage = "analysis",
 }: {
   lessonId: string;
   initialLesson: LessonStatus;
   initialJob: ProgressJob;
   initialMilestones: ProgressMilestone[];
   initialThoughts: ProgressThought[];
+  stage?: "analysis" | "exercises";
 }) {
   const router = useRouter();
   const [lesson, setLesson] = useState(initialLesson);
@@ -104,7 +95,13 @@ export function GenerationProgress({
   const [thoughts, setThoughts] = useState(initialThoughts);
   const [usingFallback, setUsingFallback] = useState(false);
   const [copied, setCopied] = useState(false);
-  const terminal = isTerminalLessonStatus(lesson);
+
+  const terminal =
+    stage === "analysis"
+      ? lesson.analysisStatus === "succeeded" ||
+        lesson.analysisStatus === "failed"
+      : lesson.exerciseStatus === "succeeded" ||
+        lesson.exerciseStatus === "failed";
   const active = !terminal;
 
   const handleCopyDiagnostics = () => {
@@ -194,45 +191,118 @@ Error Message: ${job.errorMessage}`;
     return () => window.clearInterval(interval);
   }, [active, lessonId, router, usingFallback]);
 
-  const visibleMilestones = useMemo(() => {
-    if (milestones.length) return milestones;
-    if (lesson.analysisStatus === "pending") {
+  const steps = useMemo(() => {
+    if (stage === "analysis") {
+      const step1Completed = milestones.some(
+        (m) => m.code !== "queued" && m.code !== "failed"
+      );
+      const step1Running =
+        milestones.some((m) => m.code === "queued") && !step1Completed;
+
+      const step2Completed = milestones.some(
+        (m) => m.code === "analysis_saved" || m.code === "completed"
+      );
+      const step2Running =
+        milestones.some(
+          (m) => m.code === "analysis_started" || m.code === "claimed"
+        ) && !step2Completed;
+
+      const step3Completed = milestones.some(
+        (m) => m.code === "analysis_saved" || m.code === "completed"
+      );
+
       return [
         {
-          id: 0,
-          code: "queued" as const,
-          stage: null,
-          createdAt: new Date().toISOString(),
+          label: "Xếp hàng chờ phân tích",
+          status: step1Completed
+            ? ("succeeded" as const)
+            : step1Running
+              ? ("running" as const)
+              : ("pending" as const),
+        },
+        {
+          label: "Đang phân tích văn bản gốc",
+          status: step2Completed
+            ? ("succeeded" as const)
+            : step2Running
+              ? ("running" as const)
+              : ("pending" as const),
+        },
+        {
+          label: "Phân tích ngữ cảnh hoàn tất",
+          status: step3Completed
+            ? ("succeeded" as const)
+            : ("pending" as const),
+        },
+      ];
+    } else {
+      const step1Completed = milestones.some(
+        (m) =>
+          m.code === "exercises_started" ||
+          m.code === "exercises_saved" ||
+          m.code === "completed"
+      );
+      const step1Running =
+        milestones.some(
+          (m) => m.code === "queued" && m.stage === "exercises"
+        ) && !step1Completed;
+
+      const step2Completed = milestones.some(
+        (m) => m.code === "exercises_saved" || m.code === "completed"
+      );
+      const step2Running =
+        milestones.some((m) => m.code === "exercises_started") &&
+        !step2Completed;
+
+      const step3Completed = milestones.some(
+        (m) => m.code === "exercises_saved" || m.code === "completed"
+      );
+
+      return [
+        {
+          label: "Xếp hàng chờ tạo bài tập",
+          status: step1Completed
+            ? ("succeeded" as const)
+            : step1Running
+              ? ("running" as const)
+              : ("pending" as const),
+        },
+        {
+          label: "Đang tạo bài tập thực hành",
+          status: step2Completed
+            ? ("succeeded" as const)
+            : step2Running
+              ? ("running" as const)
+              : ("pending" as const),
+        },
+        {
+          label: "Bài tập đã sẵn sàng",
+          status: step3Completed
+            ? ("succeeded" as const)
+            : ("pending" as const),
         },
       ];
     }
-    return [];
-  }, [lesson.analysisStatus, milestones]);
+  }, [milestones, stage]);
+
+  const stageThoughts = useMemo(() => {
+    return thoughts.filter((t) => t.stage === stage);
+  }, [thoughts, stage]);
 
   const recentThoughts = useMemo(
-    () => thoughts.slice(-4).reverse(),
-    [thoughts]
+    () => stageThoughts.slice(-4).reverse(),
+    [stageThoughts]
   );
   const latestThought = recentThoughts[0];
-  const successfullyCompleted =
-    terminal &&
-    lesson.analysisStatus === "succeeded" &&
-    lesson.exerciseStatus === "succeeded";
 
-  if (successfullyCompleted && !thoughts.length) {
-    return (
-      <div className="grid gap-4 bg-surface-strong border border-border rounded-md p-5">
-        <div className="flex items-center gap-2 text-sm font-bold text-accent">
-          <span className="w-2 h-2 rounded-full shrink-0 bg-accent" />
-          <span>Phân tích thành công</span>
-          <span className="w-1 h-1 rounded-full bg-border" />
-          <span>Bài tập sẵn sàng</span>
-        </div>
-        <p className="text-xs text-muted leading-relaxed m-0">
-          Không có ghi chú tiến trình nào được lưu lại.
-        </p>
-      </div>
-    );
+  const successfullyCompleted =
+    stage === "analysis"
+      ? lesson.analysisStatus === "succeeded"
+      : lesson.exerciseStatus === "succeeded";
+
+  // Hide the progress element entirely if this stage is completed successfully
+  if (successfullyCompleted) {
+    return null;
   }
 
   if (terminal && !successfullyCompleted) {
@@ -281,44 +351,56 @@ Error Message: ${job.errorMessage}`;
       >
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <strong className="text-base font-bold text-text">
-            {successfullyCompleted
-              ? "Tạo bài học thành công"
-              : terminal
-                ? "Đã dừng tiến trình"
-                : "Đang tạo bài học tự động"}
+            {stage === "analysis"
+              ? "Đang phân tích văn bản tự động"
+              : "Đang tạo bài tập thực hành"}
           </strong>
           {job?.attempts && job.attempts > 1 && active ? (
-            <span className="text-muted text-xs sm:text-sm">
+            <span className="text-muted text-xs sm:text-sm animate-pulse">
               Đang thử lại do sự cố tạm thời...
             </span>
           ) : null}
         </div>
-        <ol className="list-none m-0 p-0 grid gap-2.5">
-          {visibleMilestones.map((milestone, index) => {
-            const isLatest = index === visibleMilestones.length - 1;
-            const done =
-              milestone.code === "completed" ||
-              milestone.code.endsWith("_saved");
-            return (
-              <li
-                className="flex items-center gap-2.5 text-sm text-text"
-                key={milestone.id}
+
+        <ol className="list-none m-0 p-0 grid gap-3">
+          {steps.map((step, index) => (
+            <li
+              className="flex items-center gap-3 text-sm text-text"
+              key={index}
+            >
+              {step.status === "succeeded" ? (
+                <span className="w-5 h-5 rounded-full shrink-0 bg-accent-light text-accent border border-accent/20 flex items-center justify-center shadow-sm">
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              ) : step.status === "running" ? (
+                <span className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-accent animate-pulse">
+                  <Loader2 size={16} className="animate-spin" />
+                </span>
+              ) : (
+                <span className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-border" />
+                </span>
+              )}
+              <span
+                className={
+                  step.status === "pending"
+                    ? "text-muted"
+                    : step.status === "running"
+                      ? "font-bold text-accent-strong"
+                      : "font-semibold text-text"
+                }
               >
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    done ? "bg-accent" : "bg-muted"
-                  } ${isLatest && active ? "animate-pulse bg-accent" : ""}`}
-                />
-                <span>{milestoneLabels[milestone.code]}</span>
-              </li>
-            );
-          })}
+                {step.label}
+              </span>
+            </li>
+          ))}
         </ol>
+
         {latestThought ? (
-          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4 shadow-sm">
             <div className="grid gap-1.5">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
-                Chi tiết xử lý
+                Chi tiết xử lý (AI Thoughts)
               </span>
               <p className="text-sm leading-relaxed m-0 text-text">
                 {latestThought.text}
@@ -333,7 +415,7 @@ Error Message: ${job.errorMessage}`;
             ) : null}
           </div>
         ) : active ? (
-          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4">
+          <div className="grid gap-3 bg-surface border border-border rounded-sm p-4 shadow-sm">
             <div className="grid gap-1.5">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">
                 Chi tiết xử lý
@@ -351,7 +433,7 @@ Error Message: ${job.errorMessage}`;
         ) : null}
       </div>
 
-      {active && (
+      {active && stage === "analysis" && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <TranslationTrapTrivia />
         </div>

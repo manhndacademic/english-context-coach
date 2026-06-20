@@ -1,4 +1,9 @@
-import type { GenerationJob, GenerationMilestone, GenerationThought, Lesson } from "./lesson/ports";
+import type {
+  GenerationJob,
+  GenerationMilestone,
+  GenerationThought,
+  Lesson,
+} from "./lesson/ports";
 import type { TextProcessor } from "@/domain/text";
 
 export const generationMilestoneCodes = [
@@ -15,10 +20,22 @@ export const generationMilestoneCodes = [
 export type GenerationMilestoneCode = (typeof generationMilestoneCodes)[number];
 export type GenerationStage = "analysis" | "exercises" | null;
 
-export type ProgressJobSummary = Pick<GenerationJob, "id" | "status" | "stage" | "attempts" | "createdAt" | "updatedAt">;
-export type LessonStatusSnapshot = Pick<Lesson, "analysisStatus" | "exerciseStatus">;
-export type ProgressMilestoneSummary = Pick<GenerationMilestone, "id" | "code" | "stage" | "createdAt">;
-export type ProgressThoughtSummary = Pick<GenerationThought, "id" | "stage" | "text" | "createdAt">;
+export type ProgressJobSummary = Pick<
+  GenerationJob,
+  "id" | "status" | "stage" | "attempts" | "createdAt" | "updatedAt"
+>;
+export type LessonStatusSnapshot = Pick<
+  Lesson,
+  "analysisStatus" | "exerciseStatus"
+>;
+export type ProgressMilestoneSummary = Pick<
+  GenerationMilestone,
+  "id" | "code" | "stage" | "createdAt"
+>;
+export type ProgressThoughtSummary = Pick<
+  GenerationThought,
+  "id" | "stage" | "text" | "createdAt"
+>;
 
 export const generationThoughtMaxLength = 600;
 
@@ -41,23 +58,36 @@ export function isDataAvailabilityMilestone(code: GenerationMilestoneCode) {
 
 export function isTerminalLessonStatus(status: LessonStatusSnapshot) {
   return (
-    (status.analysisStatus === "succeeded" || status.analysisStatus === "failed") &&
-    (status.exerciseStatus === "succeeded" || status.exerciseStatus === "failed")
+    (status.analysisStatus === "succeeded" ||
+      status.analysisStatus === "failed") &&
+    (status.exerciseStatus === "idle" ||
+      status.exerciseStatus === "succeeded" ||
+      status.exerciseStatus === "failed")
   );
 }
 
-export function selectDisplayGenerationJob<T extends ProgressJobSummary>(jobs: T[]) {
+export function selectDisplayGenerationJob<T extends ProgressJobSummary>(
+  jobs: T[]
+) {
   const active = jobs
     .filter((job) => job.status === "queued" || job.status === "running")
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   if (active[0]) return active[0];
-  return [...jobs].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  return [...jobs].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  )[0];
 }
 
-export function sanitizeGenerationThought(input: string, textProcessor: Pick<TextProcessor, "isSafe">) {
+export function sanitizeGenerationThought(
+  input: string,
+  textProcessor: Pick<TextProcessor, "isSafe">
+) {
   const text = input.replace(/\s+/g, " ").trim();
   if (!text) return null;
   if (!textProcessor.isSafe(text)) return null;
-  if (internalGenerationThoughtPatterns.some((pattern) => pattern.test(text))) return null;
-  return text.length > generationThoughtMaxLength ? `${text.slice(0, generationThoughtMaxLength - 3).trimEnd()}...` : text;
+  if (internalGenerationThoughtPatterns.some((pattern) => pattern.test(text)))
+    return null;
+  return text.length > generationThoughtMaxLength
+    ? `${text.slice(0, generationThoughtMaxLength - 3).trimEnd()}...`
+    : text;
 }

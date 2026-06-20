@@ -162,6 +162,13 @@
       "when": 1781937042095,
       "tag": "0022_omniscient_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1781939034792,
+      "tag": "0023_bright_betty_brant",
+      "breakpoints": true
     }
   ]
 }

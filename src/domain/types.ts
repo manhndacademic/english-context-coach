@@ -31,7 +31,12 @@ export type ExerciseType =
 
 export type Timeframe = "today" | "7days" | "30days";
 
-export type GenerationStatus = "pending" | "running" | "succeeded" | "failed";
+export type GenerationStatus =
+  | "idle"
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed";
 

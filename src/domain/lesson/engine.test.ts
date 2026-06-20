@@ -77,7 +77,7 @@ class MockLessonRepository implements LessonRepository {
       version: 1,
       title: "Generating",
       analysisStatus: "pending",
-      exerciseStatus: "pending",
+      exerciseStatus: "idle",
     };
     this.lessons.set(lesson.id, lesson);
     const job = {
@@ -106,7 +106,7 @@ class MockLessonRepository implements LessonRepository {
       version,
       title: `Regen ${version}`,
       analysisStatus: "pending",
-      exerciseStatus: "pending",
+      exerciseStatus: "idle",
     };
     this.lessons.set(lesson.id, lesson);
     const job = {
@@ -431,7 +431,7 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       version: 1,
       title: "Generating",
       analysisStatus: "pending",
-      exerciseStatus: "pending",
+      exerciseStatus: "idle",
     });
   });
 
@@ -515,6 +515,7 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       };
       repo.generationJobs.set(job.id, job);
 
+      // 1. Process Analysis
       const result = await engine.processNext("worker-1");
       expect(result.status).toBe("processed");
       if (result.status === "processed") {
@@ -522,10 +523,24 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
 
         const updatedLesson = repo.lessons.get("les-1");
         expect(updatedLesson.analysisStatus).toBe("succeeded");
-        expect(updatedLesson.exerciseStatus).toBe("succeeded");
-
+        expect(updatedLesson.exerciseStatus).toBe("idle");
         expect(repo.milestones.map((m) => m.code)).toContain("completed");
         expect(repo.thoughts.map((t) => t.text)).toContain("Thought 1");
+      }
+
+      // 2. Queue Exercises
+      const queueRes = await engine.queueExerciseGeneration("user-1", "les-1");
+      expect(queueRes.ok).toBe(true);
+
+      // 3. Process Exercises
+      const result2 = await engine.processNext("worker-1");
+      expect(result2.status).toBe("processed");
+      if (result2.status === "processed") {
+        expect(result2.success).toBe(true);
+
+        const updatedLesson = repo.lessons.get("les-1");
+        expect(updatedLesson.analysisStatus).toBe("succeeded");
+        expect(updatedLesson.exerciseStatus).toBe("succeeded");
         expect(repo.thoughts.map((t) => t.text)).toContain("Thought 2");
       }
     });
@@ -590,12 +605,14 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       const lesson = repo.lessons.get("les-1");
       if (lesson) {
         lesson.userId = "user-special-123";
+        lesson.exerciseStatus = "idle";
       }
       const st = repo.sourceTexts.get("st-1");
       if (st) {
         st.userId = "user-special-123";
       }
 
+      // 1. Process Analysis
       const result = await engine.processNext("worker-1");
       expect(result.status).toBe("processed");
       if (result.status === "processed") {
@@ -604,6 +621,17 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
 
       expect(genEngine.lastAnalysisUserId).toBe("user-special-123");
       expect(genEngine.lastAnalysisLessonId).toBe("les-1");
+
+      // 2. Queue Exercises
+      await engine.queueExerciseGeneration("user-special-123", "les-1");
+
+      // 3. Process Exercises
+      const result2 = await engine.processNext("worker-1");
+      expect(result2.status).toBe("processed");
+      if (result2.status === "processed") {
+        expect(result2.success).toBe(true);
+      }
+
       expect(genEngine.lastExercisesUserId).toBe("user-special-123");
       expect(genEngine.lastExercisesLessonId).toBe("les-1");
     });

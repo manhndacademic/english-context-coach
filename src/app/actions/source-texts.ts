@@ -127,3 +127,23 @@ export const deleteSourceTextAction = validatedAction(
     redirect("/dashboard");
   }
 );
+
+const generateExercisesSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+});
+
+export const generateExercisesAction = validatedAction(
+  generateExercisesSchema,
+  async (data, user) => {
+    const result = await getLessonGenerationEngine().queueExerciseGeneration(
+      user.id,
+      data.lessonId
+    );
+    if (result.ok) {
+      revalidatePath(`/lessons/${data.lessonId}`);
+    }
+    return result;
+  }
+);

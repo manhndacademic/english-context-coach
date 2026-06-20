@@ -899,7 +899,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           title: "Generating lesson",
           inputMode: requestedMode || "understand_and_practice",
           analysisStatus: "pending",
-          exerciseStatus: "pending",
+          exerciseStatus: "idle",
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -935,7 +935,7 @@ export class DrizzleLessonRepository implements LessonRepository {
           version,
           title: `Regeneration ${version}`,
           analysisStatus: "pending",
-          exerciseStatus: "pending",
+          exerciseStatus: "idle",
           createdAt: new Date(),
           updatedAt: new Date(),
         })

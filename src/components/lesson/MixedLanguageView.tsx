@@ -40,6 +40,7 @@ export function MixedLanguageView({
               key={`${lesson.id}-${phrases.map((p) => p.id).join(",")}`}
               doc={sourceContent}
               phrases={phrases}
+              lessonId={lesson.id}
             />
           </div>
         </section>

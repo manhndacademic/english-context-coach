@@ -450,6 +450,10 @@ export interface LessonGenerationEngine {
     requestedMode?: string
   ): Promise<LessonGenerationResult>;
   retry(userId: string, lessonId: string): Promise<LessonGenerationResult>;
+  queueExerciseGeneration(
+    userId: string,
+    lessonId: string
+  ): Promise<LessonGenerationResult>;
   deleteSourceText(userId: string, sourceTextId: string): Promise<void>;
   processNext(workerId: string): Promise<JobProcessResult>;
   getProgress(

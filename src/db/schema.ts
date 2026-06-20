@@ -76,6 +76,7 @@ export const jobStatusEnum = pgEnum("job_status", [
   "failed",
 ]);
 export const stageStatusEnum = pgEnum("stage_status", [
+  "idle",
   "pending",
   "running",
   "succeeded",
@@ -300,7 +301,7 @@ export const lessons = pgTable(
       .default("pending"),
     exerciseStatus: stageStatusEnum("exercise_status")
       .notNull()
-      .default("pending"),
+      .default("idle"),
     analysisPromptVersion: text("analysis_prompt_version"),
     exercisePromptVersion: text("exercise_prompt_version"),
     gradingPromptVersion: text("grading_prompt_version"),

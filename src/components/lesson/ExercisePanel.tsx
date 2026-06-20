@@ -1,4 +1,5 @@
 import { ExerciseStepper } from "@/components/exercise-stepper";
+import { GenerationProgress } from "@/components/generation-progress";
 
 interface ExercisePanelProps {
   lesson: {
@@ -9,6 +10,27 @@ interface ExercisePanelProps {
 }
 
 export function ExercisePanel({ lesson, practices }: ExercisePanelProps) {
+  if (
+    lesson.exerciseStatus === "pending" ||
+    lesson.exerciseStatus === "running"
+  ) {
+    return (
+      <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md">
+        <GenerationProgress
+          lessonId={lesson.id}
+          initialLesson={{
+            analysisStatus: "succeeded",
+            exerciseStatus: lesson.exerciseStatus as any,
+          }}
+          initialJob={null}
+          initialMilestones={[]}
+          initialThoughts={[]}
+          stage="exercises"
+        />
+      </section>
+    );
+  }
+
   if (!practices.length && lesson.exerciseStatus !== "running") {
     return null;
   }
