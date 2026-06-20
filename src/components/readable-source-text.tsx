@@ -424,10 +424,8 @@ export function ReadableSourceText({
                 )}
 
                 <div className="flex items-center justify-end mt-2 pt-2 border-t border-border">
-                  <a
-                    href={`#keyphrase-${activePhrase.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
+                  <button
+                    onClick={() => {
                       setIsOpen(false);
                       const el = document.getElementById(
                         `keyphrase-${activePhrase.id}`
@@ -451,10 +449,10 @@ export function ReadableSourceText({
                         }, 2000);
                       }
                     }}
-                    className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
                   >
                     Xem chi tiết &amp; Ví dụ &rarr;
-                  </a>
+                  </button>
                 </div>
               </div>
             </HoverCard.Content>

@@ -51,7 +51,7 @@ export function renderRichText(text: string | null | undefined): ReactNode {
   });
 }
 
-export function isBoundary(value: string | undefined) {
+function isBoundary(value: string | undefined) {
   return !value || !/[\p{L}\p{N}_]/u.test(value);
 }
 

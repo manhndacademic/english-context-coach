@@ -24,7 +24,7 @@ const COLORS = {
 
 export type LogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
 
-export const LOG_LEVELS = {
+const LOG_LEVELS = {
   TRACE: 0,
   DEBUG: 1,
   INFO: 2,
@@ -32,7 +32,7 @@ export const LOG_LEVELS = {
   ERROR: 4,
 };
 
-export function getCurrentLogLevel() {
+function getCurrentLogLevel() {
   const envLevel = process.env.LOG_LEVEL?.toUpperCase();
   if (envLevel && envLevel in LOG_LEVELS) {
     return LOG_LEVELS[envLevel as keyof typeof LOG_LEVELS];
@@ -42,7 +42,7 @@ export function getCurrentLogLevel() {
     : LOG_LEVELS.INFO;
 }
 
-export class Logger {
+class Logger {
   private loggerName: string;
   private defaultThread: string;
 

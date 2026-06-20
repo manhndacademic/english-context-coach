@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const textTypeSchema = z.enum([
+const textTypeSchema = z.enum([
   "work_message",
   "technical_doc",
   "email",
@@ -10,7 +10,7 @@ export const textTypeSchema = z.enum([
   "unknown",
 ]);
 
-export const inputModeSchema = z.enum([
+const inputModeSchema = z.enum([
   "understand_and_practice",
   "fix_and_understand",
   "naturalize_english",
@@ -20,8 +20,8 @@ export const inputModeSchema = z.enum([
   "unsupported",
 ]);
 
-export const levelSchema = z.enum(["A2", "B1", "B2", "C1"]);
-export const categorySchema = z.enum([
+const levelSchema = z.enum(["A2", "B1", "B2", "C1"]);
+const categorySchema = z.enum([
   "idiom",
   "phrasal_verb",
   "technical_term",
@@ -30,14 +30,14 @@ export const categorySchema = z.enum([
   "business_phrase",
   "general_phrase",
 ]);
-export const lessonFocusCategorySchema = z.enum([
+const lessonFocusCategorySchema = z.enum([
   "tone",
   "structure",
   "purpose",
   "context",
 ]);
 
-export const keyPhraseSchema = z.object({
+const keyPhraseSchema = z.object({
   phrase: z.string().min(1),
   conceptKey: z.string().min(1),
   conceptPhrase: z.string().min(1),
@@ -59,12 +59,12 @@ export const keyPhraseSchema = z.object({
   difficulty: levelSchema,
 });
 
-export const diffSpanSchema = z.object({
+const diffSpanSchema = z.object({
   type: z.enum(["equal", "delete", "insert"]),
   text: z.string(),
 });
 
-export const sentenceBreakdownSchema = z.object({
+const sentenceBreakdownSchema = z.object({
   sentence: z.string().min(1),
   correctedSentenceEn: z.string().optional(),
   diffSpans: z.array(diffSpanSchema).optional(),
@@ -74,7 +74,7 @@ export const sentenceBreakdownSchema = z.object({
   ipa: z.string().optional(),
 });
 
-export const lessonFocusSchema = z.object({
+const lessonFocusSchema = z.object({
   title: z.string().min(1).max(80),
   conceptKey: z.string().min(1),
   conceptPhrase: z.string().min(1),
@@ -97,7 +97,7 @@ export const analysisSchema = z.object({
   lessonFocuses: z.array(lessonFocusSchema).min(0).max(3),
 });
 
-export const exerciseSchema = z.discriminatedUnion("type", [
+const exerciseSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("meaning_choice"),
     phrase: z.string().min(1),
@@ -181,7 +181,7 @@ export type AnalysisResult = z.infer<typeof analysisSchema>;
 export type ExercisesResult = z.infer<typeof exercisesSchema>;
 export type DiffSpan = z.infer<typeof diffSpanSchema>;
 
-export const userErrorTypeSchema = z.enum([
+const userErrorTypeSchema = z.enum([
   "literal_translation",
   "phrase_misunderstanding",
   "technical_term_misunderstanding",
@@ -193,7 +193,7 @@ export const userErrorTypeSchema = z.enum([
   "missing_context",
 ]);
 
-export const correctionItemSchema = z.object({
+const correctionItemSchema = z.object({
   draftPhrase: z.string().min(1),
   correctedPhrase: z.string().min(1),
   explanationVi: z.string().min(1),

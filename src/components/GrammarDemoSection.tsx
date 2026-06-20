@@ -14,11 +14,10 @@ const DEMO_SPANS = [
   { type: "equal" as const, text: " a shower before going to bed." },
 ];
 
-type AnimStep = 0 | 1 | 2 | 3;
+type AnimStep = -1 | 0 | 1 | 2 | 3;
 
 export function GrammarDemoSection() {
-  const [step, setStep] = useState<AnimStep>(0);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [step, setStep] = useState<AnimStep>(-1);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   // Auto-play when scrolled into view
@@ -28,20 +27,20 @@ export function GrammarDemoSection() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasStarted) {
-          setHasStarted(true);
+        if (entry.isIntersecting && step === -1) {
+          setStep(0);
         }
       },
       { threshold: 0.4 }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasStarted]);
+  }, [step]);
 
   // Infinite Sequential timeline loop
   // Step transition delays: 0->1 (0.9s), 1->2 (1.5s), 2->3 (1.6s), 3->0 (6.0s)
   useEffect(() => {
-    if (!hasStarted) return;
+    if (step === -1) return;
 
     if (step === 0) {
       const t = setTimeout(() => setStep(1), 900);
@@ -56,7 +55,7 @@ export function GrammarDemoSection() {
       const t = setTimeout(() => setStep(0), 6000);
       return () => clearTimeout(t);
     }
-  }, [hasStarted, step]);
+  }, [step]);
 
   return (
     <section

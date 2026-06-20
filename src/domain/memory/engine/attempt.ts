@@ -14,7 +14,7 @@ import type {
 } from "../ports";
 import type { Attempt } from "../types";
 
-export const MIN_USER_ERROR_CONFIDENCE = 70;
+const MIN_USER_ERROR_CONFIDENCE = 70;
 
 export type MemoryCategory = KeyPhraseCategory;
 
@@ -33,9 +33,7 @@ export type ResolvedMemoryConcept = {
   draftPhrase: string | null;
 };
 
-export function categoryForLessonFocus(
-  category: LessonFocusCategory
-): MemoryCategory {
+function categoryForLessonFocus(category: LessonFocusCategory): MemoryCategory {
   if (category === "structure") return "grammar_pattern";
   if (category === "tone") return "business_phrase";
   return "general_phrase";
@@ -50,7 +48,7 @@ export function shouldCreateUserError(grade: LearnerGradingResult): boolean {
   );
 }
 
-export async function resolveMemoryConcept(
+async function resolveMemoryConcept(
   input: {
     userId: string;
     lessonId: string;

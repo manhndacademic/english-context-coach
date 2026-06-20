@@ -56,7 +56,7 @@ export async function processNext(
   return executeJob(job, workerId, deps);
 }
 
-export async function executeJob(
+async function executeJob(
   job: GenerationJob,
   workerId: string,
   deps: {

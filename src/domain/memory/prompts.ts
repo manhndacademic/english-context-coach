@@ -6,17 +6,17 @@ import {
   type ReviewPromptResult,
 } from "./schemas";
 
-export const PROMPT_VERSIONS = {
+const PROMPT_VERSIONS = {
   grading: "grading-v2",
   review_prompt: "review_prompt-v1",
 } as const;
 
-export const SCHEMA_VERSIONS = {
+const SCHEMA_VERSIONS = {
   grading: "grading-schema-v1",
   review_prompt: "review_prompt-schema-v1",
 } as const;
 
-export const gradingJsonShape = {
+const gradingJsonShape = {
   score: "integer 0-100",
   isCorrect: "boolean",
   feedbackVi:
@@ -31,7 +31,7 @@ export const gradingJsonShape = {
     "JSON null if isCorrect is true. Else object containing: shouldSave, confidence, errorType, explanationVi (max 300 chars), targetItem (max 150 chars). All strings must be clean plain text without HTML.",
 };
 
-export const reviewPromptJsonShape = {
+const reviewPromptJsonShape = {
   reviewType:
     "natural_translation | cloze_phrase | dialogue_completion | trap_choice | trap_detect",
   reviewPromptEn:

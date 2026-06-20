@@ -11,7 +11,6 @@ const getSourceTextMaxLength = () => {
 
 export const SOURCE_TEXT_MAX_LENGTH = getSourceTextMaxLength();
 export const MIN_PASSWORD_LENGTH = 12;
-export const MIN_LESSON_ITEMS = 3;
 export const MAX_LESSON_ITEMS = 7;
 export const PROMPT_VERSIONS = {
   analysis: "analysis-v3",

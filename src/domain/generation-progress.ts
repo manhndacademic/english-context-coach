@@ -6,7 +6,7 @@ import type {
 } from "./lesson/ports";
 import type { TextProcessor } from "@/domain/text";
 
-export const generationMilestoneCodes = [
+const generationMilestoneCodes = [
   "queued",
   "claimed",
   "analysis_started",
@@ -46,7 +46,7 @@ const internalGenerationThoughtPatterns = [
   /[{}`;]/,
 ];
 
-export const dataAvailabilityMilestones = new Set<GenerationMilestoneCode>([
+const dataAvailabilityMilestones = new Set<GenerationMilestoneCode>([
   "analysis_saved",
   "exercises_saved",
   "completed",

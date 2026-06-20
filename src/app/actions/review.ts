@@ -30,47 +30,6 @@ export type ReviewResultState = {
   error?: string;
 };
 
-const submitReviewAttemptSchema = z.object({
-  patternId: z
-    .string()
-    .uuid("ID mẫu lỗi không hợp lệ (Pattern ID must be a UUID)"),
-  answer: z
-    .string()
-    .trim()
-    .min(1, "Vui lòng nhập câu trả lời (Answer is required)"),
-});
-
-export const submitReviewAttemptAction = validatedAction(
-  submitReviewAttemptSchema,
-  async (data, user): Promise<ReviewResultState> => {
-    const engine = getLearnerMemoryEngine();
-    const result = await engine.submitReviewAttempt({
-      userId: user.id,
-      patternId: data.patternId,
-      answer: data.answer,
-    });
-
-    if (!result.success) {
-      return { error: result.error ?? "Đã xảy ra lỗi khi chấm điểm ôn tập." };
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/review");
-
-    return {
-      success: true,
-      score: result.score,
-      isCorrect: result.isCorrect,
-      feedbackVi: result.feedbackVi,
-      masteryState: result.masteryState,
-      nextReviewAt: result.nextReviewAt?.toISOString(),
-      naturalAnswer: result.naturalAnswer,
-      feedbackDetails: result.feedbackDetails,
-      literalTranslationTrap: result.literalTranslationTrap ?? undefined,
-    };
-  }
-);
-
 const retryReviewPromptGenerationSchema = z.object({
   patternId: z
     .string()
@@ -94,47 +53,6 @@ export const retryReviewPromptGenerationAction = validatedAction(
     await notifyJobQueued();
 
     revalidatePath("/dashboard");
-  }
-);
-
-const submitPhrasePracticeSchema = z.object({
-  practiceId: z
-    .string()
-    .uuid("ID cụm từ không hợp lệ (Practice ID must be a UUID)"),
-  answer: z
-    .string()
-    .trim()
-    .min(1, "Vui lòng nhập câu trả lời (Answer is required)"),
-});
-
-export const submitPhrasePracticeAction = validatedAction(
-  submitPhrasePracticeSchema,
-  async (data, user): Promise<ReviewResultState> => {
-    const engine = getLearnerMemoryEngine();
-    const result = await engine.submitPhrasePractice({
-      userId: user.id,
-      practiceId: data.practiceId,
-      answer: data.answer,
-    });
-
-    if (!result.success) {
-      return { error: result.error ?? "Đã xảy ra lỗi khi chấm điểm ôn tập." };
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/phrase-practice");
-
-    return {
-      success: true,
-      score: result.score,
-      isCorrect: result.isCorrect,
-      feedbackVi: result.feedbackVi,
-      masteryState: result.masteryState,
-      nextReviewAt: result.nextReviewAt?.toISOString(),
-      naturalAnswer: result.naturalAnswer,
-      feedbackDetails: result.feedbackDetails,
-      literalTranslationTrap: result.literalTranslationTrap ?? undefined,
-    };
   }
 );
 

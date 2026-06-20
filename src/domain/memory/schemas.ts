@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const errorTypeSchema = z.enum([
+const errorTypeSchema = z.enum([
   "literal_translation",
   "phrase_misunderstanding",
   "technical_term_misunderstanding",

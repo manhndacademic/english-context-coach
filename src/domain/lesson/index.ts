@@ -24,7 +24,7 @@ export function getLessonRepository(): LessonRepository {
   return cachedLessons;
 }
 
-export function getGenerationEngine(
+function getGenerationEngine(
   userId?: string,
   lessonId?: string
 ): GenerationEngine {

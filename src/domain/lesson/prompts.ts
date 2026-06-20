@@ -10,19 +10,19 @@ import {
 } from "./schemas";
 import type { SaveAnalysisInput } from "./ports";
 
-export const PROMPT_VERSIONS = {
+const PROMPT_VERSIONS = {
   analysis: "analysis-v3",
   exercises: "exercises-v1",
   diffAnalysis: "diff-analysis-v1",
 } as const;
 
-export const SCHEMA_VERSIONS = {
+const SCHEMA_VERSIONS = {
   analysis: "analysis-schema-v1",
   exercises: "exercises-schema-v1",
   diffAnalysis: "diff-analysis-schema-v1",
 } as const;
 
-export const analysisJsonShape = {
+const analysisJsonShape = {
   title: "short neutral Vietnamese/English title",
   textType:
     "work_message | technical_doc | email | article | academic | general | unknown",
@@ -96,7 +96,7 @@ export const analysisJsonShape = {
   ],
 };
 
-export const exercisesJsonShape = {
+const exercisesJsonShape = {
   exercises: [
     {
       type: "meaning_choice",
@@ -353,7 +353,7 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
   }
 }
 
-export const diffAnalysisJsonShape = {
+const diffAnalysisJsonShape = {
   title:
     "short neutral Vietnamese/English title describing the core correction",
   textType:
