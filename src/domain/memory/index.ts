@@ -2,6 +2,7 @@ import {
   DrizzleExerciseRepository,
   DrizzleAttemptRepository,
   DrizzleMistakePatternRepository,
+  DrizzlePhrasePracticeRepository,
   DrizzleTransactionCoordinator,
   DrizzlePracticeHistoryRepository,
   DrizzleMemoryLessonLookup,
@@ -17,6 +18,7 @@ import type {
   ExerciseRepository,
   AttemptRepository,
   MistakePatternRepository,
+  PhrasePracticeRepository,
   TransactionCoordinator,
   PracticeHistoryRepository,
 } from "./ports";
@@ -25,6 +27,7 @@ let cachedEngine: LearnerMemoryEngine | null = null;
 let cachedExerciseRepo: ExerciseRepository | null = null;
 let cachedAttemptRepo: AttemptRepository | null = null;
 let cachedMistakePatternRepo: MistakePatternRepository | null = null;
+let cachedPhrasePracticeRepo: PhrasePracticeRepository | null = null;
 let cachedTxCoordinator: TransactionCoordinator | null = null;
 let cachedPracticeHistoryRepo: PracticeHistoryRepository | null = null;
 
@@ -49,6 +52,13 @@ export function getMistakePatternRepository(): MistakePatternRepository {
   return cachedMistakePatternRepo;
 }
 
+export function getPhrasePracticeRepository(): PhrasePracticeRepository {
+  if (!cachedPhrasePracticeRepo) {
+    cachedPhrasePracticeRepo = new DrizzlePhrasePracticeRepository();
+  }
+  return cachedPhrasePracticeRepo;
+}
+
 export function getTransactionCoordinator(): TransactionCoordinator {
   if (!cachedTxCoordinator) {
     cachedTxCoordinator = new DrizzleTransactionCoordinator();
@@ -68,6 +78,7 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
     const exerciseRepo = getExerciseRepository();
     const attemptRepo = getAttemptRepository();
     const mistakePatternRepo = getMistakePatternRepository();
+    const phrasePracticeRepo = getPhrasePracticeRepository();
     const txCoordinator = getTransactionCoordinator();
     const lessonRepo = new DrizzleMemoryLessonLookup();
     const llm = getLLMProvider();
@@ -77,6 +88,7 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
       exerciseRepo,
       attemptRepo,
       mistakePatternRepo,
+      phrasePracticeRepo,
       txCoordinator,
       lessonRepo,
       grader,
@@ -94,6 +106,8 @@ export type {
   AttemptFormResult,
   SubmitReviewAttemptInput,
   ReviewFormResult,
+  SubmitPhrasePracticeInput,
+  PhrasePracticeFormResult,
   MasteryState,
   Attempt,
   UserError,
@@ -101,10 +115,13 @@ export type {
 } from "./types";
 export { MistakePattern } from "./mistake-pattern";
 export type { MistakePatternPlain } from "./mistake-pattern";
+export { PhrasePractice } from "./phrase-practice";
+export type { PhrasePracticePlain } from "./phrase-practice";
 export type {
   ExerciseRepository,
   AttemptRepository,
   MistakePatternRepository,
+  PhrasePracticeRepository,
   TransactionCoordinator,
   GradingEngine,
   LearnerGradingResult,

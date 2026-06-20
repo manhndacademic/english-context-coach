@@ -4,6 +4,7 @@ import {
   lessons,
   generationMilestones,
   mistakePatterns,
+  phrasePractices,
 } from "@/db/schema";
 import { and, eq, lte } from "drizzle-orm";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
@@ -173,6 +174,69 @@ export async function runReclaimWorker(): Promise<{
   } catch (error) {
     log.error(
       "[ReclaimWorker] Error reclaiming stale mistake patterns:",
+      error
+    );
+  }
+
+  // 3. Process stale phrase_practices (review prompt generation jobs)
+  try {
+    const stalePhrasePractices = await db
+      .select()
+      .from(phrasePractices)
+      .where(
+        and(
+          eq(phrasePractices.reviewPromptStatus, "running"),
+          lte(phrasePractices.reviewPromptLockedAt, staleThreshold)
+        )
+      );
+
+    log.info(
+      `[ReclaimWorker] Found ${stalePhrasePractices.length} stale phrase practice review prompt generation jobs.`
+    );
+
+    for (const practice of stalePhrasePractices) {
+      const attempts = practice.reviewPromptAttempts ?? 0;
+
+      await db.transaction(async (tx) => {
+        if (attempts < 3) {
+          log.info(
+            `[ReclaimWorker] Phrase practice ${practice.id} review prompt job has attempts=${attempts} < 3. Re-queuing.`
+          );
+
+          await tx
+            .update(phrasePractices)
+            .set({
+              reviewPromptStatus: "queued",
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+              reviewPromptError: "Stale job reclaimed: re-queued.",
+              updatedAt: new Date(),
+            })
+            .where(eq(phrasePractices.id, practice.id));
+
+          shouldWakeWorkers = true;
+        } else {
+          log.warn(
+            `[ReclaimWorker] Phrase practice ${practice.id} review prompt job has attempts=${attempts} >= 3. Marking failed.`
+          );
+
+          await tx
+            .update(phrasePractices)
+            .set({
+              reviewPromptStatus: "failed",
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+              reviewPromptError:
+                "Stale job reclaimed: exceeded maximum execution attempts.",
+              updatedAt: new Date(),
+            })
+            .where(eq(phrasePractices.id, practice.id));
+        }
+      });
+    }
+  } catch (error) {
+    log.error(
+      "[ReclaimWorker] Error reclaiming stale phrase practices:",
       error
     );
   }

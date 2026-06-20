@@ -1,6 +1,7 @@
 import type { Attempt, UserError, ReviewAttempt } from "./types";
 import type { GradingResult } from "./schemas";
 import { MistakePattern } from "./mistake-pattern";
+import { PhrasePractice } from "./phrase-practice";
 import type { KeyPhraseCategory, ExerciseType } from "@/domain/types";
 
 export interface MemoryKeyPhraseInput {
@@ -89,6 +90,15 @@ export interface AttemptRepository {
     feedbackVi: string;
   }): Promise<ReviewAttempt>;
 
+  createPhrasePracticeAttempt(attempt: {
+    userId: string;
+    phrasePracticeId: string;
+    answer: string;
+    score: number;
+    isCorrect: boolean;
+    feedbackVi: string;
+  }): Promise<any>;
+
   createUserError(error: {
     userId: string;
     attemptId: string;
@@ -157,12 +167,38 @@ export interface MistakePatternRepository {
   }>;
 }
 
+export interface PhrasePracticeRepository {
+  findPhrasePractice(
+    practiceId: string,
+    userId: string
+  ): Promise<PhrasePractice | null>;
+  findPhrasePracticeById(practiceId: string): Promise<PhrasePractice | null>;
+  findPracticeByConcept(
+    userId: string,
+    conceptKey: string
+  ): Promise<PhrasePractice | null>;
+  upsertPhrasePractice(practice: PhrasePractice): Promise<PhrasePractice>;
+  savePhrasePractice(practice: PhrasePractice): Promise<void>;
+  claimReviewPromptJob(workerId: string): Promise<PhrasePractice | null>;
+  findDuePhrasePractices(
+    userId: string,
+    dueAt: Date,
+    limit: number
+  ): Promise<PhrasePractice[]>;
+  findAllPhrasePractices(userId: string): Promise<PhrasePractice[]>;
+  bulkCreateFromKeyPhrases(
+    userId: string,
+    phrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }>;
+}
+
 export interface TransactionCoordinator {
   runInTransaction<T>(
     operation: (repos: {
       exercises: ExerciseRepository;
       attempts: AttemptRepository;
       mistakePatterns: MistakePatternRepository;
+      phrasePractices: PhrasePracticeRepository;
     }) => Promise<T>
   ): Promise<T>;
 }

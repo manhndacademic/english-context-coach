@@ -11,10 +11,12 @@ import {
 import { db, schema, sql as rawSql, type DbClient, type DrizzleTx } from "@/db";
 import type { Attempt, UserError, ReviewAttempt } from "../types";
 import { MistakePattern } from "../mistake-pattern";
+import { PhrasePractice } from "../phrase-practice";
 import type {
   ExerciseRepository,
   AttemptRepository,
   MistakePatternRepository,
+  PhrasePracticeRepository,
   TransactionCoordinator,
   GradableExercise,
   MemoryKeyPhraseInput,
@@ -84,6 +86,21 @@ export class DrizzleAttemptRepository implements AttemptRepository {
   }): Promise<ReviewAttempt> {
     const [row] = await this.dbClient
       .insert(schema.reviewAttempts)
+      .values(attempt)
+      .returning();
+    return row;
+  }
+
+  async createPhrasePracticeAttempt(attempt: {
+    userId: string;
+    phrasePracticeId: string;
+    answer: string;
+    score: number;
+    isCorrect: boolean;
+    feedbackVi: string;
+  }) {
+    const [row] = await this.dbClient
+      .insert(schema.phrasePracticeAttempts)
       .values(attempt)
       .returning();
     return row;
@@ -669,6 +686,7 @@ export class DrizzleTransactionCoordinator implements TransactionCoordinator {
       exercises: ExerciseRepository;
       attempts: AttemptRepository;
       mistakePatterns: MistakePatternRepository;
+      phrasePractices: PhrasePracticeRepository;
     }) => Promise<T>
   ): Promise<T> {
     if (typeof this.dbClient.transaction === "function") {
@@ -677,6 +695,7 @@ export class DrizzleTransactionCoordinator implements TransactionCoordinator {
           exercises: new DrizzleExerciseRepository(txClient),
           attempts: new DrizzleAttemptRepository(txClient),
           mistakePatterns: new DrizzleMistakePatternRepository(txClient),
+          phrasePractices: new DrizzlePhrasePracticeRepository(txClient),
         });
       });
     }
@@ -684,6 +703,7 @@ export class DrizzleTransactionCoordinator implements TransactionCoordinator {
       exercises: new DrizzleExerciseRepository(this.dbClient),
       attempts: new DrizzleAttemptRepository(this.dbClient),
       mistakePatterns: new DrizzleMistakePatternRepository(this.dbClient),
+      phrasePractices: new DrizzlePhrasePracticeRepository(this.dbClient),
     });
   }
 }
@@ -734,6 +754,231 @@ export class DrizzlePracticeHistoryRepository implements PracticeHistoryReposito
       mistakePatterns: mistakePatterns.map((r) =>
         MistakePattern.reconstitute(r)
       ),
+    };
+  }
+}
+
+export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository {
+  constructor(private dbClient: DbClient = db) {}
+
+  async findPhrasePractice(
+    practiceId: string,
+    userId: string
+  ): Promise<PhrasePractice | null> {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.phrasePractices)
+      .where(
+        and(
+          eq(schema.phrasePractices.id, practiceId),
+          eq(schema.phrasePractices.userId, userId)
+        )
+      )
+      .limit(1);
+    return row ? PhrasePractice.reconstitute(row) : null;
+  }
+
+  async findPhrasePracticeById(
+    practiceId: string
+  ): Promise<PhrasePractice | null> {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.phrasePractices)
+      .where(eq(schema.phrasePractices.id, practiceId))
+      .limit(1);
+    return row ? PhrasePractice.reconstitute(row) : null;
+  }
+
+  async findPracticeByConcept(
+    userId: string,
+    conceptKey: string
+  ): Promise<PhrasePractice | null> {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.phrasePractices)
+      .where(
+        and(
+          eq(schema.phrasePractices.userId, userId),
+          eq(schema.phrasePractices.conceptKey, conceptKey)
+        )
+      )
+      .limit(1);
+    return row ? PhrasePractice.reconstitute(row) : null;
+  }
+
+  async upsertPhrasePractice(
+    practice: PhrasePractice
+  ): Promise<PhrasePractice> {
+    const row = practice.toDbRow();
+    const rows = await this.dbClient
+      .insert(schema.phrasePractices)
+      .values(row as typeof schema.phrasePractices.$inferInsert)
+      .onConflictDoUpdate({
+        target: [
+          schema.phrasePractices.userId,
+          schema.phrasePractices.conceptKey,
+        ],
+        set: {
+          intervalDays: 0,
+          repetitions: 0,
+          masteryState: "active",
+          dueAt: new Date(),
+          updatedAt: new Date(),
+          reviewPromptStatus: drizzleSql`case when ${schema.phrasePractices.reviewPromptEn} is null then 'queued'::job_status else ${schema.phrasePractices.reviewPromptStatus} end`,
+        },
+      })
+      .returning();
+
+    const result = PhrasePractice.reconstitute(rows[0]);
+    return result;
+  }
+
+  async savePhrasePractice(practice: PhrasePractice): Promise<void> {
+    const row = practice.toDbRow();
+    await this.dbClient
+      .insert(schema.phrasePractices)
+      .values(row as typeof schema.phrasePractices.$inferInsert)
+      .onConflictDoUpdate({
+        target: [
+          schema.phrasePractices.userId,
+          schema.phrasePractices.conceptKey,
+        ],
+        set: {
+          intervalDays: row.intervalDays,
+          easeFactor: row.easeFactor,
+          repetitions: row.repetitions,
+          masteryState: row.masteryState,
+          dueAt: row.dueAt,
+          lastReviewedAt: row.lastReviewedAt,
+          updatedAt: new Date(),
+          reviewPromptEn: row.reviewPromptEn,
+          reviewPromptVi: row.reviewPromptVi,
+          reviewRubricVi: row.reviewRubricVi,
+          reviewCorrectAnswer: row.reviewCorrectAnswer,
+          reviewAcceptableAnswers: row.reviewAcceptableAnswers,
+          reviewPromptStatus: row.reviewPromptStatus,
+          reviewPromptAttempts: row.reviewPromptAttempts,
+          reviewPromptError: row.reviewPromptError,
+          reviewPromptLockedAt: row.reviewPromptLockedAt,
+          reviewPromptLockedBy: row.reviewPromptLockedBy,
+        },
+      });
+  }
+
+  async claimReviewPromptJob(workerId: string): Promise<PhrasePractice | null> {
+    const rows = (await rawSql`
+      update phrase_practices
+      set review_prompt_status = 'running',
+          review_prompt_locked_at = now(),
+          review_prompt_locked_by = ${workerId},
+          review_prompt_attempts = review_prompt_attempts + 1,
+          updated_at = now()
+      where id = (
+        select id
+        from phrase_practices
+        where review_prompt_status = 'queued'
+           or (review_prompt_status = 'running' and review_prompt_locked_at < now() - interval '10 minutes')
+        order by created_at asc
+        for update skip locked
+        limit 1
+      )
+      returning
+        id,
+        user_id as "userId",
+        concept_key as "conceptKey",
+        normalized_phrase as "normalizedPhrase",
+        sense_key as "senseKey",
+        category,
+        meaning_vi as "meaningVi",
+        safe_review_prompt_vi as "safeReviewPromptVi",
+        interval_days as "intervalDays",
+        mastery_state as "masteryState",
+        due_at as "dueAt",
+        last_reviewed_at as "lastReviewedAt",
+        is_sensitive as "isSensitive",
+        created_at as "createdAt",
+        updated_at as "updatedAt",
+        review_prompt_en as "reviewPromptEn",
+        review_prompt_vi as "reviewPromptVi",
+        review_rubric_vi as "reviewRubricVi",
+        review_correct_answer as "reviewCorrectAnswer",
+        review_acceptable_answers as "reviewAcceptableAnswers",
+        review_prompt_status as "reviewPromptStatus",
+        review_prompt_attempts as "reviewPromptAttempts",
+        review_prompt_error as "reviewPromptError",
+        review_prompt_locked_at as "reviewPromptLockedAt",
+        review_prompt_locked_by as "reviewPromptLockedBy"
+    `) as unknown as Array<typeof schema.phrasePractices.$inferSelect>;
+    const practice = rows[0];
+    return practice ? PhrasePractice.reconstitute(practice) : null;
+  }
+
+  async findDuePhrasePractices(
+    userId: string,
+    dueAt: Date,
+    limit: number
+  ): Promise<PhrasePractice[]> {
+    const rows = await this.dbClient
+      .select()
+      .from(schema.phrasePractices)
+      .where(
+        and(
+          eq(schema.phrasePractices.userId, userId),
+          eq(schema.phrasePractices.masteryState, "active"),
+          lte(schema.phrasePractices.dueAt, dueAt),
+          eq(schema.phrasePractices.reviewPromptStatus, "succeeded")
+        )
+      )
+      .orderBy(asc(schema.phrasePractices.dueAt))
+      .limit(limit);
+    return rows.map((r) => PhrasePractice.reconstitute(r));
+  }
+
+  async findAllPhrasePractices(userId: string): Promise<PhrasePractice[]> {
+    const rows = await this.dbClient
+      .select()
+      .from(schema.phrasePractices)
+      .where(eq(schema.phrasePractices.userId, userId))
+      .orderBy(desc(schema.phrasePractices.updatedAt));
+    return rows.map((r) => PhrasePractice.reconstitute(r));
+  }
+
+  async bulkCreateFromKeyPhrases(
+    userId: string,
+    phrases: MemoryKeyPhraseInput[]
+  ): Promise<{ inserted: number; skipped: number }> {
+    if (phrases.length === 0) {
+      return { inserted: 0, skipped: 0 };
+    }
+
+    const values = phrases.map((phrase) => ({
+      userId,
+      source: "phrase" as const,
+      keyPhraseId: phrase.id,
+      conceptKey: phrase.conceptKey,
+      normalizedPhrase: phrase.normalizedPhrase,
+      senseKey: phrase.senseKey,
+      category: phrase.category,
+      meaningVi: phrase.conceptMeaningVi,
+      safeReviewPromptVi: phrase.conceptMeaningVi,
+      isSensitive: phrase.isSensitive,
+      reviewPromptStatus: "queued" as const,
+    }));
+
+    const insertedRows = await this.dbClient
+      .insert(schema.phrasePractices)
+      .values(values)
+      .onConflictDoNothing({
+        target: [
+          schema.phrasePractices.userId,
+          schema.phrasePractices.conceptKey,
+        ],
+      })
+      .returning({ id: schema.phrasePractices.id });
+
+    return {
+      inserted: insertedRows.length,
+      skipped: phrases.length - insertedRows.length,
     };
   }
 }

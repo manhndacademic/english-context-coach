@@ -101,12 +101,39 @@ export interface ReviewFormResult {
   error?: string;
 }
 
+export interface SubmitPhrasePracticeInput {
+  userId: string;
+  practiceId: string;
+  answer: string;
+}
+
+export interface PhrasePracticeFormResult {
+  success: boolean;
+  isCorrect: boolean;
+  score: number;
+  feedbackVi: string;
+  masteryStateUpdated: boolean;
+  masteryState?: MasteryState;
+  nextReviewAt?: Date;
+  naturalAnswer?: string;
+  feedbackDetails?: {
+    whatWasWrong: string;
+    whyItWasWrong: string;
+    correctUnderstanding: string;
+    mistakeType: string;
+    nextPracticeItem?: string | null;
+    detailedExplanation: string;
+  } | null;
+  error?: string;
+}
+
 export interface LearnerMemoryEngine {
   submitAttempt(input: SubmitAttemptInput): Promise<AttemptFormResult>;
   submitReviewAttempt(
     input: SubmitReviewAttemptInput
   ): Promise<ReviewFormResult>;
   generateReviewPrompt(patternId: string): Promise<void>;
+  generatePhrasePracticeReviewPrompt(practiceId: string): Promise<void>;
   processNextReviewPromptJob(workerId: string): Promise<ReviewPromptJobState>;
   getDashboardMetrics(
     userId: string,
@@ -131,4 +158,7 @@ export interface LearnerMemoryEngine {
     userId: string,
     keyPhrases: MemoryKeyPhraseInput[]
   ): Promise<{ inserted: number; skipped: number }>;
+  submitPhrasePractice(
+    input: SubmitPhrasePracticeInput
+  ): Promise<PhrasePracticeFormResult>;
 }

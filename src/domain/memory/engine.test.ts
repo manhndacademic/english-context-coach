@@ -6,6 +6,7 @@ import type {
   ExerciseRepository,
   AttemptRepository,
   MistakePatternRepository,
+  PhrasePracticeRepository,
   TransactionCoordinator,
   GradingEngine,
   ReviewPromptGenerator,
@@ -15,6 +16,7 @@ import type {
 class MockDatabaseState {
   exercises = new Map<string, any>();
   mistakePatterns = new Map<string, any>();
+  phrasePractices = new Map<string, any>();
   attempts: any[] = [];
   userErrors: any[] = [];
   reviewAttempts: any[] = [];
@@ -86,6 +88,16 @@ class MockAttemptRepository implements AttemptRepository {
   async createReviewAttempt(attempt: any) {
     const created = {
       id: `review-attempt-${this.state.reviewAttempts.length + 1}`,
+      createdAt: new Date(),
+      ...attempt,
+    };
+    this.state.reviewAttempts.push(created);
+    return created;
+  }
+
+  async createPhrasePracticeAttempt(attempt: any) {
+    const created = {
+      id: `phrase-practice-attempt-${this.state.reviewAttempts.length + 1}`,
       createdAt: new Date(),
       ...attempt,
     };
@@ -200,6 +212,70 @@ class MockMistakePatternRepository implements MistakePatternRepository {
   }
 }
 
+class MockPhrasePracticeRepository implements PhrasePracticeRepository {
+  constructor(private state: MockDatabaseState) {}
+
+  async findPhrasePractice(practiceId: string, userId: string) {
+    const practice = this.state.phrasePractices.get(practiceId);
+    if (practice && practice.userId === userId) return practice;
+    return null;
+  }
+
+  async findPhrasePracticeById(practiceId: string) {
+    return this.state.phrasePractices.get(practiceId) ?? null;
+  }
+
+  async findPracticeByConcept(userId: string, conceptKey: string) {
+    for (const practice of this.state.phrasePractices.values()) {
+      if (practice.userId === userId && practice.conceptKey === conceptKey) {
+        return practice;
+      }
+    }
+    return null;
+  }
+
+  async upsertPhrasePractice(practice: any) {
+    this.state.phrasePractices.set(practice.id, practice);
+    return practice;
+  }
+
+  async savePhrasePractice(practice: any) {
+    this.state.phrasePractices.set(practice.id, practice);
+  }
+
+  async claimReviewPromptJob(workerId: string) {
+    for (const practice of this.state.phrasePractices.values()) {
+      if (practice.reviewPromptStatus === "queued") {
+        practice.claimJob(workerId);
+        return practice;
+      }
+    }
+    return null;
+  }
+
+  async findDuePhrasePractices(userId: string, dueAt: Date, limit: number) {
+    return Array.from(this.state.phrasePractices.values())
+      .filter(
+        (practice) =>
+          practice.userId === userId &&
+          practice.masteryState === "active" &&
+          practice.reviewPromptStatus === "succeeded" &&
+          practice.dueAt <= dueAt
+      )
+      .slice(0, limit);
+  }
+
+  async findAllPhrasePractices(userId: string) {
+    return Array.from(this.state.phrasePractices.values())
+      .filter((practice) => practice.userId === userId)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
+  async bulkCreateFromKeyPhrases(_userId: string, phrases: any[]) {
+    return { inserted: phrases.length, skipped: 0 };
+  }
+}
+
 class MockTransactionCoordinator implements TransactionCoordinator {
   active = false;
   runCount = 0;
@@ -208,7 +284,8 @@ class MockTransactionCoordinator implements TransactionCoordinator {
   constructor(
     private exerciseRepo: ExerciseRepository,
     private attemptRepo: AttemptRepository,
-    private mistakePatternRepo: MistakePatternRepository
+    private mistakePatternRepo: MistakePatternRepository,
+    private phrasePracticeRepo: PhrasePracticeRepository
   ) {}
 
   async runInTransaction<T>(
@@ -216,6 +293,7 @@ class MockTransactionCoordinator implements TransactionCoordinator {
       exercises: ExerciseRepository;
       attempts: AttemptRepository;
       mistakePatterns: MistakePatternRepository;
+      phrasePractices: PhrasePracticeRepository;
     }) => Promise<T>
   ): Promise<T> {
     this.runCount += 1;
@@ -226,6 +304,7 @@ class MockTransactionCoordinator implements TransactionCoordinator {
         exercises: this.exerciseRepo,
         attempts: this.attemptRepo,
         mistakePatterns: this.mistakePatternRepo,
+        phrasePractices: this.phrasePracticeRepo,
       });
     } finally {
       this.active = false;
@@ -299,10 +378,12 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
     exerciseRepo = new MockExerciseRepository(repo);
     attemptRepo = new MockAttemptRepository(repo);
     mistakePatternRepo = new MockMistakePatternRepository(repo);
+    const phrasePracticeRepo = new MockPhrasePracticeRepository(repo);
     txCoordinator = new MockTransactionCoordinator(
       exerciseRepo,
       attemptRepo,
-      mistakePatternRepo
+      mistakePatternRepo,
+      phrasePracticeRepo
     );
     lessonRepo = new MockLessonRepository();
     grader = new MockGradingEngine();
@@ -315,6 +396,7 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       exerciseRepo,
       attemptRepo,
       mistakePatternRepo,
+      phrasePracticeRepo,
       txCoordinator,
       lessonRepo,
       grader,
@@ -477,10 +559,12 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         notifyQueueCalls++;
       };
 
+      const phrasePracticeRepo = new MockPhrasePracticeRepository(repo);
       engine = new DefaultLearnerMemoryEngine(
         exerciseRepo,
         attemptRepo,
         mistakePatternRepo,
+        phrasePracticeRepo,
         txCoordinator,
         lessonRepo,
         grader,

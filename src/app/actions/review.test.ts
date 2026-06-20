@@ -12,7 +12,10 @@ import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/guards";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
-import { retryReviewPromptGenerationAction } from "./review";
+import {
+  retryReviewPromptGenerationAction,
+  retryPhrasePracticePromptGenerationAction,
+} from "./review";
 import crypto from "crypto";
 
 // Mock next/cache
@@ -54,6 +57,9 @@ describe("Review Actions", () => {
     await db
       .delete(schema.mistakePatterns)
       .where(eq(schema.mistakePatterns.userId, testUser.id));
+    await db
+      .delete(schema.phrasePractices)
+      .where(eq(schema.phrasePractices.userId, testUser.id));
     await db.delete(schema.users).where(eq(schema.users.id, testUser.id));
   });
 
@@ -64,6 +70,9 @@ describe("Review Actions", () => {
     await db
       .delete(schema.mistakePatterns)
       .where(eq(schema.mistakePatterns.userId, testUser.id));
+    await db
+      .delete(schema.phrasePractices)
+      .where(eq(schema.phrasePractices.userId, testUser.id));
 
     // Seed a mistake pattern
     [testPattern] = await db
@@ -125,5 +134,64 @@ describe("Review Actions", () => {
 
     // MUST call notifyJobQueued to wake up workers
     expect(notifyJobQueued).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Phrase Practice Actions", () => {
+    let testPractice: any;
+
+    beforeEach(async () => {
+      [testPractice] = await db
+        .insert(schema.phrasePractices)
+        .values({
+          userId: testUser.id,
+          conceptKey: "test-retry-phrase-concept",
+          category: "general_phrase",
+          normalizedPhrase: "phrase practice target",
+          meaningVi: "nghĩa luyện tập",
+          safeReviewPromptVi: "prompt luyện tập",
+          reviewPromptStatus: "failed",
+          reviewPromptAttempts: 3,
+          reviewPromptError: "LLM error",
+        })
+        .returning();
+    });
+
+    it("fails to retry if the practice does not exist or does not belong to the user", async () => {
+      const formData = new FormData();
+      formData.append("practiceId", crypto.randomUUID());
+
+      const result = (await retryPhrasePracticePromptGenerationAction(
+        null,
+        formData
+      )) as any;
+      expect(result).toHaveProperty("error");
+      expect(result.error).toContain(
+        "Không tìm thấy cụm từ hoặc bạn không có quyền"
+      );
+      expect(notifyJobQueued).not.toHaveBeenCalled();
+    });
+
+    it("updates practice job status to queued and calls notifyJobQueued on success", async () => {
+      const formData = new FormData();
+      formData.append("practiceId", testPractice.id);
+
+      const result = await retryPhrasePracticePromptGenerationAction(
+        null,
+        formData
+      );
+      expect(result).toBeUndefined();
+
+      // Check DB state is updated
+      const [updated] = await db
+        .select()
+        .from(schema.phrasePractices)
+        .where(eq(schema.phrasePractices.id, testPractice.id));
+
+      expect(updated.reviewPromptStatus).toBe("queued");
+      expect(updated.reviewPromptAttempts).toBe(0);
+      expect(updated.reviewPromptError).toBeNull();
+
+      expect(notifyJobQueued).toHaveBeenCalledTimes(1);
+    });
   });
 });

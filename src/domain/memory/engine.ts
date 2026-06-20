@@ -14,6 +14,7 @@ import type {
   ExerciseRepository,
   AttemptRepository,
   MistakePatternRepository,
+  PhrasePracticeRepository,
   TransactionCoordinator,
   GradingEngine,
   ReviewPromptGenerator,
@@ -28,6 +29,8 @@ import type {
   AttemptFormResult,
   SubmitReviewAttemptInput,
   ReviewFormResult,
+  SubmitPhrasePracticeInput,
+  PhrasePracticeFormResult,
   Attempt,
 } from "./types";
 
@@ -60,6 +63,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     private exerciseRepo: ExerciseRepository,
     _attemptRepo: AttemptRepository,
     private mistakePatternRepo: MistakePatternRepository,
+    private phrasePracticeRepo: PhrasePracticeRepository,
     private txCoordinator: TransactionCoordinator,
     private lessonRepo: MemoryLessonLookup,
     private grader: GradingEngine,
@@ -264,6 +268,118 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     }
   }
 
+  async submitPhrasePractice(
+    input: SubmitPhrasePracticeInput
+  ): Promise<PhrasePracticeFormResult> {
+    try {
+      const practice = await this.phrasePracticeRepo.findPhrasePractice(
+        input.practiceId,
+        input.userId
+      );
+      if (!practice) {
+        return {
+          success: false,
+          isCorrect: false,
+          score: 0,
+          feedbackVi:
+            "Luyện tập cụm từ không tồn tại hoặc không thuộc về người dùng này.",
+          masteryStateUpdated: false,
+          error: "Phrase practice not found.",
+        };
+      }
+
+      const promptEn = practice.reviewPromptEn ?? practice.normalizedPhrase;
+      const promptVi =
+        practice.reviewPromptVi ??
+        `Dịch cụm từ hoặc câu sau sang nghĩa tự nhiên: "${practice.normalizedPhrase}"`;
+      const correctAnswer = practice.reviewCorrectAnswer ?? practice.meaningVi;
+      const acceptableAnswers = practice.reviewAcceptableAnswers ?? [];
+      const rubricVi =
+        practice.reviewRubricVi ??
+        `Đảm bảo người học hiểu đúng nghĩa tự nhiên của cụm từ "${practice.normalizedPhrase}" là "${practice.meaningVi}". Tránh dịch nghĩa đen.`;
+
+      const mockExercise = {
+        id: practice.id,
+        lessonId: "review",
+        userId: input.userId,
+        type: practice.reviewType as any,
+        promptVi,
+        promptEn,
+        choices: practice.reviewChoices,
+        correctAnswer,
+        acceptableAnswers,
+        rubricVi,
+        keyPhraseId: null,
+        lessonFocusId: null,
+        orderIndex: 0,
+        createdAt: new Date(),
+      };
+
+      // 1. Grade the attempt (AI call outside transaction)
+      const grade = await this.grader.grade({
+        userId: input.userId,
+        lessonId: undefined,
+        exercise: mockExercise,
+        answer: input.answer,
+      });
+
+      practice.recordReviewAttempt(grade.isCorrect, grade.score);
+
+      if (grade.isCorrect) {
+        practice.setJobStatus("queued", {
+          reviewPromptAttempts: 0,
+          reviewPromptError: null,
+        });
+      }
+
+      // 2. Perform persistence within transaction context
+      await this.txCoordinator.runInTransaction(async (repos) => {
+        await repos.attempts.createPhrasePracticeAttempt({
+          userId: input.userId,
+          phrasePracticeId: practice.id,
+          answer: input.answer,
+          score: grade.score,
+          isCorrect: grade.isCorrect,
+          feedbackVi: grade.feedbackVi,
+        });
+
+        await repos.phrasePractices.savePhrasePractice(practice);
+      });
+
+      // 3. Trigger review prompt regeneration on success (outside transaction)
+      if (grade.isCorrect) {
+        this.notifyQueue().catch((err) =>
+          console.error(`[Engine] Failed to notify queue on success: ${err}`)
+        );
+      }
+
+      return {
+        success: true,
+        isCorrect: grade.isCorrect,
+        score: grade.score,
+        feedbackVi: grade.feedbackVi,
+        feedbackDetails: grade.feedbackDetails,
+        masteryStateUpdated: true,
+        masteryState: practice.masteryState,
+        nextReviewAt: practice.dueAt,
+        naturalAnswer: grade.naturalAnswer ?? correctAnswer,
+      };
+    } catch (error) {
+      console.error(
+        "[LearnerMemoryEngine] Error in submitPhrasePractice:",
+        error
+      );
+      return {
+        success: false,
+        isCorrect: false,
+        score: 0,
+        feedbackVi: "Đã xảy ra lỗi hệ thống khi xử lý câu luyện tập của bạn.",
+        masteryStateUpdated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   async generateReviewPrompt(patternId: string): Promise<void> {
     try {
       const pattern =
@@ -290,79 +406,179 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     }
   }
 
+  async generatePhrasePracticeReviewPrompt(practiceId: string): Promise<void> {
+    try {
+      const practice =
+        await this.phrasePracticeRepo.findPhrasePracticeById(practiceId);
+      if (!practice) return;
+
+      log.info(
+        `Generating review prompt directly for phrase practice ${practiceId}...`
+      );
+      const startTime = Date.now();
+      const generated = await this.reviewGenerator.generate({
+        userId: practice.userId,
+        conceptPhrase: practice.normalizedPhrase,
+        conceptMeaningVi: practice.meaningVi,
+        category: practice.category,
+        errorType: "phrase_misunderstanding",
+      });
+
+      practice.updateReviewPrompt(generated);
+      await this.phrasePracticeRepo.savePhrasePractice(practice);
+      log.info(
+        `Review prompt generated directly for phrase practice ${practiceId} in ${Date.now() - startTime}ms.`
+      );
+    } catch (error) {
+      log.error(
+        `generatePhrasePracticeReviewPrompt failed for practice ${practiceId}`,
+        error
+      );
+    }
+  }
+
   async processNextReviewPromptJob(
     workerId: string
   ): Promise<ReviewPromptJobState> {
     try {
       const pattern =
         await this.mistakePatternRepo.claimReviewPromptJob(workerId);
-      if (!pattern) {
-        return { status: "idle" };
-      }
-
-      const parsedLockedVal = parseDbDate(pattern.reviewPromptLockedAt);
-      const queueLatency = parsedLockedVal
-        ? Date.now() - parsedLockedVal.getTime()
-        : 0;
-      log.info(
-        `Claimed review prompt job ${pattern.id} for pattern. Queue latency: ${queueLatency}ms.`,
-        workerId
-      );
-      const startTime = Date.now();
-
-      try {
-        const generated = await this.reviewGenerator.generate({
-          userId: pattern.userId,
-          conceptPhrase: pattern.normalizedPhrase,
-          conceptMeaningVi: pattern.meaningVi,
-          category: pattern.category,
-          errorType: pattern.errorType,
-        });
-
-        pattern.updateReviewPrompt(generated);
-        await this.mistakePatternRepo.saveMistakePattern(pattern);
-
+      if (pattern) {
+        const parsedLockedVal = parseDbDate(pattern.reviewPromptLockedAt);
+        const queueLatency = parsedLockedVal
+          ? Date.now() - parsedLockedVal.getTime()
+          : 0;
         log.info(
-          `Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`,
+          `Claimed review prompt job ${pattern.id} for pattern. Queue latency: ${queueLatency}ms.`,
           workerId
         );
+        const startTime = Date.now();
 
-        return {
-          status: "processed",
-          patternId: pattern.id,
-          success: true,
-        };
-      } catch (genError) {
-        const message =
-          genError instanceof Error ? genError.message : String(genError);
-        const attempts = pattern.reviewPromptAttempts ?? 0;
-
-        log.warn(
-          `Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`,
-          workerId
-        );
-
-        if (attempts < 3) {
-          pattern.setJobStatus("queued", {
-            reviewPromptError: message,
-            reviewPromptLockedAt: null,
-            reviewPromptLockedBy: null,
+        try {
+          const generated = await this.reviewGenerator.generate({
+            userId: pattern.userId,
+            conceptPhrase: pattern.normalizedPhrase,
+            conceptMeaningVi: pattern.meaningVi,
+            category: pattern.category,
+            errorType: pattern.errorType,
           });
-        } else {
-          pattern.setJobStatus("failed", {
-            reviewPromptError: message,
-            reviewPromptLockedAt: null,
-            reviewPromptLockedBy: null,
-          });
+
+          pattern.updateReviewPrompt(generated);
+          await this.mistakePatternRepo.saveMistakePattern(pattern);
+
+          log.info(
+            `Review prompt job ${pattern.id} succeeded in ${Date.now() - startTime}ms.`,
+            workerId
+          );
+
+          return {
+            status: "processed",
+            patternId: pattern.id,
+            success: true,
+          };
+        } catch (genError) {
+          const message =
+            genError instanceof Error ? genError.message : String(genError);
+          const attempts = pattern.reviewPromptAttempts ?? 0;
+
+          log.warn(
+            `Review prompt job ${pattern.id} failed (attempt ${attempts}): ${message}`,
+            workerId
+          );
+
+          if (attempts < 3) {
+            pattern.setJobStatus("queued", {
+              reviewPromptError: message,
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+            });
+          } else {
+            pattern.setJobStatus("failed", {
+              reviewPromptError: message,
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+            });
+          }
+          await this.mistakePatternRepo.saveMistakePattern(pattern);
+
+          return {
+            status: "processed",
+            patternId: pattern.id,
+            success: false,
+          };
         }
-        await this.mistakePatternRepo.saveMistakePattern(pattern);
-
-        return {
-          status: "processed",
-          patternId: pattern.id,
-          success: false,
-        };
       }
+
+      // If no mistake patterns have pending jobs, try phrase practices
+      const practice =
+        await this.phrasePracticeRepo.claimReviewPromptJob(workerId);
+      if (practice) {
+        const parsedLockedVal = parseDbDate(practice.reviewPromptLockedAt);
+        const queueLatency = parsedLockedVal
+          ? Date.now() - parsedLockedVal.getTime()
+          : 0;
+        log.info(
+          `Claimed review prompt job ${practice.id} for phrase practice. Queue latency: ${queueLatency}ms.`,
+          workerId
+        );
+        const startTime = Date.now();
+
+        try {
+          const generated = await this.reviewGenerator.generate({
+            userId: practice.userId,
+            conceptPhrase: practice.normalizedPhrase,
+            conceptMeaningVi: practice.meaningVi,
+            category: practice.category,
+            errorType: "phrase_misunderstanding", // neutral error type for proactive review
+          });
+
+          practice.updateReviewPrompt(generated);
+          await this.phrasePracticeRepo.savePhrasePractice(practice);
+
+          log.info(
+            `Review prompt job ${practice.id} succeeded in ${Date.now() - startTime}ms.`,
+            workerId
+          );
+
+          return {
+            status: "processed",
+            patternId: practice.id,
+            success: true,
+          };
+        } catch (genError) {
+          const message =
+            genError instanceof Error ? genError.message : String(genError);
+          const attempts = practice.reviewPromptAttempts ?? 0;
+
+          log.warn(
+            `Review prompt job ${practice.id} failed (attempt ${attempts}): ${message}`,
+            workerId
+          );
+
+          if (attempts < 3) {
+            practice.setJobStatus("queued", {
+              reviewPromptError: message,
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+            });
+          } else {
+            practice.setJobStatus("failed", {
+              reviewPromptError: message,
+              reviewPromptLockedAt: null,
+              reviewPromptLockedBy: null,
+            });
+          }
+          await this.phrasePracticeRepo.savePhrasePractice(practice);
+
+          return {
+            status: "processed",
+            patternId: practice.id,
+            success: false,
+          };
+        }
+      }
+
+      return { status: "idle" };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error(`processNextReviewPromptJob failed`, error, workerId);
@@ -381,7 +597,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     userId: string,
     keyPhrases: MemoryKeyPhraseInput[]
   ): Promise<{ inserted: number; skipped: number }> {
-    return this.mistakePatternRepo.bulkCreateFromKeyPhrases(userId, keyPhrases);
+    return this.phrasePracticeRepo.bulkCreateFromKeyPhrases(userId, keyPhrases);
   }
 
   private async applyAttemptMemoryTransition(

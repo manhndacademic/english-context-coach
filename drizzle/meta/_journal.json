@@ -120,6 +120,20 @@
       "when": 1781588853342,
       "tag": "0016_nebulous_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781925320659,
+      "tag": "0017_narrow_kid_colt",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781925413399,
+      "tag": "0018_skinny_ego",
+      "breakpoints": true
     }
   ]
 }
