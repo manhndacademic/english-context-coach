@@ -48,21 +48,19 @@ function getPlainTextLength(value: string): number {
   return value.trim().length;
 }
 
-const CONTEXT_TEMPLATES = [
+const TEMPLATES = [
   {
-    label: "💬 Tin nhắn Slack",
-    text: "Could you take a look at the PR when you get a chance? We need to push back the release date if there are any blocker bugs.",
-    mode: "understand_and_practice",
+    label: "💬 Câu tiếng Anh mẫu (Hiểu nghĩa & ngữ cảnh)",
+    draft:
+      "Could you take a look at the PR when you get a chance? We need to push back the release date if there are any blocker bugs.",
+    corrected: "",
   },
   {
-    label: "📝 Lỗi Vietlish",
-    text: "Yesterday I go to office and my manager say we must make a plan for draw up new feature.",
-    mode: "fix_and_understand",
-  },
-  {
-    label: "💻 Lỗi Code (Lập trình)",
-    text: "TypeError: Cannot read properties of undefined (reading 'map')\n    at getLessonsForPatterns (drizzle-repositories.ts:143:30)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)",
-    mode: "developer_error_explanation",
+    label: "📝 Bản nháp & Bản sửa mẫu (Học từ sửa lỗi)",
+    draft:
+      "Yesterday I go to office and my manager say we must make a plan for draw up new feature.",
+    corrected:
+      "Yesterday I went to the office and my manager said we must make a plan to draw up the new feature.",
   },
 ];
 
@@ -71,15 +69,19 @@ export function SourceTextForm() {
     SourceTextActionState,
     FormData
   >(createSourceTextAction, {});
-  const [value, setValue] = useState("");
 
-  const plainTextLength = getPlainTextLength(value);
+  const [draftValue, setDraftValue] = useState("");
+  const [correctedValue, setCorrectedValue] = useState("");
 
-  const handlePaste = async () => {
+  const mainLength = getPlainTextLength(
+    correctedValue.trim() ? correctedValue : draftValue
+  );
+
+  const handlePasteDraft = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        setValue(text);
+        setDraftValue(text);
       }
     } catch {
       alert(
@@ -88,105 +90,135 @@ export function SourceTextForm() {
     }
   };
 
+  const handlePasteCorrected = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setCorrectedValue(text);
+      }
+    } catch {
+      alert(
+        "Không thể tự động đọc clipboard. Bạn vui lòng dán thủ công bằng tổ hợp phím Ctrl+V / Cmd+V."
+      );
+    }
+  };
+
+  const showStep2 = draftValue.trim().length > 0;
+
   return (
     <form action={action} className="grid gap-5">
+      {/* Hidden Fields for Server Action */}
+      <input
+        type="hidden"
+        name="content"
+        value={correctedValue.trim() ? correctedValue : draftValue}
+      />
+      <input
+        type="hidden"
+        name="draftContent"
+        value={correctedValue.trim() ? draftValue : ""}
+      />
+      <input
+        type="hidden"
+        name="inputMode"
+        value={correctedValue.trim() ? "diff" : "understand_and_practice"}
+      />
+
+      {/* Step 1: Original / Draft Text */}
       <div className="grid gap-2 text-left text-sm font-semibold text-text">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <span>Dán tài liệu tiếng Anh cần phân tích</span>
+          <span>1. Nhập văn bản tiếng Anh của bạn (Bản gốc / Bản nháp)</span>
           <button
             type="button"
-            onClick={handlePaste}
+            onClick={handlePasteDraft}
             className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
           >
             📋 Dán từ Clipboard
           </button>
         </div>
-        <input type="hidden" name="content" value={value} />
         <RichTextEditor
-          value={value}
-          onChange={setValue}
-          placeholder="Dán tin nhắn Slack, email, GitHub issue, PR comment, tài liệu API hoặc đoạn văn bản tiếng Anh bất kỳ. Bôi đen từ/cụm từ khó để AI phân tích chi tiết..."
+          value={draftValue}
+          onChange={setDraftValue}
+          placeholder="Dán câu hoặc đoạn văn bản tiếng Anh của bạn viết, hoặc đoạn văn bạn muốn hiểu nghĩa..."
         />
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-xs text-muted font-normal">Thử mẫu nhanh:</span>
-          {CONTEXT_TEMPLATES.map((tmpl, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setValue(tmpl.text);
-                const selectEl = document.querySelector(
-                  'select[name="inputMode"]'
-                ) as HTMLSelectElement;
-                if (selectEl) {
-                  selectEl.value = tmpl.mode;
-                }
-              }}
-              className="text-xs bg-surface border border-border text-text hover:bg-surface-strong px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm select-none"
-            >
-              {tmpl.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-muted font-normal mt-1">
-          💡 <strong>Mẹo:</strong> Bạn có thể bôi đen bất kỳ cụm từ nào trong
-          văn bản và nhấn <strong>Đánh dấu từ khó</strong> để yêu cầu AI ưu tiên
-          giải thích cụm từ đó.
-        </p>
+
+        {/* Quick Templates */}
+        {!showStep2 && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-xs text-muted font-normal">
+              Thử mẫu nhanh:
+            </span>
+            {TEMPLATES.map((tmpl, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setDraftValue(tmpl.draft);
+                  setCorrectedValue(tmpl.corrected);
+                }}
+                className="text-xs bg-surface border border-border text-text hover:bg-surface-strong px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm select-none"
+              >
+                {tmpl.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <label className="grid gap-2 text-left text-sm font-semibold text-text mt-2">
-        Chế độ dịch / học (Coaching Mode)
-        <div className="relative mt-1">
-          <select
-            name="inputMode"
-            className="w-full appearance-none border border-border rounded-md bg-surface text-text pl-4 pr-10 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light cursor-pointer"
-            style={{
-              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-              backgroundPosition: "right 0.75rem center",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "1.25rem",
-            }}
-          >
-            <option value="auto">Tự động nhận diện (Khuyến nghị)</option>
-            <option value="understand_and_practice">
-              Hiểu &amp; Luyện tập (Văn bản chuẩn)
-            </option>
-            <option value="fix_and_understand">
-              Sửa lỗi &amp; Giải thích ngữ pháp (Vietlish)
-            </option>
-            <option value="naturalize_english">
-              Viết lại tự nhiên hơn (Văn bản chưa tự nhiên)
-            </option>
-            <option value="mixed_language_support">
-              Anh-Việt hỗn hợp (Mixed)
-            </option>
-            <option value="developer_error_explanation">
-              Giải nghĩa lỗi code lập trình (Stacktrace/Error)
-            </option>
-          </select>
+
+      {/* Step 2: Optional Corrected Text */}
+      {showStep2 && (
+        <div className="grid gap-2 text-left text-sm font-semibold text-text border-t border-border/60 pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-accent font-bold">
+              ✨ Bạn có bản đã sửa (Corrected Version) của văn bản trên? (Tùy
+              chọn)
+            </span>
+            <button
+              type="button"
+              onClick={handlePasteCorrected}
+              className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
+            >
+              📋 Dán từ Clipboard
+            </button>
+          </div>
+          <p className="text-xs text-muted font-normal -mt-1">
+            Dán bản đã được sửa bởi AI (ChatGPT, Claude...) hoặc đồng nghiệp để
+            học từ các điểm khác biệt. Nếu không dán, app sẽ chạy chế độ
+            dịch/hiểu thông thường.
+          </p>
+          <RichTextEditor
+            value={correctedValue}
+            onChange={setCorrectedValue}
+            placeholder="Dán bản tiếng Anh đã được sửa tại đây (Ví dụ: 'Yesterday I went to the office...')"
+          />
         </div>
-      </label>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      )}
+
+      {/* Submit Section */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
         <button
           className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
           disabled={
             pending ||
-            plainTextLength === 0 ||
-            plainTextLength > SOURCE_TEXT_MAX_LENGTH
+            draftValue.trim().length === 0 ||
+            mainLength > SOURCE_TEXT_MAX_LENGTH
           }
           type="submit"
         >
           {pending
             ? "Đang xếp hàng xử lý..."
-            : "Bắt đầu phân tích & tạo bài học"}
+            : correctedValue.trim()
+              ? "So sánh lỗi sai & bắt đầu học"
+              : "Bắt đầu phân tích & dịch nghĩa"}
         </button>
         <span
-          className={`text-xs ${plainTextLength > SOURCE_TEXT_MAX_LENGTH ? "text-danger font-bold" : "text-muted"}`}
+          className={`text-xs ${mainLength > SOURCE_TEXT_MAX_LENGTH ? "text-danger font-bold" : "text-muted"}`}
         >
-          {plainTextLength.toLocaleString()} /{" "}
+          {mainLength.toLocaleString()} /{" "}
           {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} ký tự
         </span>
       </div>
+
       {state.error ? (
         <p className="text-danger font-semibold text-sm m-0">{state.error}</p>
       ) : null}

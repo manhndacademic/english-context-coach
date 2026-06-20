@@ -319,6 +319,48 @@ export const lessons = pgTable(
   })
 );
 
+export const draftTexts = pgTable(
+  "draft_texts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sourceTextId: uuid("source_text_id")
+      .notNull()
+      .references(() => sourceTexts.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("draft_texts_user_idx").on(table.userId),
+    sourceTextIdx: index("draft_texts_source_text_idx").on(table.sourceTextId),
+  })
+);
+
+export const correctionItems = pgTable(
+  "correction_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    draftPhrase: text("draft_phrase").notNull(),
+    correctedPhrase: text("corrected_phrase").notNull(),
+    explanationVi: text("explanation_vi").notNull(),
+    literalTrapVi: text("literal_trap_vi"),
+    exampleEn: text("example_en").notNull(),
+    exampleVi: text("example_vi").notNull(),
+    category: phraseCategoryEnum("category").notNull(),
+    errorType: errorTypeEnum("error_type").notNull(),
+    orderIndex: integer("order_index").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    lessonIdx: index("correction_items_lesson_idx").on(table.lessonId),
+  })
+);
+
 export const keyPhrases = pgTable(
   "key_phrases",
   {
@@ -420,6 +462,12 @@ export const exercises = pgTable(
     lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
       onDelete: "set null",
     }),
+    correctionItemId: uuid("correction_item_id").references(
+      () => correctionItems.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -484,6 +532,12 @@ export const userErrors = pgTable(
     lessonFocusId: uuid("lesson_focus_id").references(() => lessonFocuses.id, {
       onDelete: "set null",
     }),
+    correctionItemId: uuid("correction_item_id").references(
+      () => correctionItems.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     errorType: errorTypeEnum("error_type").notNull(),
     conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),

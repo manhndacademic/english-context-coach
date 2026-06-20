@@ -5,8 +5,16 @@ English Context Coach helps Vietnamese learners understand English source materi
 ## Language
 
 **SourceText**:
-The original English material pasted by a learner. SourceText remains the learner's original material even when the Lesson presents it in a more readable form. Use natural learner-facing copy such as "source text" or "English source text" instead of the PascalCase term in UI text.
+The original English material pasted by a learner. SourceText remains the learner's original material even when the Lesson presents it in a more readable form. In diff mode, SourceText is the corrected version (the "right" version to learn from), because it is the material the Lesson is built on. Use natural learner-facing copy such as "source text" or "English source text" instead of the PascalCase term in UI text.
 _Avoid_: Text, InputText, Article
+
+**DraftText**:
+The learner's own English (or Vietnamese) writing before it was corrected by AI or another person. DraftText is compared against SourceText to produce CorrectionItems. A Lesson may or may not have a DraftText — when absent, the Lesson operates in understand mode.
+_Avoid_: Original text, raw text, user input
+
+**CorrectionItem**:
+A single difference between a DraftText and its SourceText, representing one correction the learner needs to internalize. Each CorrectionItem generates a scaffolded exercise group (recognize → guided → produce). CorrectionItems are the primary learning unit in diff mode.
+_Avoid_: Diff, change, fix, correction
 
 **Lesson**:
 A generated learning version created from one SourceText. A SourceText may have multiple Lesson versions, with the latest successful Lesson acting as the default learner surface. A complete Lesson includes SourceMeaning, SentenceBreakdown when useful, distinct KeyPhrases when useful, one or more LessonFocuses, and enough Exercises to practice both phrase-level and whole-text understanding.
@@ -108,8 +116,8 @@ _Avoid_: Sample text, example article
 A quick, single-question game about a common word-by-word translation trap, displayed to the learner during GenerationProgress to keep them engaged while their Lesson is being created.
 _Avoid_: Loading quiz, trivia question
 
-**ErrorRepairSession**:
-An immediate practice loop triggered at the end of a Lesson if the learner made any UserErrors, allowing them to retry only the failed Exercises in that Lesson until they answer correctly.
+**ErrorRepairSession** _(deprecated)_:
+Formerly an immediate practice loop at the end of a Lesson. Replaced by in-place quick retry on each ExerciseCard: when a learner answers incorrectly, they can retry once immediately, and unresolved items enter the review schedule. This removes the end-of-lesson blocking session.
 _Avoid_: Retry quiz, error correction
 
 **LessonPhase**:

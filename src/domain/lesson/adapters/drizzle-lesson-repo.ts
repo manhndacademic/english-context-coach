@@ -36,6 +36,8 @@ import type {
   GenerationThought,
   TextType,
   DetectedLevel,
+  DraftText,
+  CorrectionItem,
 } from "../ports";
 import type {
   KeyPhrase as DbKeyPhrase,
@@ -273,6 +275,23 @@ export class DrizzleLessonRepository implements LessonRepository {
           }))
         );
       }
+
+      if (analysis.correctionItems && analysis.correctionItems.length) {
+        await tx.insert(schema.correctionItems).values(
+          analysis.correctionItems.map((item, index) => ({
+            lessonId,
+            draftPhrase: item.draftPhrase,
+            correctedPhrase: item.correctedPhrase,
+            explanationVi: item.explanationVi,
+            literalTrapVi: item.literalTrapVi || null,
+            exampleEn: item.exampleEn,
+            exampleVi: item.exampleVi,
+            category: item.category,
+            errorType: item.errorType,
+            orderIndex: index,
+          }))
+        );
+      }
     });
   }
 
@@ -282,17 +301,20 @@ export class DrizzleLessonRepository implements LessonRepository {
     exercises: SaveExercisesInput,
     model: string
   ): Promise<void> {
-    const [phrases, lessonFocuses]: [DbKeyPhrase[], DbLessonFocus[]] =
-      await Promise.all([
-        this.dbClient
-          .select()
-          .from(schema.keyPhrases)
-          .where(eq(schema.keyPhrases.lessonId, lessonId)),
-        this.dbClient
-          .select()
-          .from(schema.lessonFocuses)
-          .where(eq(schema.lessonFocuses.lessonId, lessonId)),
-      ]);
+    const [phrases, lessonFocuses, correctionItems] = await Promise.all([
+      this.dbClient
+        .select()
+        .from(schema.keyPhrases)
+        .where(eq(schema.keyPhrases.lessonId, lessonId)),
+      this.dbClient
+        .select()
+        .from(schema.lessonFocuses)
+        .where(eq(schema.lessonFocuses.lessonId, lessonId)),
+      this.dbClient
+        .select()
+        .from(schema.correctionItems)
+        .where(eq(schema.correctionItems.lessonId, lessonId)),
+    ]);
 
     const phraseByNormalized = new Map<string, DbKeyPhrase>(
       phrases.map((phrase: DbKeyPhrase) => [
@@ -320,11 +342,23 @@ export class DrizzleLessonRepository implements LessonRepository {
                   this.textProcessor
                 )
               : undefined;
+            const phraseStr = exercise.phrase;
+            const matchedCorrection = phraseStr
+              ? correctionItems.find(
+                  (c) =>
+                    this.textProcessor.normalizePhrase(c.correctedPhrase) ===
+                      this.textProcessor.normalizePhrase(phraseStr) ||
+                    this.textProcessor.normalizePhrase(c.draftPhrase) ===
+                      this.textProcessor.normalizePhrase(phraseStr)
+                )
+              : undefined;
+
             return {
               lessonId,
               userId,
               keyPhraseId: keyPhrase?.id ?? null,
               lessonFocusId: lessonFocus?.id ?? null,
+              correctionItemId: matchedCorrection?.id ?? null,
               type: exercise.type,
               promptVi: exercise.promptVi,
               promptEn: exercise.promptEn ?? null,
@@ -356,31 +390,41 @@ export class DrizzleLessonRepository implements LessonRepository {
       .from(schema.lessons)
       .where(eq(schema.lessons.id, lessonId))
       .limit(1);
+    if (!lesson) {
+      throw new Error("Lesson not found.");
+    }
+    const isDiff = lesson.inputMode === "diff";
     if (
-      !lesson?.summaryVi ||
-      !lesson.naturalTranslationVi ||
-      !lesson.contextExplanationVi ||
+      !lesson.summaryVi ||
+      (!isDiff &&
+        (!lesson.naturalTranslationVi || !lesson.contextExplanationVi)) ||
       !lesson.detectedLevel
     ) {
       throw new Error("Lesson analysis is incomplete.");
     }
-    const [phrases, lessonFocuses, sentenceBreakdowns] = await Promise.all([
-      this.dbClient
-        .select()
-        .from(schema.keyPhrases)
-        .where(eq(schema.keyPhrases.lessonId, lessonId))
-        .orderBy(asc(schema.keyPhrases.createdAt)),
-      this.dbClient
-        .select()
-        .from(schema.lessonFocuses)
-        .where(eq(schema.lessonFocuses.lessonId, lessonId))
-        .orderBy(asc(schema.lessonFocuses.createdAt)),
-      this.dbClient
-        .select()
-        .from(schema.sentenceBreakdowns)
-        .where(eq(schema.sentenceBreakdowns.lessonId, lessonId))
-        .orderBy(schema.sentenceBreakdowns.orderIndex),
-    ]);
+    const [phrases, lessonFocuses, sentenceBreakdowns, correctionItems] =
+      await Promise.all([
+        this.dbClient
+          .select()
+          .from(schema.keyPhrases)
+          .where(eq(schema.keyPhrases.lessonId, lessonId))
+          .orderBy(asc(schema.keyPhrases.createdAt)),
+        this.dbClient
+          .select()
+          .from(schema.lessonFocuses)
+          .where(eq(schema.lessonFocuses.lessonId, lessonId))
+          .orderBy(asc(schema.lessonFocuses.createdAt)),
+        this.dbClient
+          .select()
+          .from(schema.sentenceBreakdowns)
+          .where(eq(schema.sentenceBreakdowns.lessonId, lessonId))
+          .orderBy(schema.sentenceBreakdowns.orderIndex),
+        this.dbClient
+          .select()
+          .from(schema.correctionItems)
+          .where(eq(schema.correctionItems.lessonId, lessonId))
+          .orderBy(asc(schema.correctionItems.orderIndex)),
+      ]);
 
     return {
       title: lesson.title,
@@ -388,8 +432,8 @@ export class DrizzleLessonRepository implements LessonRepository {
       inputMode: lesson.inputMode,
       detectedLevel: lesson.detectedLevel as DetectedLevel,
       summaryVi: lesson.summaryVi,
-      naturalTranslationVi: lesson.naturalTranslationVi,
-      contextExplanationVi: lesson.contextExplanationVi,
+      naturalTranslationVi: lesson.naturalTranslationVi ?? "",
+      contextExplanationVi: lesson.contextExplanationVi ?? "",
       sentenceBreakdowns: sentenceBreakdowns.map(
         (breakdown: DbSentenceBreakdown) => ({
           sentence: breakdown.sentence,
@@ -428,6 +472,16 @@ export class DrizzleLessonRepository implements LessonRepository {
         category: focus.category,
         explanationVi: focus.explanationVi,
         difficulty: focus.difficulty as DetectedLevel,
+      })),
+      correctionItems: correctionItems.map((item) => ({
+        draftPhrase: item.draftPhrase,
+        correctedPhrase: item.correctedPhrase,
+        explanationVi: item.explanationVi,
+        literalTrapVi: item.literalTrapVi ?? undefined,
+        exampleEn: item.exampleEn,
+        exampleVi: item.exampleVi,
+        category: item.category,
+        errorType: item.errorType,
       })),
     };
   }
@@ -518,6 +572,8 @@ export class DrizzleLessonRepository implements LessonRepository {
       sentenceBreakdowns,
       lessonFocuses,
       exercises,
+      draftTextsList,
+      correctionItems,
       progress,
     ] = await Promise.all([
       this.dbClient
@@ -550,6 +606,21 @@ export class DrizzleLessonRepository implements LessonRepository {
         .from(schema.exercises)
         .where(eq(schema.exercises.lessonId, lesson.id))
         .orderBy(schema.exercises.orderIndex),
+      this.dbClient
+        .select()
+        .from(schema.draftTexts)
+        .where(
+          and(
+            eq(schema.draftTexts.sourceTextId, lesson.sourceTextId),
+            eq(schema.draftTexts.userId, userId)
+          )
+        )
+        .limit(1),
+      this.dbClient
+        .select()
+        .from(schema.correctionItems)
+        .where(eq(schema.correctionItems.lessonId, lesson.id))
+        .orderBy(asc(schema.correctionItems.orderIndex)),
       this.getLessonProgressHelper(lesson.id, userId),
     ]);
 
@@ -560,6 +631,8 @@ export class DrizzleLessonRepository implements LessonRepository {
       sentenceBreakdowns: sentenceBreakdowns as SentenceBreakdown[],
       lessonFocuses: lessonFocuses as LessonFocus[],
       exercises: exercises as Exercise[],
+      draftText: (draftTextsList[0] ?? null) as DraftText | null,
+      correctionItems: correctionItems as CorrectionItem[],
       progress,
     };
   }
@@ -877,7 +950,8 @@ export class DrizzleLessonRepository implements LessonRepository {
     content: string,
     title: string,
     contentHash: string,
-    requestedMode?: string
+    requestedMode?: string,
+    draftContent?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }> {
     return (await this.dbClient.transaction(async (tx: DrizzleTx) => {
       const [sourceText] = await tx
@@ -889,6 +963,14 @@ export class DrizzleLessonRepository implements LessonRepository {
           contentHash,
         })
         .returning();
+
+      if (draftContent) {
+        await tx.insert(schema.draftTexts).values({
+          userId,
+          sourceTextId: sourceText.id,
+          content: draftContent,
+        });
+      }
 
       const [lesson] = await tx
         .insert(schema.lessons)

@@ -14,6 +14,7 @@ class MockLessonRepository implements LessonRepository {
   lessons = new Map<string, any>();
   sourceTexts = new Map<string, any>();
   generationJobs = new Map<string, any>();
+  draftTexts = new Map<string, any>();
   milestones: any[] = [];
   thoughts: any[] = [];
 
@@ -60,7 +61,9 @@ class MockLessonRepository implements LessonRepository {
     userId: string,
     content: string,
     title: string,
-    contentHash: string
+    contentHash: string,
+    requestedMode?: string,
+    draftContent?: string
   ) {
     const st = {
       id: `st-${this.sourceTexts.size + 1}`,
@@ -70,6 +73,15 @@ class MockLessonRepository implements LessonRepository {
       contentHash,
     };
     this.sourceTexts.set(st.id, st);
+    if (draftContent) {
+      const dt = {
+        id: `dt-${this.draftTexts.size + 1}`,
+        userId,
+        sourceTextId: st.id,
+        content: draftContent,
+      };
+      this.draftTexts.set(dt.id, dt);
+    }
     const lesson = {
       id: `les-${this.lessons.size + 1}`,
       sourceTextId: st.id,
@@ -78,6 +90,7 @@ class MockLessonRepository implements LessonRepository {
       title: "Generating",
       analysisStatus: "pending",
       exerciseStatus: "idle",
+      inputMode: requestedMode || "understand_and_practice",
     };
     this.lessons.set(lesson.id, lesson);
     const job = {
@@ -206,18 +219,34 @@ class MockLessonRepository implements LessonRepository {
   async saveExercises(
     lessonId: string,
     _userId: string,
-    _exercises: any,
+    exercises: any,
     _model: string
   ) {
     this.savedExercisesLessonId = lessonId;
     const lesson = this.lessons.get(lessonId);
     if (lesson) {
       lesson.exerciseStatus = "succeeded";
+      lesson.exercises = exercises.exercises;
     }
   }
 
   async buildAnalysisFromLesson(lessonId: string) {
     const lesson = this.lessons.get(lessonId);
+    if (lesson?.inputMode === "diff") {
+      return {
+        title: lesson.title ?? "Mock Title",
+        textType: "general",
+        inputMode: "diff",
+        detectedLevel: "B2",
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "",
+        contextExplanationVi: "",
+        sentenceBreakdowns: [],
+        keyPhrases: [],
+        lessonFocuses: [],
+        correctionItems: lesson.correctionItems ?? [],
+      } as any;
+    }
     return {
       title: lesson?.title ?? "Mock Title",
       textType: "general",
@@ -282,8 +311,28 @@ class MockLessonRepository implements LessonRepository {
     };
   }
 
-  async getLessonAggregate(_lessonId: string, _userId: string): Promise<any> {
-    return null;
+  async getLessonAggregate(lessonId: string, userId: string): Promise<any> {
+    const lesson = this.lessons.get(lessonId);
+    if (!lesson || lesson.userId !== userId) return null;
+
+    const sourceText = this.sourceTexts.get(lesson.sourceTextId);
+    let draftText = null;
+    for (const dt of this.draftTexts.values()) {
+      if (dt.sourceTextId === lesson.sourceTextId && dt.userId === userId) {
+        draftText = dt;
+        break;
+      }
+    }
+
+    return {
+      lesson,
+      sourceText,
+      draftText,
+      keyPhrases: [],
+      sentenceBreakdowns: [],
+      lessonFocuses: [],
+      exercises: [],
+    };
   }
 
   async getRecentLessons(_userId: string, _limit: number): Promise<any[]> {
@@ -382,8 +431,47 @@ class MockGenerationEngine implements GenerationEngine {
     return this.analysisResult as any;
   }
 
+  async generateDiffAnalysis(
+    _draftText: string,
+    _sourceText: string,
+    onThought?: any,
+    userId?: string,
+    lessonId?: string
+  ): Promise<any> {
+    this.lastAnalysisUserId = userId;
+    this.lastAnalysisLessonId = lessonId;
+    if (this.analysisError) throw this.analysisError;
+    if (onThought) {
+      await onThought("Thought 1");
+    }
+    return {
+      title: "Mock Diff Lesson",
+      textType: "general",
+      inputMode: "diff",
+      detectedLevel: "B1",
+      summaryVi: "Mock diff summary",
+      naturalTranslationVi: "",
+      contextExplanationVi: "",
+      keyPhrases: [],
+      sentenceBreakdowns: [],
+      lessonFocuses: [],
+      correctionItems: [
+        {
+          draftPhrase: "very like",
+          correctedPhrase: "really like",
+          explanationVi: "Giới từ và trạng từ",
+          literalTrapVi: "Rất thích",
+          exampleEn: "I really like this project.",
+          exampleVi: "Tôi thực sự thích dự án này.",
+          category: "general_phrase",
+          errorType: "literal_translation",
+        },
+      ],
+    };
+  }
+
   async generateExercises(
-    _analysis: any,
+    analysis: any,
     onThought?: any,
     userId?: string,
     lessonId?: string,
@@ -395,6 +483,53 @@ class MockGenerationEngine implements GenerationEngine {
     if (this.exercisesError) throw this.exercisesError;
     if (onThought) {
       await onThought("Thought 2");
+    }
+    if (analysis && analysis.inputMode === "diff") {
+      const exercises: any[] = [];
+      const corrections = analysis.correctionItems ?? [];
+      const normalize = (phrase: string): string => {
+        return phrase
+          .toLowerCase()
+          .replace(/[“”"'`]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      };
+
+      for (const item of corrections) {
+        const normDraft = normalize(item.draftPhrase);
+        const normCorrected = normalize(item.correctedPhrase);
+        const isRepeated =
+          activeMistakePatterns?.some((pattern) => {
+            const normKey = normalize(pattern.conceptKey.replace(/_/g, " "));
+            return normDraft === normKey || normCorrected === normKey;
+          }) ?? false;
+
+        if (!isRepeated) {
+          exercises.push({
+            type: "meaning_choice",
+            phrase: item.correctedPhrase,
+            promptVi: `Cụm ${item.correctedPhrase} nghĩa là gì?`,
+            choices: ["xem", "chạy", "thích"],
+            correctAnswer: "thích",
+          });
+        }
+        exercises.push({
+          type: "cloze_phrase",
+          phrase: item.correctedPhrase,
+          promptVi: "Điền vào chỗ trống.",
+          promptEn: "I ____ this.",
+          correctAnswer: item.correctedPhrase,
+          acceptableAnswers: [item.correctedPhrase],
+        });
+        exercises.push({
+          type: "phrase_production",
+          phrase: item.correctedPhrase,
+          promptVi: `Viết một câu diễn đạt: ${item.exampleVi}`,
+          correctAnswer: item.exampleEn,
+          rubricVi: "Phải đúng",
+        });
+      }
+      return { exercises };
     }
     return this.exercisesResult as any;
   }
@@ -459,6 +594,28 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toBe("VALIDATION_FAILED");
+      }
+    });
+
+    it("enqueues both source text and draft text successfully in diff mode", async () => {
+      const result = await engine.queue(
+        "user-1",
+        "This is the corrected version.",
+        "diff",
+        "This is the draft version."
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.lessonId).toBeDefined();
+        expect(result.sourceTextId).toBeDefined();
+
+        // Verify draft text is persisted in the repository map
+        const draftTextsList = Array.from(repo.draftTexts.values());
+        const draftText = draftTextsList.find(
+          (dt) => dt.sourceTextId === result.sourceTextId
+        );
+        expect(draftText).toBeDefined();
+        expect(draftText.content).toBe("This is the draft version.");
       }
     });
   });
@@ -758,6 +915,126 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
 
       expect(calledUserId).toBe("user-targeted-123");
       expect(genEngine.lastActiveMistakePatterns).toEqual(activePatterns);
+    });
+
+    it("runs diff analysis and saves CorrectionItems in diff mode", async () => {
+      const queueRes = await engine.queue(
+        "user-diff-test",
+        "This is corrected text.",
+        "diff",
+        "This is draft text."
+      );
+      expect(queueRes.ok).toBe(true);
+      if (queueRes.ok) {
+        const result = await engine.processNext("worker-diff-test");
+        expect(result.status).toBe("processed");
+        if (result.status === "processed") {
+          expect(result.success).toBe(true);
+        }
+
+        const savedLesson = repo.lessons.get(queueRes.lessonId);
+        expect(savedLesson).toBeDefined();
+        expect(savedLesson.inputMode).toBe("diff");
+        expect(savedLesson.correctionItems).toHaveLength(1);
+        expect(savedLesson.correctionItems[0].draftPhrase).toBe("very like");
+        expect(savedLesson.correctionItems[0].correctedPhrase).toBe(
+          "really like"
+        );
+      }
+    });
+
+    it("generates scaffolded exercises in diff mode", async () => {
+      const queueRes = await engine.queue(
+        "user-diff-test",
+        "This is corrected text.",
+        "diff",
+        "This is draft text."
+      );
+      expect(queueRes.ok).toBe(true);
+      if (queueRes.ok) {
+        const lessonId = queueRes.lessonId;
+
+        // 1. Process analysis stage
+        await engine.processNext("worker-diff-test");
+
+        // 2. Queue exercise generation
+        const queueExRes = await engine.queueExerciseGeneration(
+          "user-diff-test",
+          lessonId
+        );
+        expect(queueExRes.ok).toBe(true);
+
+        // 3. Process exercises stage
+        const procExRes = await engine.processNext("worker-diff-test");
+        expect(procExRes.status).toBe("processed");
+        if (procExRes.status === "processed") {
+          expect(procExRes.success).toBe(true);
+        }
+
+        const savedLesson = repo.lessons.get(lessonId);
+        expect(savedLesson.exerciseStatus).toBe("succeeded");
+        expect(savedLesson.exercises).toBeDefined();
+        // Since it's a standard mistake (not in active mistake patterns), it should generate 3 exercises per correction item:
+        // meaning_choice, cloze_phrase, phrase_production
+        expect(savedLesson.exercises).toHaveLength(3);
+        expect(savedLesson.exercises[0].type).toBe("meaning_choice");
+        expect(savedLesson.exercises[1].type).toBe("cloze_phrase");
+        expect(savedLesson.exercises[2].type).toBe("phrase_production");
+      }
+    });
+
+    it("skips recognition step for repeated mistakes in diff mode", async () => {
+      // Set up active patterns
+      const activePatterns = [
+        { conceptKey: "really_like", category: "general_phrase" },
+      ];
+      const localEngine = new DefaultLessonGenerationEngine(
+        repo,
+        repo,
+        repo,
+        repo,
+        repo,
+        genEngine,
+        getTextProcessor(),
+        {
+          notifyJobQueued: async () => {},
+          bulkCreateSrsCardsFromKeyPhrases: async () => ({
+            inserted: 0,
+            skipped: 0,
+          }),
+          scrubSensitiveContentForSourceText: async () => {},
+          getActiveMistakePatterns: async () => activePatterns,
+        }
+      );
+
+      const queueRes = await localEngine.queue(
+        "user-diff-test",
+        "This is corrected text.",
+        "diff",
+        "This is draft text."
+      );
+      expect(queueRes.ok).toBe(true);
+      if (queueRes.ok) {
+        const lessonId = queueRes.lessonId;
+
+        // 1. Process analysis stage
+        await localEngine.processNext("worker-diff-test");
+
+        // 2. Queue exercise generation
+        await localEngine.queueExerciseGeneration("user-diff-test", lessonId);
+
+        // 3. Process exercises stage
+        await localEngine.processNext("worker-diff-test");
+
+        const savedLesson = repo.lessons.get(lessonId);
+        expect(savedLesson.exerciseStatus).toBe("succeeded");
+        expect(savedLesson.exercises).toBeDefined();
+        // Since "really_like" is in active patterns, it matches correctedPhrase "really like",
+        // so meaning_choice is skipped, leaving only cloze_phrase and phrase_production (2 exercises total).
+        expect(savedLesson.exercises).toHaveLength(2);
+        expect(savedLesson.exercises[0].type).toBe("cloze_phrase");
+        expect(savedLesson.exercises[1].type).toBe("phrase_production");
+      }
     });
   });
 

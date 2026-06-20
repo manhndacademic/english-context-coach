@@ -7,6 +7,7 @@ import { getLessonRepository } from "@/domain/lesson";
 import { getPracticeHistoryRepository } from "@/domain/memory";
 import { classifyInputMode } from "./lesson-view-model";
 import { StandardLessonLayout } from "@/components/lesson/StandardLessonLayout";
+import { DiffLessonLayout } from "@/components/lesson/DiffLessonLayout";
 
 export default async function LessonPage({
   params,
@@ -116,6 +117,16 @@ export default async function LessonPage({
           </section>
         </main>
       </>
+    );
+  }
+
+  if (lesson.inputMode === "diff" && lessonData.draftText) {
+    return (
+      <DiffLessonLayout
+        user={{ email: user.email, role: user.role, image: user.image }}
+        lessonData={combinedLessonData}
+        now={now}
+      />
     );
   }
 

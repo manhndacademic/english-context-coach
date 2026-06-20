@@ -180,3 +180,36 @@ export const exercisesSchema = z.object({
 export type AnalysisResult = z.infer<typeof analysisSchema>;
 export type ExercisesResult = z.infer<typeof exercisesSchema>;
 export type DiffSpan = z.infer<typeof diffSpanSchema>;
+
+export const userErrorTypeSchema = z.enum([
+  "literal_translation",
+  "phrase_misunderstanding",
+  "technical_term_misunderstanding",
+  "phrasal_verb_error",
+  "collocation_error",
+  "grammar_structure_misread",
+  "pronoun_reference_misread",
+  "tone_register_misread",
+  "missing_context",
+]);
+
+export const correctionItemSchema = z.object({
+  draftPhrase: z.string().min(1),
+  correctedPhrase: z.string().min(1),
+  explanationVi: z.string().min(1),
+  literalTrapVi: z.string().optional().nullable(),
+  exampleEn: z.string().min(1),
+  exampleVi: z.string().min(1),
+  category: categorySchema,
+  errorType: userErrorTypeSchema,
+});
+
+export const diffAnalysisSchema = z.object({
+  title: z.string().min(1).max(80),
+  textType: textTypeSchema,
+  detectedLevel: levelSchema,
+  corrections: z.array(correctionItemSchema),
+});
+
+export type DiffAnalysisResult = z.infer<typeof diffAnalysisSchema>;
+export type CorrectionItemResult = z.infer<typeof correctionItemSchema>;

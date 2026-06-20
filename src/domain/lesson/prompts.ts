@@ -3,18 +3,23 @@ import { MAX_LESSON_ITEMS } from "@/domain/constants";
 import {
   analysisSchema,
   exercisesSchema,
+  diffAnalysisSchema,
   type AnalysisResult,
   type ExercisesResult,
+  type DiffAnalysisResult,
 } from "./schemas";
+import type { SaveAnalysisInput } from "./ports";
 
 export const PROMPT_VERSIONS = {
   analysis: "analysis-v3",
   exercises: "exercises-v1",
+  diffAnalysis: "diff-analysis-v1",
 } as const;
 
 export const SCHEMA_VERSIONS = {
   analysis: "analysis-schema-v1",
   exercises: "exercises-schema-v1",
+  diffAnalysis: "diff-analysis-schema-v1",
 } as const;
 
 export const analysisJsonShape = {
@@ -345,5 +350,164 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
     }
 
     return promptSections.join("\n\n");
+  }
+}
+
+export const diffAnalysisJsonShape = {
+  title:
+    "short neutral Vietnamese/English title describing the core correction",
+  textType:
+    "work_message | technical_doc | email | article | academic | general | unknown",
+  detectedLevel: "A2 | B1 | B2 | C1",
+  corrections: [
+    {
+      draftPhrase: "the wrong/awkward phrase from the draft text",
+      correctedPhrase: "the correct/natural phrase from the corrected text",
+      explanationVi:
+        "Vietnamese explanation of why this change was made, including grammar rules or natural usage patterns",
+      literalTrapVi:
+        "optional string: Vietnamese note highlighting literal word-by-word translation traps to avoid (e.g. 'very like' literally translates to 'rất thích', but English uses 'really like')",
+      exampleEn:
+        "a new, context-relevant example English sentence using the corrected/natural phrase",
+      exampleVi: "natural Vietnamese translation of the new example sentence",
+      category:
+        "idiom | phrasal_verb | technical_term | collocation | grammar_pattern | business_phrase | general_phrase",
+      errorType:
+        "literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
+    },
+  ],
+};
+
+export class DiffAnalysisPrompt implements Prompt<DiffAnalysisResult> {
+  public readonly purpose = "analysis";
+  public readonly promptVersion = PROMPT_VERSIONS.diffAnalysis;
+  public readonly schemaVersion = SCHEMA_VERSIONS.diffAnalysis;
+  public readonly schema = diffAnalysisSchema;
+  public readonly modelKind = "analysis";
+  public readonly expectedShape = diffAnalysisJsonShape;
+
+  constructor(
+    private readonly draftText: string,
+    private readonly sourceText: string,
+    private readonly rawDiffPairs: Array<{ draft: string; corrected: string }>
+  ) {}
+
+  render(): string {
+    const list = [
+      "You are English Context Coach for Vietnamese learners.",
+      "Analyze the differences between the learner's DraftText (original, draft version) and the SourceText (the corrected version).",
+      "We have run a deterministic word-level diff and extracted the following raw differences/corrections:",
+      JSON.stringify(this.rawDiffPairs, null, 2),
+      "For each correction, perform AI classification and generate details in Vietnamese following these rules:",
+      "1. Keep explanationVi concise, friendly, and practical in Vietnamese. Use markdown backticks (`...`) when referencing English words/phrases inside Vietnamese explanations.",
+      "2. Identify literal translation traps if applicable. Set `literalTrapVi` to highlight how word-by-word translation leads to this error (e.g. why the learner chose the draft phrase and why it is a trap). If there is no literal trap, omit it or set it to null.",
+      "3. Generate a new context-relevant English example sentence (`exampleEn`) utilizing the corrected phrase. Provide its natural translation (`exampleVi`). Do NOT wrap words in single quotes ('...') or backticks (`...`) in the generated English sentences.",
+      "4. Classify the category (idiom, phrasal_verb, etc.) and errorType (literal_translation, collocation_error, grammar_structure_misread, etc.).",
+      "5. Classify the overall text type and detected CEFR level (A2, B1, B2, or C1). Provide a short neutral title for the lesson.",
+      "Return strict JSON only. No markdown formatting.",
+      "JSON shape:",
+      JSON.stringify(diffAnalysisJsonShape),
+      `Draft text (original):\n${this.draftText}`,
+      `Source text (corrected):\n${this.sourceText}`,
+    ];
+
+    return list.join("\n\n");
+  }
+}
+
+export class DiffExercisesPrompt implements Prompt<ExercisesResult> {
+  public readonly purpose = "exercise_generation";
+  public readonly promptVersion = PROMPT_VERSIONS.exercises;
+  public readonly schemaVersion = SCHEMA_VERSIONS.exercises;
+  public readonly schema = exercisesSchema;
+  public readonly modelKind = "fast";
+  public readonly expectedShape = exercisesJsonShape;
+
+  constructor(
+    private readonly analysis: SaveAnalysisInput,
+    private readonly activeMistakePatterns?: Array<{
+      conceptKey: string;
+      category: string;
+    }>
+  ) {}
+
+  render(): string {
+    const corrections = this.analysis.correctionItems ?? [];
+
+    const normalize = (phrase: string): string => {
+      return phrase
+        .toLowerCase()
+        .replace(/[“”"'`]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const activePatterns = this.activeMistakePatterns ?? [];
+    const correctionsWithMetadata = corrections.map((item) => {
+      const normDraft = normalize(item.draftPhrase);
+      const normCorrected = normalize(item.correctedPhrase);
+
+      const isRepeated = activePatterns.some((pattern) => {
+        const normKey = normalize(pattern.conceptKey.replace(/_/g, " "));
+        if (normDraft === normKey || normCorrected === normKey) {
+          return true;
+        }
+        if (
+          (normKey.includes(normDraft) && normDraft.length > 3) ||
+          (normDraft.includes(normKey) && normKey.length > 3) ||
+          (normKey.includes(normCorrected) && normCorrected.length > 3) ||
+          (normCorrected.includes(normKey) && normKey.length > 3)
+        ) {
+          return true;
+        }
+        return false;
+      });
+
+      return {
+        ...item,
+        isRepeated,
+      };
+    });
+
+    const list = [
+      "You are English Context Coach for Vietnamese learners.",
+      "Your task is to generate scaffolded practice exercises for the correction items listed below. Return strict JSON only. No markdown.",
+      "For each correction item, you must generate exercises in a strict sequence to help the learner master the correction. The sequence of exercises for each correction depends on whether it is a repeated mistake:",
+      "",
+      "1. If isRepeated is FALSE (standard mistake):",
+      "   Generate exactly 3 exercises in this order:",
+      "     - Exercise A (Recognize): type MUST be either `meaning_choice` or `trap_choice` (prefer `trap_choice` if a literal trap is provided). The promptVi should test the difference or meaning in Vietnamese. The phrase field MUST be the exact 'correctedPhrase'.",
+      "     - Exercise B (Guided): type MUST be `cloze_phrase`. The promptEn must contain the sentence with '____' (4 underscores) where the corrected phrase should go. The phrase field MUST be the exact 'correctedPhrase'.",
+      "     - Exercise C (Produce): type MUST be `phrase_production`. The promptVi should ask the user to write/translate a sentence using the corrected phrase. The phrase field MUST be the exact 'correctedPhrase'.",
+      "",
+      "2. If isRepeated is TRUE (repeated mistake):",
+      "   Skip the recognize step! Generate exactly 2 exercises in this order:",
+      "     - Exercise A (Guided): type MUST be `cloze_phrase`. The promptEn must contain the sentence with '____' (4 underscores) where the corrected phrase should go. The phrase field MUST be the exact 'correctedPhrase'.",
+      "     - Exercise B (Produce): type MUST be `phrase_production`. The promptVi should ask the user to write/translate a sentence using the corrected phrase. The phrase field MUST be the exact 'correctedPhrase'.",
+      "",
+      "CRITICAL: The returned list of exercises MUST be ordered sequentially by correction items. That is, all exercises for the first correction item must come first, followed by all exercises for the second correction item, and so on. For each correction item, the exercises must be in the exact order specified above (e.g. recognize -> guided -> produce, or guided -> produce).",
+      "",
+      "Exercise Types Description:",
+      "- meaning_choice: Multiple-choice on phrase meaning. Requires 'choices' array (3-4 items) and 'correctAnswer'. Graded locally.",
+      "- trap_choice: Choose natural translation avoiding literal traps. 'choices' array must have 1 natural (correct) + 2-3 literal traps (wrong). Graded locally.",
+      "- cloze_phrase: Fill in the blank. 'promptEn' must contain '____' (4 underscores) for the missing phrase.",
+      "- phrase_production: Write English sentence containing the phrase. No choices. AI-graded. Requires 'rubricVi' in Vietnamese.",
+      "",
+      "Wording constraints for promptVi:",
+      '- meaning_choice: "Cụm `X` trong câu trên có nghĩa gần nhất với?"',
+      '- trap_choice: "Chọn bản dịch tự nhiên nhất, tránh dịch từng từ."',
+      '- cloze_phrase: "Điền từ/cụm từ phù hợp vào chỗ trống."',
+      '- phrase_production: "Viết một câu tiếng Anh sử dụng cụm `X` để diễn đạt ý: ..."',
+      "",
+      "Wrap English phrases/terms in markdown backticks (e.g. `really like`) ONLY when referencing them inside Vietnamese prompts or instructions (promptVi). Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English sentences (promptEn), correct answers, or acceptable answers.",
+      "",
+      "JSON shape:",
+      JSON.stringify(exercisesJsonShape),
+      "",
+      "Here is the list of Correction Items to generate exercises for:",
+      JSON.stringify(correctionsWithMetadata, null, 2),
+    ];
+
+    return list.join("\n\n");
   }
 }

@@ -1,5 +1,10 @@
 import type { LLMProvider } from "@/domain/ai";
-import { AnalysisPrompt, ExercisesPrompt } from "../prompts";
+import {
+  AnalysisPrompt,
+  ExercisesPrompt,
+  DiffExercisesPrompt,
+} from "../prompts";
+import { generateDiffAnalysis as runDiffEngine } from "../diff-engine";
 import { type AnalysisResult, type ExercisesResult } from "../schemas";
 import type {
   GenerationEngine,
@@ -84,6 +89,25 @@ export class GeminiGenerationEngine implements GenerationEngine {
     };
   }
 
+  async generateDiffAnalysis(
+    draftText: string,
+    sourceText: string,
+    onThought?: (text: string) => Promise<void>,
+    userId?: string,
+    lessonId?: string
+  ): Promise<SaveAnalysisInput> {
+    const activeUserId = userId ?? this.userId;
+    const activeLessonId = lessonId ?? this.lessonId;
+    return runDiffEngine({
+      draftText,
+      sourceText,
+      llm: this.llm,
+      userId: activeUserId,
+      lessonId: activeLessonId,
+      onThought,
+    });
+  }
+
   async generateExercises(
     analysis: SaveAnalysisInput,
     onThought?: (text: string) => Promise<void>,
@@ -93,10 +117,15 @@ export class GeminiGenerationEngine implements GenerationEngine {
   ): Promise<SaveExercisesInput> {
     const activeUserId = userId ?? this.userId;
     const activeLessonId = lessonId ?? this.lessonId;
+    const prompt =
+      analysis.inputMode === "diff"
+        ? new DiffExercisesPrompt(analysis, activeMistakePatterns)
+        : new ExercisesPrompt(analysis as any, activeMistakePatterns);
+
     const result = (await this.llm.generateJson({
       userId: activeUserId,
       lessonId: activeLessonId,
-      prompt: new ExercisesPrompt(analysis as any, activeMistakePatterns),
+      prompt,
       onThought,
     })) as ExercisesResult;
 

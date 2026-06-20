@@ -16,6 +16,7 @@ import type {
   GenerationProgress,
   GenerationJob,
   SaveExercisesInput,
+  SaveAnalysisInput,
   SourceTextRepository,
   LessonContentRepository,
   GenerationJobRepository,
@@ -97,7 +98,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
   async queue(
     userId: string,
     content: string,
-    requestedMode?: string
+    requestedMode?: string,
+    draftContent?: string
   ): Promise<LessonGenerationResult> {
     const { normalized, hash: contentHash } =
       this.textProcessor.processSource(content);
@@ -131,7 +133,8 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       content,
       "Untitled source",
       contentHash,
-      requestedMode
+      requestedMode,
+      draftContent
     );
 
     await Promise.all([
@@ -400,33 +403,73 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
           // Ignore JSON parse error, treat content as plain text
         }
 
-        const result = await this.genEngine.generateAnalysis(
-          plainText,
-          async (text) => {
-            const sanitized = sanitizeGenerationThought(
-              text,
-              this.textProcessor
-            );
-            if (sanitized) {
-              await this.progress.recordThought({
-                lessonId: job.lessonId,
-                generationJobId: job.id,
-                stage: "analysis",
-                text: sanitized,
-              });
-            }
-          },
-          lesson.inputMode,
-          userHighlights,
-          job.userId,
-          job.lessonId
+        const aggregate = await this.lessonContent.getLessonAggregate(
+          job.lessonId,
+          job.userId
         );
+        const draftText = aggregate?.draftText;
 
-        const preparedAnalysis = prepareAnalysisForSave(
-          result,
-          plainText,
-          this.textProcessor
-        );
+        let preparedAnalysis: SaveAnalysisInput;
+
+        if (
+          lesson.inputMode === "diff" &&
+          draftText &&
+          this.genEngine.generateDiffAnalysis
+        ) {
+          logSpringStyle(
+            "INFO",
+            workerId,
+            `Running diff analysis for Lesson ${job.lessonId}...`
+          );
+          preparedAnalysis = await this.genEngine.generateDiffAnalysis(
+            draftText.content,
+            plainText,
+            async (text) => {
+              const sanitized = sanitizeGenerationThought(
+                text,
+                this.textProcessor
+              );
+              if (sanitized) {
+                await this.progress.recordThought({
+                  lessonId: job.lessonId,
+                  generationJobId: job.id,
+                  stage: "analysis",
+                  text: sanitized,
+                });
+              }
+            },
+            job.userId,
+            job.lessonId
+          );
+        } else {
+          const result = await this.genEngine.generateAnalysis(
+            plainText,
+            async (text) => {
+              const sanitized = sanitizeGenerationThought(
+                text,
+                this.textProcessor
+              );
+              if (sanitized) {
+                await this.progress.recordThought({
+                  lessonId: job.lessonId,
+                  generationJobId: job.id,
+                  stage: "analysis",
+                  text: sanitized,
+                });
+              }
+            },
+            lesson.inputMode,
+            userHighlights,
+            job.userId,
+            job.lessonId
+          );
+
+          preparedAnalysis = prepareAnalysisForSave(
+            result,
+            plainText,
+            this.textProcessor
+          );
+        }
 
         await this.lessonContent.saveAnalysis(
           job.lessonId,

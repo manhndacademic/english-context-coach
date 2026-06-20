@@ -5,7 +5,11 @@ function includesPhrase(sourceText: string, phrase: string) {
   return sourceText.toLowerCase().includes(phrase.toLowerCase());
 }
 
-function isOverlappingDuplicate(a: string, b: string, textProcessor: TextProcessor) {
+function isOverlappingDuplicate(
+  a: string,
+  b: string,
+  textProcessor: TextProcessor
+) {
   const normalizedA = textProcessor.normalizePhrase(a);
   const normalizedB = textProcessor.normalizePhrase(b);
   const tokensA = normalizedA.split(" ");
@@ -28,12 +32,19 @@ function isOverlappingDuplicate(a: string, b: string, textProcessor: TextProcess
   );
 }
 
-function choosePhrase(current: SaveAnalysisInput["keyPhrases"][number], candidate: SaveAnalysisInput["keyPhrases"][number], sourceText: string) {
+function choosePhrase(
+  current: SaveAnalysisInput["keyPhrases"][number],
+  candidate: SaveAnalysisInput["keyPhrases"][number],
+  sourceText: string
+) {
   const currentInSource = includesPhrase(sourceText, current.phrase);
   const candidateInSource = includesPhrase(sourceText, candidate.phrase);
-  if (candidateInSource !== currentInSource) return candidateInSource ? candidate : current;
+  if (candidateInSource !== currentInSource)
+    return candidateInSource ? candidate : current;
   if (candidate.phrase.length !== current.phrase.length) {
-    return candidate.phrase.length > current.phrase.length ? candidate : current;
+    return candidate.phrase.length > current.phrase.length
+      ? candidate
+      : current;
   }
   return current;
 }
@@ -49,7 +60,7 @@ export function dedupeKeyPhrases(
     const existingIndex = deduped.findIndex(
       (existing) =>
         existing.category === phrase.category &&
-        isOverlappingDuplicate(existing.phrase, phrase.phrase, textProcessor),
+        isOverlappingDuplicate(existing.phrase, phrase.phrase, textProcessor)
     );
 
     if (existingIndex === -1) {
@@ -57,7 +68,11 @@ export function dedupeKeyPhrases(
       continue;
     }
 
-    deduped[existingIndex] = choosePhrase(deduped[existingIndex], phrase, sourceText);
+    deduped[existingIndex] = choosePhrase(
+      deduped[existingIndex],
+      phrase,
+      sourceText
+    );
   }
 
   return deduped;
@@ -70,16 +85,22 @@ export function prepareAnalysisForSave(
 ): SaveAnalysisInput {
   return {
     ...analysis,
-    keyPhrases: dedupeKeyPhrases(analysis.keyPhrases, sourceText, textProcessor),
+    keyPhrases: dedupeKeyPhrases(
+      analysis.keyPhrases,
+      sourceText,
+      textProcessor
+    ),
   };
 }
 
-export function findMatchingLessonFocus<T extends {
-  title?: string | null;
-  conceptPhrase?: string | null;
-  conceptKey?: string | null;
-  category?: string | null;
-}>(
+export function findMatchingLessonFocus<
+  T extends {
+    title?: string | null;
+    conceptPhrase?: string | null;
+    conceptKey?: string | null;
+    category?: string | null;
+  },
+>(
   exerciseFocus: string,
   focuses: T[],
   textProcessor: TextProcessor
@@ -91,9 +112,13 @@ export function findMatchingLessonFocus<T extends {
   for (const focus of focuses) {
     const targets = [
       focus.title ? textProcessor.normalizePhrase(focus.title) : "",
-      focus.conceptPhrase ? textProcessor.normalizePhrase(focus.conceptPhrase) : "",
+      focus.conceptPhrase
+        ? textProcessor.normalizePhrase(focus.conceptPhrase)
+        : "",
       focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey) : "",
-      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " ")) : "",
+      focus.conceptKey
+        ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " "))
+        : "",
       focus.category ? textProcessor.normalizePhrase(focus.category) : "",
     ].filter(Boolean);
 
@@ -106,9 +131,13 @@ export function findMatchingLessonFocus<T extends {
   for (const focus of focuses) {
     const targets = [
       focus.title ? textProcessor.normalizePhrase(focus.title) : "",
-      focus.conceptPhrase ? textProcessor.normalizePhrase(focus.conceptPhrase) : "",
+      focus.conceptPhrase
+        ? textProcessor.normalizePhrase(focus.conceptPhrase)
+        : "",
       focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey) : "",
-      focus.conceptKey ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " ")) : "",
+      focus.conceptKey
+        ? textProcessor.normalizePhrase(focus.conceptKey.replace(/_/g, " "))
+        : "",
     ].filter(Boolean);
 
     for (const target of targets) {
@@ -130,25 +159,51 @@ export function exerciseCompletenessIssues(
   textProcessor: TextProcessor
 ) {
   const issues: string[] = [];
-  if (result.exercises.length < 5) issues.push("A complete Lesson needs at least 5 Exercises.");
-  if (!result.exercises.some((exercise) => exercise.type === "focus_question")) {
-    issues.push("A complete Lesson needs at least one LessonFocus Exercise.");
-  }
-  if (
-    analysis.keyPhrases.length > 0 &&
-    !result.exercises.some((exercise) => exercise.phrase !== undefined && exercise.phrase.trim().length > 0)
-  ) {
-    issues.push("A complete Lesson with KeyPhrases needs at least one KeyPhrase Exercise.");
-  }
+  if (analysis.inputMode === "diff") {
+    if (
+      analysis.correctionItems &&
+      analysis.correctionItems.length > 0 &&
+      result.exercises.length === 0
+    ) {
+      issues.push("A complete diff Lesson needs at least one Exercise.");
+    }
+  } else {
+    if (result.exercises.length < 5)
+      issues.push("A complete Lesson needs at least 5 Exercises.");
+    if (
+      !result.exercises.some((exercise) => exercise.type === "focus_question")
+    ) {
+      issues.push("A complete Lesson needs at least one LessonFocus Exercise.");
+    }
+    if (
+      analysis.keyPhrases.length > 0 &&
+      !result.exercises.some(
+        (exercise) =>
+          exercise.phrase !== undefined && exercise.phrase.trim().length > 0
+      )
+    ) {
+      issues.push(
+        "A complete Lesson with KeyPhrases needs at least one KeyPhrase Exercise."
+      );
+    }
 
-  const invalidFocus = result.exercises.find(
-    (exercise) =>
-      exercise.type === "focus_question" &&
-      exercise.focus &&
-      !findMatchingLessonFocus(exercise.focus, analysis.lessonFocuses, textProcessor),
-  );
-  const invalidFocusTitle = invalidFocus?.type === "focus_question" ? invalidFocus.focus : null;
-  if (invalidFocusTitle) issues.push(`Focus question targets an unknown LessonFocus: ${invalidFocusTitle}`);
+    const invalidFocus = result.exercises.find(
+      (exercise) =>
+        exercise.type === "focus_question" &&
+        exercise.focus &&
+        !findMatchingLessonFocus(
+          exercise.focus,
+          analysis.lessonFocuses,
+          textProcessor
+        )
+    );
+    const invalidFocusTitle =
+      invalidFocus?.type === "focus_question" ? invalidFocus.focus : null;
+    if (invalidFocusTitle)
+      issues.push(
+        `Focus question targets an unknown LessonFocus: ${invalidFocusTitle}`
+      );
+  }
 
   return issues;
 }
@@ -163,4 +218,3 @@ export function assertCompleteExercises(
     throw new Error(`Exercise generation is incomplete: ${issues.join(" ")}`);
   }
 }
-

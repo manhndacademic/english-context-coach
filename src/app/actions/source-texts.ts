@@ -31,7 +31,9 @@ const createSourceTextSchema = z.object({
     "not_english",
     "developer_error_explanation",
     "unsupported",
+    "diff",
   ]),
+  draftContent: z.string().trim().optional(),
 });
 
 export const createSourceTextAction = validatedAction(
@@ -40,7 +42,8 @@ export const createSourceTextAction = validatedAction(
     const result = await getLessonGenerationEngine().queue(
       user.id,
       data.content,
-      data.inputMode
+      data.inputMode,
+      data.draftContent
     );
     if (!result.ok) return { error: result.message };
     revalidatePath("/dashboard");

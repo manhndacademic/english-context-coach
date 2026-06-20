@@ -9,7 +9,31 @@ import type {
   JobStatus,
   LessonFocusCategory,
   DiffType,
+  UserErrorType,
 } from "@/domain/types";
+
+export interface DraftText {
+  id: string;
+  userId: string;
+  sourceTextId: string;
+  content: string;
+  createdAt: Date;
+}
+
+export interface CorrectionItem {
+  id: string;
+  lessonId: string;
+  draftPhrase: string;
+  correctedPhrase: string;
+  explanationVi: string;
+  literalTrapVi: string | null;
+  exampleEn: string;
+  exampleVi: string;
+  category: KeyPhraseCategory;
+  errorType: UserErrorType;
+  orderIndex: number;
+  createdAt: Date;
+}
 
 export type TextType =
   | "work_message"
@@ -111,6 +135,7 @@ export interface Exercise {
   userId: string;
   keyPhraseId: string | null;
   lessonFocusId: string | null;
+  correctionItemId?: string | null;
   type: ExerciseType;
   promptVi: string;
   promptEn: string | null;
@@ -162,6 +187,8 @@ export interface LessonAggregate {
   sentenceBreakdowns: SentenceBreakdown[];
   lessonFocuses: LessonFocus[];
   exercises: Exercise[];
+  draftText?: DraftText | null;
+  correctionItems?: CorrectionItem[];
   progress: {
     lesson: {
       id: string;
@@ -182,6 +209,16 @@ export interface SaveAnalysisInput {
   summaryVi: string;
   naturalTranslationVi: string;
   contextExplanationVi: string;
+  correctionItems?: Array<{
+    draftPhrase: string;
+    correctedPhrase: string;
+    explanationVi: string;
+    literalTrapVi?: string | null;
+    exampleEn: string;
+    exampleVi: string;
+    category: KeyPhraseCategory;
+    errorType: UserErrorType;
+  }>;
   keyPhrases: Array<{
     phrase: string;
     conceptKey: string;
@@ -360,7 +397,8 @@ export interface LessonTransactionRepository {
     content: string,
     title: string,
     contentHash: string,
-    requestedMode?: string
+    requestedMode?: string,
+    draftContent?: string
   ): Promise<{ lesson: Lesson; job: GenerationJob }>;
 
   createLessonAndJob(
@@ -401,6 +439,14 @@ export interface GenerationEngine {
     onThought?: (text: string) => Promise<void>,
     requestedMode?: string,
     userHighlights?: string[],
+    userId?: string,
+    lessonId?: string
+  ): Promise<SaveAnalysisInput>;
+
+  generateDiffAnalysis?(
+    draftText: string,
+    sourceText: string,
+    onThought?: (text: string) => Promise<void>,
     userId?: string,
     lessonId?: string
   ): Promise<SaveAnalysisInput>;
@@ -447,7 +493,8 @@ export interface LessonGenerationEngine {
   queue(
     userId: string,
     content: string,
-    requestedMode?: string
+    requestedMode?: string,
+    draftContent?: string
   ): Promise<LessonGenerationResult>;
   retry(userId: string, lessonId: string): Promise<LessonGenerationResult>;
   queueExerciseGeneration(
