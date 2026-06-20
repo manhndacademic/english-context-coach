@@ -324,6 +324,7 @@ Error Message: ${job.errorMessage}`;
           </span>
           {job?.errorMessage ? (
             <button
+              type="button"
               onClick={handleCopyDiagnostics}
               className="inline-flex items-center justify-center gap-1.5 min-h-8 rounded-md border border-border px-3 font-bold text-xs bg-surface text-text hover:bg-background transition-all cursor-pointer shadow-sm select-none"
             >
@@ -363,10 +364,10 @@ Error Message: ${job.errorMessage}`;
         </div>
 
         <ol className="list-none m-0 p-0 grid gap-3">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <li
               className="flex items-center gap-3 text-sm text-text"
-              key={index}
+              key={step.label}
             >
               {step.status === "succeeded" ? (
                 <span className="w-5 h-5 rounded-full shrink-0 bg-accent-light text-accent border border-accent/20 flex items-center justify-center shadow-sm">

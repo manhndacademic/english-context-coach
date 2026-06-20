@@ -78,6 +78,7 @@ export function KeyPhraseList({
             key={phrase.id}
           >
             <button
+              type="button"
               className="w-full flex items-center justify-between p-4 px-5 text-left bg-transparent border-none cursor-pointer text-text"
               onClick={() => toggleExpand(phrase.id)}
               aria-expanded={isExpanded}
@@ -144,9 +145,9 @@ export function KeyPhraseList({
                         <span>Ví dụ thực tế</span>
                       </div>
                       <ol className="list-decimal pl-4 m-0 grid gap-3">
-                        {phrase.examples.map((ex, idx) => (
+                        {phrase.examples.map((ex) => (
                           <li
-                            key={idx}
+                            key={ex.exampleEn}
                             className="text-sm md:text-base leading-relaxed pl-1"
                           >
                             {ex.exampleEn && (
@@ -201,6 +202,7 @@ export function KeyPhraseList({
                   {hasPatternId && !isDismissed && (
                     <div className="pt-3 flex justify-end border-t border-dashed border-border mt-3">
                       <button
+                        type="button"
                         id={`dismiss-phrase-${phrase.id}`}
                         onClick={() =>
                           handleDismiss(phrase.id, phrase.conceptKey)

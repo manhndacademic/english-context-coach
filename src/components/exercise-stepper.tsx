@@ -61,9 +61,11 @@ function getStepperTitle(
   return `Bài tập ${idx + 1}: ${status}`;
 }
 
+const DEFAULT_CORRECTION_ITEMS: any[] = [];
+
 export function ExerciseStepper({
   practices,
-  correctionItems = [],
+  correctionItems = DEFAULT_CORRECTION_ITEMS,
 }: {
   practices: ExercisePracticeData[];
   correctionItems?: any[];
@@ -158,6 +160,7 @@ export function ExerciseStepper({
 
             return (
               <button
+                type="button"
                 key={item.exercise.id}
                 className={buttonClassName}
                 onClick={() => setActiveIndex(idx)}

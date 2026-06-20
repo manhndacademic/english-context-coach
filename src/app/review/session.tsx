@@ -7,9 +7,11 @@ import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const DEFAULT_LESSONS_MAP = {};
+
 export function ReviewSession({
   patterns,
-  lessonsMap = {},
+  lessonsMap = DEFAULT_LESSONS_MAP,
 }: {
   patterns: any[];
   lessonsMap?: Record<string, Array<{ id: string; title: string | null }>>;

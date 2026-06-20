@@ -10,10 +10,12 @@ interface ExercisePanelProps {
   correctionItems?: any[];
 }
 
+const DEFAULT_CORRECTION_ITEMS: any[] = [];
+
 export function ExercisePanel({
   lesson,
   practices,
-  correctionItems = [],
+  correctionItems = DEFAULT_CORRECTION_ITEMS,
 }: ExercisePanelProps) {
   if (
     lesson.exerciseStatus === "pending" ||

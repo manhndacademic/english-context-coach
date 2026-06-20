@@ -79,6 +79,7 @@ export function NotificationSettingsForm({
           </span>
         </div>
         <button
+          type="button"
           id="notification-toggle"
           role="switch"
           aria-checked={enabled}
@@ -107,6 +108,7 @@ export function NotificationSettingsForm({
           <div className="flex gap-2 flex-wrap">
             {HOURS.map((h) => (
               <button
+                type="button"
                 key={h}
                 id={`digest-hour-${h}`}
                 onClick={() => changeHour(h)}

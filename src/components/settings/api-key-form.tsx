@@ -152,6 +152,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                     >
                       <input type="hidden" name="keyId" value={key.id} />
                       <button
+                        type="submit"
                         className="p-1.5 border border-border rounded-md text-accent"
                         title="Xác thực lại"
                       >
@@ -170,6 +171,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                       >
                         <input type="hidden" name="keyId" value={key.id} />
                         <button
+                          type="submit"
                           className="p-1.5 border border-border rounded-md text-success"
                           title="Bật"
                         >
@@ -188,6 +190,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                       >
                         <input type="hidden" name="keyId" value={key.id} />
                         <button
+                          type="submit"
                           className="p-1.5 border border-border rounded-md text-warning-strong"
                           title="Tắt"
                         >
@@ -211,6 +214,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
                     >
                       <input type="hidden" name="keyId" value={key.id} />
                       <button
+                        type="submit"
                         className="p-1.5 border border-border rounded-md text-danger-strong"
                         title="Xóa"
                       >
@@ -280,6 +284,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
             Không hiển thị lại raw key sau khi lưu. Tối đa 10 keys/user.
           </p>
           <button
+            type="submit"
             disabled={isPending}
             className="inline-flex items-center gap-2 min-h-11 rounded-md px-5 bg-accent text-white font-semibold text-sm disabled:opacity-60"
           >

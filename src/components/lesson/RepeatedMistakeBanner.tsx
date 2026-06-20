@@ -33,9 +33,9 @@ export function RepeatedMistakeBanner({
         hành nhé!
       </p>
       <div className="flex flex-col gap-2 mt-1">
-        {repeatedMistakes.map(({ item, pattern }, idx) => (
+        {repeatedMistakes.map(({ item, pattern }) => (
           <div
-            key={idx}
+            key={`${item.draftPhrase}-${item.correctedPhrase}`}
             className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-surface border border-border text-sm"
           >
             <div className="flex items-center gap-2 flex-wrap">

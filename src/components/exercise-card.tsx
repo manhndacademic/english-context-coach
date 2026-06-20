@@ -233,9 +233,9 @@ export function ExerciseCard({
         ) : null}
         {isChoiceType ? (
           <div className="grid gap-2 mt-2">
-            {exercise.choices?.map((choice, index) => (
+            {exercise.choices?.map((choice) => (
               <label
-                key={`${exercise.id}-choice-${index}`}
+                key={choice}
                 className={`flex items-center gap-3 p-3 px-4 rounded-md border text-left cursor-pointer transition-all ${getChoiceStyle(
                   {
                     choice,

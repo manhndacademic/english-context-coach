@@ -226,13 +226,13 @@ export function ReviewCard({
               Chọn câu trả lời đúng
             </span>
             <div className="grid gap-2 mt-1">
-              {pattern.reviewChoices?.map((choice, index) => {
+              {pattern.reviewChoices?.map((choice) => {
                 const isChoiceCorrect = choiceSet.has(choice);
                 const isSelected = answer === choice;
                 const showSuccess = state.isCorrect && isChoiceCorrect;
                 return (
                   <label
-                    key={`${pattern.id}-choice-${index}`}
+                    key={choice}
                     className={`flex items-center gap-3 p-3 px-4 rounded-xl border text-left cursor-pointer transition-all ${getChoiceStyle(
                       {
                         choice,

@@ -117,43 +117,43 @@ export function LandingTabs() {
       </div>
 
       <div className="hidden md:block bg-surface border border-border rounded-lg overflow-hidden shadow-md">
-      <div className="flex border-b border-border bg-surface-strong overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
-        {(Object.keys(tabs) as TabKey[]).map((key) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex-1 min-w-[120px] text-center p-4 text-sm font-semibold transition-all border-b-2 cursor-pointer ${
-              activeTab === key
-                ? "text-accent border-accent bg-surface"
-                : "text-muted border-transparent bg-transparent hover:text-text hover:bg-[rgba(0,0,0,0.02)]"
-            }`}
-            type="button"
-          >
-            {tabs[key].label}
-          </button>
-        ))}
-      </div>
-      <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8 items-center">
-        <div className="grid gap-4">
-          <h3 className="text-xl md:text-2xl font-extrabold m-0 text-text">
-            {current.title}
-          </h3>
-          <p className="text-sm leading-relaxed text-muted m-0">
-            {current.copy}
-          </p>
-          <ul className="pl-5 m-0 grid gap-2 list-disc text-text">
-            {current.bullets.map((bullet, i) => (
-              <li key={i} className="text-sm">
-                {bullet}
-              </li>
-            ))}
-          </ul>
+        <div className="flex border-b border-border bg-surface-strong overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+          {(Object.keys(tabs) as TabKey[]).map((key) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex-1 min-w-[120px] text-center p-4 text-sm font-semibold transition-all border-b-2 cursor-pointer ${
+                activeTab === key
+                  ? "text-accent border-accent bg-surface"
+                  : "text-muted border-transparent bg-transparent hover:text-text hover:bg-[rgba(0,0,0,0.02)]"
+              }`}
+              type="button"
+            >
+              {tabs[key].label}
+            </button>
+          ))}
         </div>
-        <div className="min-w-0 w-full">
-          <UseCaseSample tabKey={activeTab} />
+        <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8 items-center">
+          <div className="grid gap-4">
+            <h3 className="text-xl md:text-2xl font-extrabold m-0 text-text">
+              {current.title}
+            </h3>
+            <p className="text-sm leading-relaxed text-muted m-0">
+              {current.copy}
+            </p>
+            <ul className="pl-5 m-0 grid gap-2 list-disc text-text">
+              {current.bullets.map((bullet) => (
+                <li key={bullet} className="text-sm">
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="min-w-0 w-full">
+            <UseCaseSample tabKey={activeTab} />
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 }

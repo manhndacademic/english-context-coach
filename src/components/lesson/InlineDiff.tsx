@@ -79,19 +79,17 @@ export function InlineDiff({
   const elements: React.ReactNode[] = [];
 
   visibleSpans.forEach((span, i) => {
+    const key = `${span.type}-${span.text}-${i}`;
     if (span.type === "equal") {
       elements.push(
-        <span
-          key={`span-${i}`}
-          className="font-serif text-base leading-relaxed"
-        >
+        <span key={key} className="font-serif text-base leading-relaxed">
           {span.text}
         </span>
       );
     } else if (span.type === "delete") {
       elements.push(
         <span
-          key={`span-${i}`}
+          key={key}
           className="font-serif text-base leading-relaxed
             bg-danger-light dark:bg-[rgba(244,63,94,0.18)]
             text-danger dark:text-[#ff8585]
@@ -104,7 +102,7 @@ export function InlineDiff({
     } else if (span.type === "insert") {
       elements.push(
         <span
-          key={`span-${i}`}
+          key={key}
           className="font-serif text-base leading-relaxed font-bold
             bg-success-light dark:bg-[rgba(16,185,129,0.18)]
             text-success dark:text-[#a7f3d0]

@@ -129,13 +129,14 @@ export function GrammarDemoSection() {
                   // Show unified diff
                   <span>
                     &quot;
-                    {DEMO_SPANS.map((span, i) => {
+                    {DEMO_SPANS.map((span) => {
+                      const key = `${span.type}-${span.text}`;
                       if (span.type === "equal")
-                        return <span key={i}>{span.text}</span>;
+                        return <span key={key}>{span.text}</span>;
                       if (span.type === "delete")
                         return (
                           <span
-                            key={i}
+                            key={key}
                             className="bg-danger-light dark:bg-[rgba(244,63,94,0.18)] text-danger dark:text-[#ff8585] line-through rounded-[3px] px-px transition-all duration-300"
                           >
                             {span.text}
@@ -144,7 +145,7 @@ export function GrammarDemoSection() {
                       if (span.type === "insert")
                         return (
                           <span
-                            key={i}
+                            key={key}
                             className="bg-success-light dark:bg-[rgba(16,185,129,0.18)] text-success dark:text-[#a7f3d0] font-bold rounded-[3px] px-px transition-all duration-300"
                           >
                             {span.text}

@@ -24,11 +24,14 @@ interface CompletionSummaryProps {
   correctionItems?: any[];
 }
 
+const DEFAULT_PRACTICES: PracticeLike[] = [];
+const DEFAULT_CORRECTION_ITEMS: any[] = [];
+
 export function CompletionSummary({
   stats,
-  practices = [],
+  practices = DEFAULT_PRACTICES,
   onRetry,
-  correctionItems = [],
+  correctionItems = DEFAULT_CORRECTION_ITEMS,
 }: CompletionSummaryProps) {
   const {
     total,
@@ -148,14 +151,14 @@ export function CompletionSummary({
             📝 Kết quả sửa lỗi (Correction Summary)
           </h4>
           <div className="grid gap-2.5">
-            {correctionItems.map((item, idx) => {
+            {correctionItems.map((item) => {
               const hasMistake = practices.some(
                 (p) => p.exercise?.correctionItemId === item.id && p.userError
               );
 
               return (
                 <div
-                  key={idx}
+                  key={item.id}
                   className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -197,9 +200,9 @@ export function CompletionSummary({
               🎯 Cập nhật sổ tay lỗi (Error Memory)
             </h4>
             <div className="grid gap-2.5">
-              {uniqueErrors.map((err, idx) => (
+              {uniqueErrors.map((err) => (
                 <div
-                  key={idx}
+                  key={err!.conceptKey}
                   className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -255,6 +258,7 @@ export function CompletionSummary({
           </Link>
         )}
         <button
+          type="button"
           onClick={onRetry}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all hover:-translate-y-px flex-1 bg-surface-strong text-text border border-border cursor-pointer"
         >

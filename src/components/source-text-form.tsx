@@ -148,9 +148,9 @@ export function SourceTextForm() {
             <span className="text-xs text-muted font-normal">
               Thử mẫu nhanh:
             </span>
-            {TEMPLATES.map((tmpl, idx) => (
+            {TEMPLATES.map((tmpl) => (
               <button
-                key={idx}
+                key={tmpl.label}
                 type="button"
                 onClick={() => {
                   setDraftValue(tmpl.draft);

@@ -276,6 +276,7 @@ function RecentRequestsTable({
                             <AlertCircle size={10} /> Thất bại
                           </span>
                           <button
+                            type="button"
                             onClick={() =>
                               setExpandedRowId(isExpanded ? null : req.id)
                             }
@@ -309,6 +310,7 @@ function RecentRequestsTable({
                               cho kỹ thuật.
                             </span>
                             <button
+                              type="button"
                               onClick={() => handleCopyDiagnostics(req)}
                               className="inline-flex items-center justify-center gap-1.5 min-h-8 rounded-md border border-border px-3.5 font-bold text-xs bg-surface text-text hover:bg-background transition-all cursor-pointer shadow-sm"
                             >
@@ -416,6 +418,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
         <div className="flex border border-border rounded-md p-1 bg-background self-start sm:self-center shrink-0">
           {(["today", "7days", "30days"] as const).map((t) => (
             <button
+              type="button"
               key={t}
               onClick={() => handleTimeframeChange(t)}
               disabled={loading}

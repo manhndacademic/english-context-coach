@@ -53,6 +53,9 @@ export function GradingFeedback({
   const isReview = type === "review";
 
   useEffect(() => {
+    let t1: NodeJS.Timeout | undefined;
+    let t2: NodeJS.Timeout | undefined;
+
     if (isCorrect && score !== undefined && score >= 70) {
       let particleCount = 50;
       if (score >= 95) {
@@ -79,7 +82,7 @@ export function GradingFeedback({
 
       // Extra bursts for high scores
       if (score >= 85) {
-        setTimeout(() => {
+        t1 = setTimeout(() => {
           confetti({
             particleCount: Math.round(particleCount * 0.7),
             angle: 60,
@@ -96,7 +99,7 @@ export function GradingFeedback({
       }
 
       if (score >= 95) {
-        setTimeout(() => {
+        t2 = setTimeout(() => {
           confetti({
             particleCount: 50,
             angle: 90,
@@ -106,6 +109,11 @@ export function GradingFeedback({
         }, 400);
       }
     }
+
+    return () => {
+      if (t1) clearTimeout(t1);
+      if (t2) clearTimeout(t2);
+    };
   }, [isCorrect, score]);
 
   const outerClassName = isReview

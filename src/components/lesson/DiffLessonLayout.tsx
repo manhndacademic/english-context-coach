@@ -138,10 +138,11 @@ export function DiffLessonLayout({
 
               <div className="border border-border rounded-md p-6 bg-surface font-serif text-[17px] md:text-lg leading-relaxed shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] text-text space-y-3 whitespace-pre-wrap">
                 {diffs.map((diff, index) => {
+                  const key = `${diff.type}-${diff.text}-${index}`;
                   if (diff.type === "delete") {
                     return (
                       <span
-                        key={index}
+                        key={key}
                         className="bg-red-100 text-red-800 line-through rounded px-0.5 mx-0.5 border-b border-red-300 select-all"
                       >
                         {diff.text}
@@ -151,14 +152,14 @@ export function DiffLessonLayout({
                   if (diff.type === "insert") {
                     return (
                       <span
-                        key={index}
+                        key={key}
                         className="bg-green-100 text-green-800 font-semibold rounded px-0.5 mx-0.5 border-b border-green-300 select-all"
                       >
                         {diff.text}
                       </span>
                     );
                   }
-                  return <span key={index}>{diff.text}</span>;
+                  return <span key={key}>{diff.text}</span>;
                 })}
               </div>
             </section>

@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "husky",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "bunx react-doctor@latest"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

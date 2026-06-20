@@ -20,27 +20,28 @@ export function renderRichText(text: string | null | undefined): ReactNode {
   if (parts.length === 1) return text;
 
   return parts.map((part, index) => {
+    const key = `${part}-${index}`;
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
         <code
           className="font-mono text-[0.9em] bg-accent/8 border border-accent/18 text-accent-strong rounded-[4px] px-[5px] py-[1px] font-semibold [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
-          key={index}
+          key={key}
         >
           {part.slice(1, -1)}
         </code>
       );
     }
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith("*") && part.endsWith("*")) {
-      return <em key={index}>{part.slice(1, -1)}</em>;
+      return <em key={key}>{part.slice(1, -1)}</em>;
     }
     if (part.startsWith("'") && part.endsWith("'")) {
       return (
         <code
           className="font-mono text-[0.9em] bg-accent/8 border border-accent/18 text-accent-strong rounded-[4px] px-[5px] py-[1px] font-semibold [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
-          key={index}
+          key={key}
         >
           {part.slice(1, -1)}
         </code>

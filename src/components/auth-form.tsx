@@ -21,14 +21,21 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   return (
     <div className="p-7 rounded-lg shadow-lg grid gap-4 text-left bg-surface border border-border">
       <form action={action} className="grid gap-5">
-        <label className="grid gap-2 text-left text-sm font-semibold text-text">
-          Địa chỉ email
-          <Input name="email" type="email" autoComplete="email" required />
-        </label>
-        <label className="grid gap-2 text-left text-sm font-semibold text-text relative">
-          Mật khẩu
+        <div className="grid gap-2 text-left text-sm font-semibold text-text">
+          <label htmlFor="login-email">Địa chỉ email</label>
+          <Input
+            id="login-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div className="grid gap-2 text-left text-sm font-semibold text-text relative">
+          <label htmlFor="login-password">Mật khẩu</label>
           <div className="relative w-full">
             <Input
+              id="login-password"
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
@@ -44,7 +51,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-        </label>
+        </div>
         {state.error ? (
           <p className="text-danger font-semibold text-sm m-0">{state.error}</p>
         ) : null}
@@ -110,18 +117,25 @@ export function RegisterForm({ googleEnabled }: { googleEnabled?: boolean }) {
   return (
     <div className="p-7 rounded-lg shadow-lg grid gap-4 text-left bg-surface border border-border">
       <form action={action} className="grid gap-5">
-        <label className="grid gap-2 text-left text-sm font-semibold text-text">
-          Họ và tên
-          <Input name="name" autoComplete="name" />
-        </label>
-        <label className="grid gap-2 text-left text-sm font-semibold text-text">
-          Địa chỉ email
-          <Input name="email" type="email" autoComplete="email" required />
-        </label>
-        <label className="grid gap-2 text-left text-sm font-semibold text-text relative">
-          Mật khẩu
+        <div className="grid gap-2 text-left text-sm font-semibold text-text">
+          <label htmlFor="register-name">Họ và tên</label>
+          <Input id="register-name" name="name" autoComplete="name" />
+        </div>
+        <div className="grid gap-2 text-left text-sm font-semibold text-text">
+          <label htmlFor="register-email">Địa chỉ email</label>
+          <Input
+            id="register-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div className="grid gap-2 text-left text-sm font-semibold text-text relative">
+          <label htmlFor="register-password">Mật khẩu</label>
           <div className="relative w-full">
             <Input
+              id="register-password"
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -138,7 +152,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled?: boolean }) {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-        </label>
+        </div>
         <p className="text-xs text-muted m-0">
           Mật khẩu phải chứa ít nhất 12 ký tự.
         </p>

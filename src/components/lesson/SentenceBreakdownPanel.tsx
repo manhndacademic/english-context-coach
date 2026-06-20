@@ -149,6 +149,7 @@ export function SentenceBreakdownPanel({
           {isOpen && (
             <div className="flex items-center gap-1 bg-surface-strong border border-border p-1 rounded-lg select-none">
               <button
+                type="button"
                 onClick={() => handleViewModeChange("unified")}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   viewMode === "unified"
@@ -159,6 +160,7 @@ export function SentenceBreakdownPanel({
                 Xem inline
               </button>
               <button
+                type="button"
                 onClick={() => handleViewModeChange("split")}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   viewMode === "split"

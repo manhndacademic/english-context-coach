@@ -87,8 +87,10 @@ export default async function ReviewPage({ searchParams }: PageProps) {
   ]);
 
   const repo = getMistakePatternRepository();
-  const unifiedItems = await fetchUnifiedReviewItems(user.id, patternId);
-  const lessonsMap = await repo.getLessonsForPatterns(user.id);
+  const [unifiedItems, lessonsMap] = await Promise.all([
+    fetchUnifiedReviewItems(user.id, patternId),
+    repo.getLessonsForPatterns(user.id),
+  ]);
 
   return (
     <PageLayout user={user}>

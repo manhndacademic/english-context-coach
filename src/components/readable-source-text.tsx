@@ -492,6 +492,7 @@ export function ReadableSourceText({
             >
               {/* Close button */}
               <button
+                type="button"
                 onClick={() => setIsLookupOpen(false)}
                 className="absolute top-2 right-2.5 text-muted hover:text-text cursor-pointer text-sm font-semibold select-none bg-surface-strong/50 w-5 h-5 rounded-full flex items-center justify-center hover:bg-border transition-all"
               >
@@ -512,6 +513,7 @@ export function ReadableSourceText({
                     </p>
                   )}
                   <button
+                    type="button"
                     onClick={handleExplainClick}
                     disabled={lookupState.loading}
                     className="w-full inline-flex items-center justify-center gap-1.5 min-h-9 rounded-md bg-accent text-white hover:bg-accent-hover text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 mt-1 select-none"
@@ -588,6 +590,7 @@ export function ReadableSourceText({
                       Cấp độ: {lookupState.explanation.difficulty}
                     </span>
                     <button
+                      type="button"
                       onClick={handleSaveClick}
                       disabled={isSaving}
                       className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-white bg-accent hover:bg-accent-hover transition-all text-xs cursor-pointer shadow-sm disabled:opacity-50"

@@ -1,7 +1,19 @@
 import { requireUser } from "@/lib/auth/guards";
 import { getUsageStatsAction } from "@/app/actions/settings";
 import { ApiKeyForm } from "@/components/settings/api-key-form";
-import { UsageDashboard } from "@/components/settings/usage-dashboard";
+import dynamic from "next/dynamic";
+
+const UsageDashboard = dynamic(
+  () =>
+    import("@/components/settings/usage-dashboard").then(
+      (mod) => mod.UsageDashboard
+    ),
+  {
+    loading: () => (
+      <div className="h-60 bg-surface-strong/10 animate-pulse rounded-md" />
+    ),
+  }
+);
 import { NotificationSettingsForm } from "@/components/settings/notification-settings-form";
 import { Sparkles } from "lucide-react";
 import { db } from "@/db";

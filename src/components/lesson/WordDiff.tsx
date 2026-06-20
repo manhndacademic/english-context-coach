@@ -48,10 +48,11 @@ export function WordDiff({ original, corrected, className }: WordDiffProps) {
   return (
     <span className={className}>
       {spans.map((span, i) => {
+        const key = `${span.type}-${span.text}-${i}`;
         if (span.type === "equal") {
           return (
             <span
-              key={i}
+              key={key}
               data-diff-type="equal"
               className="text-sm leading-relaxed"
             >
@@ -63,7 +64,7 @@ export function WordDiff({ original, corrected, className }: WordDiffProps) {
         if (span.type === "delete") {
           return (
             <span
-              key={i}
+              key={key}
               data-diff-type="delete"
               className="text-sm leading-relaxed
                 bg-danger-light dark:bg-[rgba(244,63,94,0.18)]
@@ -79,7 +80,7 @@ export function WordDiff({ original, corrected, className }: WordDiffProps) {
         if (span.type === "insert") {
           return (
             <span
-              key={i}
+              key={key}
               data-diff-type="insert"
               className="text-sm leading-relaxed font-bold
                 bg-success-light dark:bg-[rgba(16,185,129,0.18)]

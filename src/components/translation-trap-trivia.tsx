@@ -39,7 +39,7 @@ export function TranslationTrapTrivia() {
       </div>
 
       <div className="grid gap-2.5">
-        {question.choices.map((choice, idx) => {
+        {question.choices.map((choice) => {
           const isSelected = selectedAnswer === choice;
           const isChoiceCorrect = choice === question.correctAnswer;
 
@@ -61,7 +61,7 @@ export function TranslationTrapTrivia() {
 
           return (
             <button
-              key={idx}
+              key={choice}
               type="button"
               disabled={hasChecked}
               onClick={() => setSelectedAnswer(choice)}

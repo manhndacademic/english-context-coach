@@ -1,8 +1,8 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sun,
   Moon,
@@ -174,14 +174,17 @@ export function AppHeader({
           {email && (
             <div className="relative" ref={dropdownRef}>
               <button
+                type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="w-8 h-8 rounded-full overflow-hidden bg-accent-light text-accent flex items-center justify-center font-bold text-sm border border-accent/20 cursor-pointer shadow-sm hover:bg-accent/20 hover:scale-105 transition-all select-none focus:outline-none"
                 aria-label="Menu người dùng"
               >
                 {image ? (
-                  <img
+                  <Image
                     src={image}
                     alt="Avatar"
+                    width={32}
+                    height={32}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
