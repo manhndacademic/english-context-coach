@@ -68,6 +68,302 @@ const getStatusBadge = (userStatus: string, role: string) => {
   }
 };
 
+function UserStats({
+  stats,
+}: {
+  stats: { total: number; pending: number; approved: number; rejected: number };
+}) {
+  return (
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <div className="p-2.5 bg-background border border-border text-muted rounded-lg">
+          <UsersIcon size={20} />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-muted uppercase">Tổng số</div>
+          <div className="text-xl font-extrabold text-text mt-0.5">
+            {stats.total}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <div className="p-2.5 bg-warning-light border border-warning text-warning-strong rounded-lg">
+          <Clock size={20} />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-muted uppercase">
+            Chờ duyệt
+          </div>
+          <div className="text-xl font-extrabold text-text mt-0.5">
+            {stats.pending}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <div className="p-2.5 bg-success-light border border-success text-success-strong rounded-lg">
+          <UserCheck size={20} />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-muted uppercase">Đã duyệt</div>
+          <div className="text-xl font-extrabold text-text mt-0.5">
+            {stats.approved}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <div className="p-2.5 bg-danger-light border border-danger text-danger rounded-lg">
+          <UserX size={20} />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-muted uppercase">Từ chối</div>
+          <div className="text-xl font-extrabold text-text mt-0.5">
+            {stats.rejected}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function UserFilterTabs({
+  status,
+  search,
+  stats,
+}: {
+  status: string;
+  search: string;
+  stats: { total: number; pending: number; approved: number; rejected: number };
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {[
+        { id: "all", label: "Tất cả", count: stats.total },
+        { id: "pending", label: "Chờ duyệt", count: stats.pending },
+        { id: "approved", label: "Đã duyệt", count: stats.approved },
+        { id: "rejected", label: "Từ chối", count: stats.rejected },
+      ].map((tab) => {
+        const isActive = status === tab.id;
+        return (
+          <Link
+            key={tab.id}
+            href={`/admin/users?status=${tab.id}&search=${search}`}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all border ${
+              isActive
+                ? "bg-accent border-accent text-white"
+                : "bg-background border-border text-muted hover:text-text hover:bg-surface-strong"
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function UserSearchForm({
+  status,
+  search,
+}: {
+  status: string;
+  search: string;
+}) {
+  return (
+    <form
+      method="GET"
+      className="flex items-center gap-2 w-full md:max-w-xs relative"
+    >
+      <input type="hidden" name="status" value={status} />
+      <div className="relative w-full">
+        <input
+          type="text"
+          name="search"
+          defaultValue={search}
+          placeholder="Tìm theo tên hoặc email..."
+          aria-label="Tìm kiếm người dùng"
+          className="w-full min-h-9 pl-9 pr-3 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none"
+        />
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+        />
+      </div>
+      <button
+        type="submit"
+        className="bg-accent hover:bg-accent-hover text-white min-h-9 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
+      >
+        Tìm
+      </button>
+    </form>
+  );
+}
+
+function UserTable({ usersList }: { usersList: any[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-border text-muted font-bold text-xs uppercase tracking-wider">
+            <th className="pb-2.5 pr-4">Học viên</th>
+            <th className="pb-2.5 px-4">Quyền</th>
+            <th className="pb-2.5 px-4">Trạng thái</th>
+            <th className="pb-2.5 px-4">Ngày đăng ký</th>
+            <th className="pb-2.5 pl-4 text-right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {usersList.length ? (
+            usersList.map((u) => {
+              const isAdmin = u.role === "admin";
+              return (
+                <tr key={u.id} className="hover:bg-background/40">
+                  <td className="py-3 pr-4 truncate max-w-[240px]">
+                    <div className="font-semibold text-text">
+                      {u.name || "Chưa cập nhật tên"}
+                    </div>
+                    <div className="text-xs text-muted truncate">{u.email}</div>
+                  </td>
+                  <td className="py-3 px-4 font-medium capitalize text-xs">
+                    {u.role}
+                  </td>
+                  <td className="py-3 px-4">
+                    {getStatusBadge(u.status, u.role)}
+                  </td>
+                  <td className="py-3 px-4 text-xs text-muted">
+                    {u.createdAt.toLocaleDateString("vi-VN", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </td>
+                  <td className="py-3 pl-4 text-right">
+                    {!isAdmin && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        {u.status !== "approved" && (
+                          <form
+                            action={handleUserAction.bind(
+                              null,
+                              approveUserAction,
+                              u.id
+                            )}
+                          >
+                            <button
+                              type="submit"
+                              title="Phê duyệt quyền truy cập"
+                              className="bg-success-light border border-success hover:bg-success hover:text-white text-success-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check size={12} /> Duyệt
+                            </button>
+                          </form>
+                        )}
+
+                        {u.status !== "rejected" && (
+                          <form
+                            action={handleUserAction.bind(
+                              null,
+                              rejectUserAction,
+                              u.id
+                            )}
+                          >
+                            <button
+                              type="submit"
+                              title="Từ chối truy cập"
+                              className="bg-danger-light border border-danger hover:bg-danger hover:text-white text-danger-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <X size={12} /> Từ chối
+                            </button>
+                          </form>
+                        )}
+
+                        {u.status !== "pending" && (
+                          <form
+                            action={handleUserAction.bind(
+                              null,
+                              revokeUserAction,
+                              u.id
+                            )}
+                          >
+                            <button
+                              type="submit"
+                              title="Thu hồi quyền về chờ duyệt"
+                              className="bg-surface border border-border hover:bg-surface-strong text-muted hover:text-text px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Undo2 size={12} /> Thu hồi
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <span className="text-xs text-muted italic">
+                        Mặc định được phê duyệt
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={5} className="py-6 text-center text-muted">
+                Không tìm thấy người dùng nào phù hợp.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function UserPagination({
+  currentPage,
+  totalPages,
+  totalMatched,
+  status,
+  search,
+}: {
+  currentPage: number;
+  totalPages: number;
+  totalMatched: number;
+  status: string;
+  search: string;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between border-t border-border pt-4 mt-4 text-xs">
+      <span className="text-muted">
+        Hiển thị trang <strong>{currentPage}</strong> trên{" "}
+        <strong>{totalPages}</strong> (Tổng số <strong>{totalMatched}</strong>{" "}
+        dòng)
+      </span>
+      <div className="flex gap-1">
+        <Link
+          href={`/admin/users?status=${status}&search=${search}&page=${currentPage - 1}`}
+          className={`p-1.5 border border-border rounded-md hover:bg-surface-strong transition-all flex items-center ${
+            currentPage === 1 ? "pointer-events-none opacity-40" : ""
+          }`}
+          title="Trang trước"
+        >
+          <ChevronLeft size={16} />
+        </Link>
+        <Link
+          href={`/admin/users?status=${status}&search=${search}&page=${currentPage + 1}`}
+          className={`p-1.5 border border-border rounded-md hover:bg-surface-strong transition-all flex items-center ${
+            currentPage === totalPages ? "pointer-events-none opacity-40" : ""
+          }`}
+          title="Trang sau"
+        >
+          <ChevronRight size={16} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   await requireAdmin();
 
@@ -147,270 +443,22 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-background border border-border text-muted rounded-lg">
-            <UsersIcon size={20} />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-muted uppercase">
-              Tổng số
-            </div>
-            <div className="text-xl font-extrabold text-text mt-0.5">
-              {stats.total}
-            </div>
-          </div>
-        </div>
+      <UserStats stats={stats} />
 
-        <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-warning-light border border-warning text-warning-strong rounded-lg">
-            <Clock size={20} />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-muted uppercase">
-              Chờ duyệt
-            </div>
-            <div className="text-xl font-extrabold text-text mt-0.5">
-              {stats.pending}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-success-light border border-success text-success-strong rounded-lg">
-            <UserCheck size={20} />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-muted uppercase">
-              Đã duyệt
-            </div>
-            <div className="text-xl font-extrabold text-text mt-0.5">
-              {stats.approved}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-danger-light border border-danger text-danger rounded-lg">
-            <UserX size={20} />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-muted uppercase">
-              Từ chối
-            </div>
-            <div className="text-xl font-extrabold text-text mt-0.5">
-              {stats.rejected}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Filters and Search */}
       <section className="bg-surface border border-border rounded-xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Status Filter Tabs */}
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { id: "all", label: "Tất cả", count: stats.total },
-            { id: "pending", label: "Chờ duyệt", count: stats.pending },
-            { id: "approved", label: "Đã duyệt", count: stats.approved },
-            { id: "rejected", label: "Từ chối", count: stats.rejected },
-          ].map((tab) => {
-            const isActive = status === tab.id;
-            return (
-              <Link
-                key={tab.id}
-                href={`/admin/users?status=${tab.id}&search=${search}`}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all border ${
-                  isActive
-                    ? "bg-accent border-accent text-white"
-                    : "bg-background border-border text-muted hover:text-text hover:bg-surface-strong"
-                }`}
-              >
-                {tab.label} ({tab.count})
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Search Input Form */}
-        <form
-          method="GET"
-          className="flex items-center gap-2 w-full md:max-w-xs relative"
-        >
-          <input type="hidden" name="status" value={status} />
-          <div className="relative w-full">
-            <input
-              type="text"
-              name="search"
-              defaultValue={search}
-              placeholder="Tìm theo tên hoặc email..."
-              className="w-full min-h-9 pl-9 pr-3 rounded-md border border-border bg-background text-text text-sm transition-all focus:border-accent focus:outline-none"
-            />
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-            />
-          </div>
-          <button
-            type="submit"
-            className="bg-accent hover:bg-accent-hover text-white min-h-9 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
-          >
-            Tìm
-          </button>
-        </form>
+        <UserFilterTabs status={status} search={search} stats={stats} />
+        <UserSearchForm status={status} search={search} />
       </section>
 
-      {/* Main Table Card */}
       <section className="bg-surface border border-border rounded-xl p-5 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-muted font-bold text-xs uppercase tracking-wider">
-                <th className="pb-2.5 pr-4">Học viên</th>
-                <th className="pb-2.5 px-4">Quyền</th>
-                <th className="pb-2.5 px-4">Trạng thái</th>
-                <th className="pb-2.5 px-4">Ngày đăng ký</th>
-                <th className="pb-2.5 pl-4 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {usersList.length ? (
-                usersList.map((u) => {
-                  const isAdmin = u.role === "admin";
-                  return (
-                    <tr key={u.id} className="hover:bg-background/40">
-                      <td className="py-3 pr-4 truncate max-w-[240px]">
-                        <div className="font-semibold text-text">
-                          {u.name || "Chưa cập nhật tên"}
-                        </div>
-                        <div className="text-xs text-muted truncate">
-                          {u.email}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-medium capitalize text-xs">
-                        {u.role}
-                      </td>
-                      <td className="py-3 px-4">
-                        {getStatusBadge(u.status, u.role)}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-muted">
-                        {u.createdAt.toLocaleDateString("vi-VN", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </td>
-                      <td className="py-3 pl-4 text-right">
-                        {!isAdmin && (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {u.status !== "approved" && (
-                              <form
-                                action={handleUserAction.bind(
-                                  null,
-                                  approveUserAction,
-                                  u.id
-                                )}
-                              >
-                                <button
-                                  type="submit"
-                                  title="Phê duyệt quyền truy cập"
-                                  className="bg-success-light border border-success hover:bg-success hover:text-white text-success-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Check size={12} /> Duyệt
-                                </button>
-                              </form>
-                            )}
-
-                            {u.status !== "rejected" && (
-                              <form
-                                action={handleUserAction.bind(
-                                  null,
-                                  rejectUserAction,
-                                  u.id
-                                )}
-                              >
-                                <button
-                                  type="submit"
-                                  title="Từ chối truy cập"
-                                  className="bg-danger-light border border-danger hover:bg-danger hover:text-white text-danger-strong px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                >
-                                  <X size={12} /> Từ chối
-                                </button>
-                              </form>
-                            )}
-
-                            {u.status !== "pending" && (
-                              <form
-                                action={handleUserAction.bind(
-                                  null,
-                                  revokeUserAction,
-                                  u.id
-                                )}
-                              >
-                                <button
-                                  type="submit"
-                                  title="Thu hồi quyền về chờ duyệt"
-                                  className="bg-surface border border-border hover:bg-surface-strong text-muted hover:text-text px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Undo2 size={12} /> Thu hồi
-                                </button>
-                              </form>
-                            )}
-                          </div>
-                        )}
-                        {isAdmin && (
-                          <span className="text-xs text-muted italic">
-                            Mặc định được phê duyệt
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-muted">
-                    Không tìm thấy người dùng nào phù hợp.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Section */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-border pt-4 mt-4 text-xs">
-            <span className="text-muted">
-              Hiển thị trang <strong>{currentPage}</strong> trên{" "}
-              <strong>{totalPages}</strong> (Tổng số{" "}
-              <strong>{totalMatched}</strong> dòng)
-            </span>
-            <div className="flex gap-1">
-              <Link
-                href={`/admin/users?status=${status}&search=${search}&page=${currentPage - 1}`}
-                className={`p-1.5 border border-border rounded-md hover:bg-surface-strong transition-all flex items-center ${
-                  currentPage === 1 ? "pointer-events-none opacity-40" : ""
-                }`}
-                title="Trang trước"
-              >
-                <ChevronLeft size={16} />
-              </Link>
-              <Link
-                href={`/admin/users?status=${status}&search=${search}&page=${currentPage + 1}`}
-                className={`p-1.5 border border-border rounded-md hover:bg-surface-strong transition-all flex items-center ${
-                  currentPage === totalPages
-                    ? "pointer-events-none opacity-40"
-                    : ""
-                }`}
-                title="Trang sau"
-              >
-                <ChevronRight size={16} />
-              </Link>
-            </div>
-          </div>
-        )}
+        <UserTable usersList={usersList} />
+        <UserPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalMatched={totalMatched}
+          status={status}
+          search={search}
+        />
       </section>
     </>
   );

@@ -416,25 +416,26 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
     }>;
   }> {
     // 1. Fetch Streak dates
-    const attemptDates = await this.dbClient
-      .selectDistinct({
-        activityDate:
-          drizzleSql<string>`DATE(${schema.attempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
-            "activity_date"
-          ),
-      })
-      .from(schema.attempts)
-      .where(eq(schema.attempts.userId, userId));
-
-    const reviewDates = await this.dbClient
-      .selectDistinct({
-        activityDate:
-          drizzleSql<string>`DATE(${schema.reviewAttempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
-            "activity_date"
-          ),
-      })
-      .from(schema.reviewAttempts)
-      .where(eq(schema.reviewAttempts.userId, userId));
+    const [attemptDates, reviewDates] = await Promise.all([
+      this.dbClient
+        .selectDistinct({
+          activityDate:
+            drizzleSql<string>`DATE(${schema.attempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
+              "activity_date"
+            ),
+        })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.userId, userId)),
+      this.dbClient
+        .selectDistinct({
+          activityDate:
+            drizzleSql<string>`DATE(${schema.reviewAttempts.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')`.as(
+              "activity_date"
+            ),
+        })
+        .from(schema.reviewAttempts)
+        .where(eq(schema.reviewAttempts.userId, userId)),
+    ]);
 
     // Merge and deduplicate dates for streak
     const allDateStrings = new Set<string>([

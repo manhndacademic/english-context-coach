@@ -17,12 +17,11 @@ export async function PATCH(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
+  const [session, { id }] = await Promise.all([auth(), params]);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
   const userId = session.user.id;
 
   // Verify the pattern belongs to this user before updating

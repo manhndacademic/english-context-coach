@@ -9,8 +9,10 @@ interface PageProps {
 }
 
 export default async function ReviewPage({ searchParams }: PageProps) {
-  const { patternId } = await searchParams;
-  const user = await requireUser();
+  const [{ patternId }, user] = await Promise.all([
+    searchParams,
+    requireUser(),
+  ]);
   const repo = getMistakePatternRepository();
 
   let rawPatterns;

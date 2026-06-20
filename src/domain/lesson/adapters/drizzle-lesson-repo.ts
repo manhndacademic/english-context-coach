@@ -280,15 +280,17 @@ export class DrizzleLessonRepository implements LessonRepository {
     exercises: SaveExercisesInput,
     model: string
   ): Promise<void> {
-    const phrases: DbKeyPhrase[] = await this.dbClient
-      .select()
-      .from(schema.keyPhrases)
-      .where(eq(schema.keyPhrases.lessonId, lessonId));
-
-    const lessonFocuses: DbLessonFocus[] = await this.dbClient
-      .select()
-      .from(schema.lessonFocuses)
-      .where(eq(schema.lessonFocuses.lessonId, lessonId));
+    const [phrases, lessonFocuses]: [DbKeyPhrase[], DbLessonFocus[]] =
+      await Promise.all([
+        this.dbClient
+          .select()
+          .from(schema.keyPhrases)
+          .where(eq(schema.keyPhrases.lessonId, lessonId)),
+        this.dbClient
+          .select()
+          .from(schema.lessonFocuses)
+          .where(eq(schema.lessonFocuses.lessonId, lessonId)),
+      ]);
 
     const phraseByNormalized = new Map<string, DbKeyPhrase>(
       phrases.map((phrase: DbKeyPhrase) => [

@@ -82,6 +82,7 @@ export function NotificationSettingsForm({
           id="notification-toggle"
           role="switch"
           aria-checked={enabled}
+          aria-label="Nhận email nhắc nhở"
           onClick={() => toggleEnabled(!enabled)}
           disabled={isPending}
           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 ${

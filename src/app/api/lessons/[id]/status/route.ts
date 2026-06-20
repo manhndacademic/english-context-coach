@@ -6,8 +6,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await requireUser();
-  const { id } = await params;
+  const [user, { id }] = await Promise.all([requireUser(), params]);
   const progress = await getLessonRepository().getLessonProgress({
     lessonId: id,
     userId: user.id,

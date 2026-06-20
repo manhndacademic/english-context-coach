@@ -95,8 +95,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await requireUser();
-  const { id } = await params;
+  const [user, { id }] = await Promise.all([requireUser(), params]);
   const cursor = parseLastEventId(request);
   const repo = getLessonRepository();
 

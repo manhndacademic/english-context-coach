@@ -252,6 +252,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
           <input
             name="name"
             placeholder="Tên gợi nhớ"
+            aria-label="Tên gợi nhớ của API key"
             required
             disabled={isPending}
             className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
@@ -260,12 +261,14 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
             name="apiKey"
             type="password"
             placeholder="AIzaSy..."
+            aria-label="Giá trị API key"
             required
             disabled={isPending}
             className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
           />
           <select
             name="provider"
+            aria-label="Nhà cung cấp AI"
             disabled={isPending}
             className="min-h-11 px-3 rounded-md border border-border bg-background text-sm"
           >

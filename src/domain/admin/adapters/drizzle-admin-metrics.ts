@@ -131,19 +131,20 @@ export class DrizzleAdminMetricsRepository implements AdminMetricsRepository {
   }
 
   async getDigestStatsByDate(digestDate: string) {
-    const [logs] = await this.dbClient
-      .select({
-        sent: sql<number>`sum(case when status = 'sent' then 1 else 0 end)::int`,
-        skipped: sql<number>`sum(case when status = 'skipped' then 1 else 0 end)::int`,
-        failed: sql<number>`sum(case when status = 'failed' then 1 else 0 end)::int`,
-      })
-      .from(schema.emailDigestLogs)
-      .where(eq(schema.emailDigestLogs.digestDate, digestDate));
-
-    const [enabled] = await this.dbClient
-      .select({ total: sql<number>`count(*)::int` })
-      .from(schema.users)
-      .where(eq(schema.users.emailDigestEnabled, true));
+    const [[logs], [enabled]] = await Promise.all([
+      this.dbClient
+        .select({
+          sent: sql<number>`sum(case when status = 'sent' then 1 else 0 end)::int`,
+          skipped: sql<number>`sum(case when status = 'skipped' then 1 else 0 end)::int`,
+          failed: sql<number>`sum(case when status = 'failed' then 1 else 0 end)::int`,
+        })
+        .from(schema.emailDigestLogs)
+        .where(eq(schema.emailDigestLogs.digestDate, digestDate)),
+      this.dbClient
+        .select({ total: sql<number>`count(*)::int` })
+        .from(schema.users)
+        .where(eq(schema.users.emailDigestEnabled, true)),
+    ]);
 
     return {
       sent: logs?.sent ?? 0,

@@ -13,8 +13,7 @@ export default async function LessonPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireUser();
-  const { id } = await params;
+  const [user, { id }] = await Promise.all([requireUser(), params]);
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 

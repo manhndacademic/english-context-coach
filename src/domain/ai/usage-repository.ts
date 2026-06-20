@@ -59,38 +59,62 @@ export class DrizzleUsageRepository implements UsageRepository {
       since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    const [summaryResult] = await this.dbClient
-      .select({
-        totalRequests: sql<number>`count(*)::int`,
-        succeededRequests: sql<number>`sum(case when status = 'succeeded' then 1 else 0 end)::int`,
-        totalInputTokens: sql<number>`sum(coalesce(input_tokens, 0))::int`,
-        totalOutputTokens: sql<number>`sum(coalesce(output_tokens, 0))::int`,
-        avgLatencyMs: sql<number>`avg(case when status = 'succeeded' then latency_ms else null end)::int`,
-      })
-      .from(schema.aiRequests)
-      .where(
-        and(
-          eq(schema.aiRequests.userId, userId),
-          gt(schema.aiRequests.createdAt, since)
+    const [[summaryResult], dailyDb, recent, [keyCounts]] = await Promise.all([
+      this.dbClient
+        .select({
+          totalRequests: sql<number>`count(*)::int`,
+          succeededRequests: sql<number>`sum(case when status = 'succeeded' then 1 else 0 end)::int`,
+          totalInputTokens: sql<number>`sum(coalesce(input_tokens, 0))::int`,
+          totalOutputTokens: sql<number>`sum(coalesce(output_tokens, 0))::int`,
+          avgLatencyMs: sql<number>`avg(case when status = 'succeeded' then latency_ms else null end)::int`,
+        })
+        .from(schema.aiRequests)
+        .where(
+          and(
+            eq(schema.aiRequests.userId, userId),
+            gt(schema.aiRequests.createdAt, since)
+          )
+        ),
+      this.dbClient
+        .select({
+          dateStr: sql<string>`to_char(created_at, 'YYYY-MM-DD')`,
+          requests: sql<number>`count(*)::int`,
+          inputTokens: sql<number>`sum(coalesce(input_tokens, 0))::int`,
+          outputTokens: sql<number>`sum(coalesce(output_tokens, 0))::int`,
+        })
+        .from(schema.aiRequests)
+        .where(
+          and(
+            eq(schema.aiRequests.userId, userId),
+            gt(schema.aiRequests.createdAt, since)
+          )
         )
-      );
-
-    const dailyDb = await this.dbClient
-      .select({
-        dateStr: sql<string>`to_char(created_at, 'YYYY-MM-DD')`,
-        requests: sql<number>`count(*)::int`,
-        inputTokens: sql<number>`sum(coalesce(input_tokens, 0))::int`,
-        outputTokens: sql<number>`sum(coalesce(output_tokens, 0))::int`,
-      })
-      .from(schema.aiRequests)
-      .where(
-        and(
-          eq(schema.aiRequests.userId, userId),
-          gt(schema.aiRequests.createdAt, since)
-        )
-      )
-      .groupBy(sql`to_char(created_at, 'YYYY-MM-DD')`)
-      .orderBy(sql`to_char(created_at, 'YYYY-MM-DD') asc`);
+        .groupBy(sql`to_char(created_at, 'YYYY-MM-DD')`)
+        .orderBy(sql`to_char(created_at, 'YYYY-MM-DD') asc`),
+      this.dbClient
+        .select({
+          id: schema.aiRequests.id,
+          purpose: schema.aiRequests.purpose,
+          model: schema.aiRequests.model,
+          status: schema.aiRequests.status,
+          latencyMs: schema.aiRequests.latencyMs,
+          errorMessage: schema.aiRequests.errorMessage,
+          createdAt: schema.aiRequests.createdAt,
+        })
+        .from(schema.aiRequests)
+        .where(eq(schema.aiRequests.userId, userId))
+        .orderBy(desc(schema.aiRequests.createdAt))
+        .limit(5),
+      this.dbClient
+        .select({
+          active: sql<number>`sum(case when status = 'active' then 1 else 0 end)::int`,
+          invalid: sql<number>`sum(case when status = 'invalid' then 1 else 0 end)::int`,
+          rateLimited: sql<number>`sum(case when status = 'rate_limited' then 1 else 0 end)::int`,
+          total: sql<number>`count(*)::int`,
+        })
+        .from(schema.userAiApiKeys)
+        .where(eq(schema.userAiApiKeys.userId, userId)),
+    ]);
 
     const timeframeDays: Record<Timeframe, number> = {
       today: 1,
@@ -111,31 +135,6 @@ export class DrizzleUsageRepository implements UsageRepository {
         outputTokens: match?.outputTokens ?? 0,
       });
     }
-
-    const recent = await this.dbClient
-      .select({
-        id: schema.aiRequests.id,
-        purpose: schema.aiRequests.purpose,
-        model: schema.aiRequests.model,
-        status: schema.aiRequests.status,
-        latencyMs: schema.aiRequests.latencyMs,
-        errorMessage: schema.aiRequests.errorMessage,
-        createdAt: schema.aiRequests.createdAt,
-      })
-      .from(schema.aiRequests)
-      .where(eq(schema.aiRequests.userId, userId))
-      .orderBy(desc(schema.aiRequests.createdAt))
-      .limit(5);
-
-    const [keyCounts] = await this.dbClient
-      .select({
-        active: sql<number>`sum(case when status = 'active' then 1 else 0 end)::int`,
-        invalid: sql<number>`sum(case when status = 'invalid' then 1 else 0 end)::int`,
-        rateLimited: sql<number>`sum(case when status = 'rate_limited' then 1 else 0 end)::int`,
-        total: sql<number>`count(*)::int`,
-      })
-      .from(schema.userAiApiKeys)
-      .where(eq(schema.userAiApiKeys.userId, userId));
 
     const totalRequests = summaryResult?.totalRequests ?? 0;
     const succeededRequests = summaryResult?.succeededRequests ?? 0;

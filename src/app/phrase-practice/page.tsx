@@ -9,8 +9,10 @@ interface PageProps {
 }
 
 export default async function PhrasePracticePage({ searchParams }: PageProps) {
-  const { practiceId } = await searchParams;
-  const user = await requireUser();
+  const [{ practiceId }, user] = await Promise.all([
+    searchParams,
+    requireUser(),
+  ]);
   const repo = getPhrasePracticeRepository();
 
   let rawPractices: PhrasePractice[];
