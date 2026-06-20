@@ -18,16 +18,22 @@ export function validatedAction<T extends z.ZodTypeAny, R>(
       const user =
         options.role === "admin" ? await requireAdmin() : await requireUser();
 
-      // 2. Extract FormData
+      // 2. Extract FormData or plain object
       const formData = args.find((arg) => arg instanceof FormData);
-      if (!formData) {
+      let rawData: any;
+      if (formData) {
+        rawData = Object.fromEntries(formData.entries());
+      } else {
+        rawData = args.find((arg) => arg !== null && typeof arg === "object");
+      }
+
+      if (!rawData) {
         return {
-          error: "Không tìm thấy dữ liệu form (Form data is required).",
+          error: "Không tìm thấy dữ liệu đầu vào (No input data found).",
         } as any;
       }
 
       // 3. Parse input
-      const rawData = Object.fromEntries(formData.entries());
       const parsed = schema.safeParse(rawData);
 
       if (!parsed.success) {
