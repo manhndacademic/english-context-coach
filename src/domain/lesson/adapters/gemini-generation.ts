@@ -51,6 +51,7 @@ export class GeminiGenerationEngine implements GenerationEngine {
         ),
         structureNotesVi: breakdown.structureNotesVi,
         toneOrContextVi: breakdown.toneOrContextVi ?? undefined,
+        ipa: breakdown.ipa ?? undefined,
       })),
       keyPhrases: result.keyPhrases.map((phrase) => ({
         phrase: phrase.phrase,
@@ -62,10 +63,12 @@ export class GeminiGenerationEngine implements GenerationEngine {
         examples: (phrase.examples ?? []).map((ex) => ({
           exampleEn: cleanEmbeddedQuotesOrBackticks(ex.exampleEn),
           exampleVi: cleanEmbeddedQuotesOrBackticks(ex.exampleVi),
+          ipa: ex.ipa ?? undefined,
         })),
         literalTranslationVi: phrase.literalTranslationVi ?? undefined,
         naturalTranslationVi: phrase.naturalTranslationVi ?? undefined,
         whyConfusingVi: phrase.whyConfusingVi ?? undefined,
+        ipa: phrase.ipa ?? undefined,
         category: phrase.category,
         difficulty: phrase.difficulty as any,
       })),
