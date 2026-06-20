@@ -189,10 +189,13 @@ export class GeminiLLMProvider implements LLMProvider {
 
       const parts = result.candidates?.[0]?.content?.parts ?? [];
       if (parts.length > 0) {
-        text = parts
-          .filter((part) => !part.thought && part.text)
-          .map((part) => part.text)
-          .join("");
+        let partsText = "";
+        for (const part of parts) {
+          if (!part.thought && part.text) {
+            partsText += part.text;
+          }
+        }
+        text = partsText;
       } else {
         text = result.text ?? "";
       }

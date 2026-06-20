@@ -11,6 +11,12 @@ import {
 import type { CompletionStats } from "./completion-summary-stats";
 import { cn } from "@/lib/utils";
 
+const viDateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 interface CompletionSummaryProps {
   stats: CompletionStats;
   onRetry: () => void;
@@ -28,11 +34,7 @@ export function CompletionSummary({ stats, onRetry }: CompletionSummaryProps) {
   const isPerfect = correctFirstTry === total;
   const savedMistakes = newMistakesSaved + repeatedErrors;
   const nextReviewLabel = nextReviewAt
-    ? new Intl.DateTimeFormat("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(new Date(nextReviewAt))
+    ? viDateTimeFormatter.format(new Date(nextReviewAt))
     : null;
 
   return (

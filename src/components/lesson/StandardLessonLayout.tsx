@@ -67,11 +67,12 @@ export function StandardLessonLayout({
 
   // Map from conceptKey → mistakePatternId for phrase-sourced review cards.
   // Used by the "Đã biết" dismiss button on each key phrase card.
-  const phrasePatternMap: Record<string, string> = Object.fromEntries(
-    mistakePatterns
-      .filter((p) => p.source === "phrase" && p.masteryState === "active")
-      .map((p) => [p.conceptKey, p.id])
-  );
+  const phrasePatternMap: Record<string, string> = {};
+  for (const p of mistakePatterns) {
+    if (p.source === "phrase" && p.masteryState === "active") {
+      phrasePatternMap[p.conceptKey] = p.id;
+    }
+  }
 
   const { isDeveloperError, isGrammarCorrection, isMixedLanguage } =
     classifyInputMode(lesson.inputMode);

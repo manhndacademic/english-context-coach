@@ -139,9 +139,14 @@ export class DrizzleKeyResolver implements KeyResolver {
             encryptedKeys = [rawValue];
           }
 
-          const candidateKeys = encryptedKeys
-            .map((encKey, index) => ({ encKey, id: `user-key-${index}` }))
-            .filter((c) => !excludedKeyIds || !excludedKeyIds.has(c.id));
+          const candidateKeys: { encKey: string; id: string }[] = [];
+          for (let index = 0; index < encryptedKeys.length; index++) {
+            const encKey = encryptedKeys[index];
+            const id = `user-key-${index}`;
+            if (!excludedKeyIds || !excludedKeyIds.has(id)) {
+              candidateKeys.push({ encKey, id });
+            }
+          }
 
           if (candidateKeys.length > 0) {
             const picked =
@@ -223,21 +228,21 @@ export class DrizzleKeyResolver implements KeyResolver {
 
     if (envKeys.length > 0) {
       const now = Date.now();
-      const activeEnvKeys = envKeys
-        .map((key, index) => ({ key, id: `env-key-${index}` }))
-        .filter((k) => {
-          if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
-          if (DrizzleKeyResolver.envKeyInvalid.has(k.id)) return false;
-          const cooldownUntil =
-            DrizzleKeyResolver.envKeyCooldowns.get(k.id) ?? 0;
-          if (now < cooldownUntil) return false;
-          if (model) {
-            const modelCooldownUntil =
-              DrizzleKeyResolver.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
-            if (now < modelCooldownUntil) return false;
-          }
-          return true;
-        });
+      const activeEnvKeys: { key: string; id: string }[] = [];
+      for (let index = 0; index < envKeys.length; index++) {
+        const key = envKeys[index];
+        const id = `env-key-${index}`;
+        if (excludedKeyIds && excludedKeyIds.has(id)) continue;
+        if (DrizzleKeyResolver.envKeyInvalid.has(id)) continue;
+        const cooldownUntil = DrizzleKeyResolver.envKeyCooldowns.get(id) ?? 0;
+        if (now < cooldownUntil) continue;
+        if (model) {
+          const modelCooldownUntil =
+            DrizzleKeyResolver.keyModelCooldowns.get(`${id}:${model}`) ?? 0;
+          if (now < modelCooldownUntil) continue;
+        }
+        activeEnvKeys.push({ key, id });
+      }
 
       if (activeEnvKeys.length > 0) {
         const picked =

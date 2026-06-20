@@ -20,13 +20,15 @@ import { GradingFeedback } from "@/components/grading-feedback";
 import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
 import { translateCategory } from "@/lib/utils";
 
+const viDateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 function formatReviewDate(value?: string) {
   if (!value) return null;
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+  return viDateTimeFormatter.format(new Date(value));
 }
 
 export function PhrasePracticeCard({

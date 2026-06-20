@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Bold, List, Highlighter } from "lucide-react";
 
 export function RichTextEditor({
@@ -33,12 +33,16 @@ export function RichTextEditor({
     [placeholder]
   );
 
+  const lastValueRef = useRef(value);
+
   const editor = useEditor({
     extensions,
     content: "",
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      onChange(JSON.stringify(editor.getJSON()));
+      const jsonStr = JSON.stringify(editor.getJSON());
+      lastValueRef.current = jsonStr;
+      onChange(jsonStr);
     },
     editorProps: {
       attributes: {
@@ -52,26 +56,22 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
 
-    const currentJSONStr = JSON.stringify(editor.getJSON());
+    if (value === lastValueRef.current) return;
+
+    lastValueRef.current = value;
 
     // Handle clearing the editor when value is set to empty/reset
     if (!value) {
-      if (editor.getText().length > 0) {
-        editor.commands.clearContent();
-      }
+      editor.commands.clearContent();
       return;
     }
 
     // Update content only if value differs from the current editor state
-    if (value !== currentJSONStr) {
-      try {
-        const json = JSON.parse(value);
-        editor.commands.setContent(json);
-      } catch {
-        if (value !== editor.getText()) {
-          editor.commands.setContent(value);
-        }
-      }
+    try {
+      const json = JSON.parse(value);
+      editor.commands.setContent(json);
+    } catch {
+      editor.commands.setContent(value);
     }
   }, [editor, value]);
 

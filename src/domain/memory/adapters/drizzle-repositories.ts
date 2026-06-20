@@ -24,6 +24,13 @@ import type {
   MemoryLessonLookup,
 } from "../ports";
 
+const hcmDateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 export class DrizzleExerciseRepository implements ExerciseRepository {
   constructor(private dbClient: DbClient = db) {}
 
@@ -450,15 +457,9 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
         b.localeCompare(a)
       );
       // Compute "today" and "yesterday" in Vietnam date strings relative to dueAt
-      const formatter = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const todayStr = formatter.format(dueAt);
+      const todayStr = hcmDateTimeFormatter.format(dueAt);
       const yesterday = new Date(dueAt.getTime() - 24 * 60 * 60 * 1000);
-      const yesterdayStr = formatter.format(yesterday);
+      const yesterdayStr = hcmDateTimeFormatter.format(yesterday);
 
       // Streak must start from today or yesterday; otherwise streak is 0
       if (sortedDates[0] === todayStr || sortedDates[0] === yesterdayStr) {

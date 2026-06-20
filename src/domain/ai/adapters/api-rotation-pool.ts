@@ -151,9 +151,13 @@ export class ApiRotationPool {
 
   getCooldowns(): ModelCooldown[] {
     const now = Date.now();
-    return Array.from(this.cooldowns.entries())
-      .filter(([, until]) => until > now)
-      .map(([model, cooldownUntil]) => ({ model, cooldownUntil }));
+    const result: ModelCooldown[] = [];
+    for (const [model, cooldownUntil] of this.cooldowns.entries()) {
+      if (cooldownUntil > now) {
+        result.push({ model, cooldownUntil });
+      }
+    }
+    return result;
   }
 
   async executeWithRotation<T>(options: {

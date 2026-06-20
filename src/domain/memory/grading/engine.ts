@@ -29,12 +29,16 @@ function gradeObjectiveExercise(
   if (!isMultipleChoice && !isCloze) return null;
 
   const normalizedAnswer = normalizeAnswer(answer);
-  const expected = [
+  const expected: string[] = [];
+  const candidates = [
     exercise.correctAnswer,
     ...(exercise.acceptableAnswers ?? []),
-  ]
-    .filter(Boolean)
-    .map((value) => normalizeAnswer(value as string));
+  ];
+  for (const value of candidates) {
+    if (value) {
+      expected.push(normalizeAnswer(value as string));
+    }
+  }
 
   const isCorrect = expected.includes(normalizedAnswer);
 
