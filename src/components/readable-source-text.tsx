@@ -214,6 +214,24 @@ export function ReadableSourceText({
     editor.commands.setContent(parsedContent);
   }, [parsedContent, editor]);
 
+  // Close the selection lookup popover when clicking outside of it
+  useEffect(() => {
+    if (!isLookupOpen) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest(".lookup-popover-container")) {
+        return;
+      }
+      setIsLookupOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+    };
+  }, [isLookupOpen]);
+
   const handleMouseOver = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const anchor = target.closest(".keyphrase-anchor");
@@ -441,128 +459,148 @@ export function ReadableSourceText({
 
       {/* Floating Selection Tooltip Popover */}
       {isLookupOpen && lookupState && (
-        <div
-          className="lookup-popover-container absolute z-50 bg-surface border border-border rounded-lg shadow-xl p-4 w-80 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-2.5 text-left"
-          style={{
-            left: `${lookupState.position.left}px`,
-            top: `${lookupState.position.top}px`,
-            transform: "translate(-50%, -100%)",
+        <HoverCard.Root
+          open={isLookupOpen}
+          onOpenChange={() => {
+            // Managed strictly via click-outside useEffect and explicit close buttons
           }}
         >
-          {/* Close button */}
-          <button
-            onClick={() => setIsLookupOpen(false)}
-            className="absolute top-2 right-2.5 text-muted hover:text-text cursor-pointer text-sm font-semibold select-none bg-surface-strong/50 w-5 h-5 rounded-full flex items-center justify-center hover:bg-border transition-all"
-          >
-            ✕
-          </button>
-
-          {!lookupState.explanation ? (
-            <div className="grid gap-2">
-              <p className="text-[10px] text-muted font-extrabold uppercase tracking-wider m-0">
-                Đã chọn:
-              </p>
-              <strong className="text-base text-accent-strong m-0 select-all font-serif">
-                &quot;{lookupState.phrase}&quot;
-              </strong>
-              {lookupState.error && (
-                <p className="text-xs text-danger font-semibold m-0 leading-relaxed">
-                  {lookupState.error}
-                </p>
-              )}
+          <HoverCard.Trigger asChild>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: lookupState.position.left,
+                top: lookupState.position.top,
+                width: 1,
+                height: 1,
+                zIndex: 10,
+              }}
+            />
+          </HoverCard.Trigger>
+          <HoverCard.Portal>
+            <HoverCard.Content
+              className="w-80 bg-surface border border-border rounded-lg shadow-xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 lookup-popover-container text-left"
+              side="top"
+              align="center"
+              sideOffset={5}
+              avoidCollisions={true}
+            >
+              {/* Close button */}
               <button
-                onClick={handleExplainClick}
-                disabled={lookupState.loading}
-                className="w-full inline-flex items-center justify-center gap-1.5 min-h-9 rounded-md bg-accent text-white hover:bg-accent-hover text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 mt-1 select-none"
+                onClick={() => setIsLookupOpen(false)}
+                className="absolute top-2 right-2.5 text-muted hover:text-text cursor-pointer text-sm font-semibold select-none bg-surface-strong/50 w-5 h-5 rounded-full flex items-center justify-center hover:bg-border transition-all"
               >
-                {lookupState.loading ? (
-                  <>
-                    <Loader2 size={12} className="animate-spin" /> Đang dịch
-                    nghĩa...
-                  </>
-                ) : (
-                  "🔍 Giải nghĩa từ này"
-                )}
+                ✕
               </button>
-            </div>
-          ) : (
-            <div className="grid gap-3 select-none text-text">
-              <div>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <h4 className="font-bold text-accent-strong text-base m-0 font-serif">
-                    {lookupState.explanation.phrase}
-                  </h4>
-                  <span className="font-sans text-xs text-muted italic font-medium">
-                    /{lookupState.explanation.ipa}/
-                  </span>
-                </div>
-                <div className="inline-flex rounded bg-surface-strong border border-border px-1.5 py-0.5 text-[9px] text-muted font-black uppercase mt-1.5 leading-none">
-                  {lookupState.explanation.category.replace("_", " ")}
-                </div>
-              </div>
 
-              <div className="grid gap-1">
-                <span className="text-[9px] font-black uppercase tracking-wider text-muted">
-                  Nghĩa chung:
-                </span>
-                <p className="text-sm font-semibold m-0 leading-relaxed text-text">
-                  {lookupState.explanation.meaningVi}
-                </p>
-              </div>
-
-              <div className="grid gap-1 border-l-2 border-accent pl-2.5 py-0.5">
-                <span className="text-[9px] font-black uppercase tracking-wider text-accent-strong">
-                  Nghĩa trong ngữ cảnh:
-                </span>
-                <p className="text-xs font-medium m-0 leading-relaxed text-text">
-                  {lookupState.explanation.meaningInContextVi}
-                </p>
-              </div>
-
-              {lookupState.explanation.whyConfusingVi && (
-                <div className="grid gap-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-warning">
-                    Lưu ý bẫy dịch:
-                  </span>
-                  <p className="text-[11px] text-muted leading-relaxed m-0">
-                    {lookupState.explanation.whyConfusingVi}
+              {!lookupState.explanation ? (
+                <div className="grid gap-2">
+                  <p className="text-[10px] text-muted font-extrabold uppercase tracking-wider m-0">
+                    Đã chọn:
                   </p>
+                  <strong className="text-base text-accent-strong m-0 select-all font-serif">
+                    &quot;{lookupState.phrase}&quot;
+                  </strong>
+                  {lookupState.error && (
+                    <p className="text-xs text-danger font-semibold m-0 leading-relaxed">
+                      {lookupState.error}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleExplainClick}
+                    disabled={lookupState.loading}
+                    className="w-full inline-flex items-center justify-center gap-1.5 min-h-9 rounded-md bg-accent text-white hover:bg-accent-hover text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 mt-1 select-none"
+                  >
+                    {lookupState.loading ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" /> Đang dịch
+                        nghĩa...
+                      </>
+                    ) : (
+                      "🔍 Giải nghĩa từ này"
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-3 select-none text-text">
+                  <div>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <h4 className="font-bold text-accent-strong text-base m-0 font-serif">
+                        {lookupState.explanation.phrase}
+                      </h4>
+                      <span className="font-sans text-xs text-muted italic font-medium">
+                        /{lookupState.explanation.ipa}/
+                      </span>
+                    </div>
+                    <div className="inline-flex rounded bg-surface-strong border border-border px-1.5 py-0.5 text-[9px] text-muted font-black uppercase mt-1.5 leading-none">
+                      {lookupState.explanation.category.replace("_", " ")}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-muted">
+                      Nghĩa chung:
+                    </span>
+                    <p className="text-sm font-semibold m-0 leading-relaxed text-text">
+                      {lookupState.explanation.meaningVi}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-1 border-l-2 border-accent pl-2.5 py-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-accent-strong">
+                      Nghĩa trong ngữ cảnh:
+                    </span>
+                    <p className="text-xs font-medium m-0 leading-relaxed text-text">
+                      {lookupState.explanation.meaningInContextVi}
+                    </p>
+                  </div>
+
+                  {lookupState.explanation.whyConfusingVi && (
+                    <div className="grid gap-1">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-warning">
+                        Lưu ý bẫy dịch:
+                      </span>
+                      <p className="text-[11px] text-muted leading-relaxed m-0">
+                        {lookupState.explanation.whyConfusingVi}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid gap-1.5 bg-surface-strong border border-border rounded p-2.5 text-xs">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-muted">
+                      Ví dụ tương tự:
+                    </span>
+                    <p className="italic font-serif text-text m-0 leading-normal select-all">
+                      &quot;{lookupState.explanation.exampleEn}&quot;
+                    </p>
+                    <p className="text-muted m-0 text-[11px] leading-normal">
+                      {lookupState.explanation.exampleVi}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border pt-2.5 mt-1 gap-2">
+                    <span className="text-[10px] text-muted font-bold">
+                      Cấp độ: {lookupState.explanation.difficulty}
+                    </span>
+                    <button
+                      onClick={handleSaveClick}
+                      disabled={isSaving}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-white bg-accent hover:bg-accent-hover transition-all text-xs cursor-pointer shadow-sm disabled:opacity-50"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 size={10} className="animate-spin" /> Đang lưu...
+                        </>
+                      ) : (
+                        "💾 Lưu ôn tập (SRS)"
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <div className="grid gap-1.5 bg-surface-strong border border-border rounded p-2.5 text-xs">
-                <span className="text-[9px] font-black uppercase tracking-wider text-muted">
-                  Ví dụ tương tự:
-                </span>
-                <p className="italic font-serif text-text m-0 leading-normal select-all">
-                  &quot;{lookupState.explanation.exampleEn}&quot;
-                </p>
-                <p className="text-muted m-0 text-[11px] leading-normal">
-                  {lookupState.explanation.exampleVi}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-border pt-2.5 mt-1 gap-2">
-                <span className="text-[10px] text-muted font-bold">
-                  Cấp độ: {lookupState.explanation.difficulty}
-                </span>
-                <button
-                  onClick={handleSaveClick}
-                  disabled={isSaving}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-white bg-accent hover:bg-accent-hover transition-all text-xs cursor-pointer shadow-sm disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 size={10} className="animate-spin" /> Đang lưu...
-                    </>
-                  ) : (
-                    "💾 Lưu ôn tập (SRS)"
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            </HoverCard.Content>
+          </HoverCard.Portal>
+        </HoverCard.Root>
       )}
     </div>
   );
