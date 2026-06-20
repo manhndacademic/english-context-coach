@@ -15,11 +15,13 @@ vi.mock("@/lib/auth/guards", () => ({
 // Mock repositories and dependencies
 const mockFindDueMistakePatterns = vi.fn();
 const mockFindMistakePattern = vi.fn();
+const mockGetLessonsForPatterns = vi.fn(() => Promise.resolve({}));
 
 vi.mock("@/domain/memory", () => ({
   getMistakePatternRepository: vi.fn(() => ({
     findDueMistakePatterns: mockFindDueMistakePatterns,
     findMistakePattern: mockFindMistakePattern,
+    getLessonsForPatterns: mockGetLessonsForPatterns,
   })),
 }));
 

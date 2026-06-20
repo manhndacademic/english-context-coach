@@ -5,7 +5,6 @@ import {
   getMistakePatternRepository,
   getPhrasePracticeRepository,
 } from "@/domain/memory";
-import { getMistakePatternLessonsMap } from "@/app/actions/review";
 import Link from "next/link";
 import { PageLayout } from "@/components/ui/page-layout";
 import { PageHeader } from "@/components/ui/page-header";
@@ -41,7 +40,7 @@ export default async function HistoryPage() {
     phraseRepo.findAllPhrasePractices(user.id),
     lessonRepo.getRecentLessons(user.id, 100),
     memoryEngine.getDashboardMetrics(user.id, now),
-    getMistakePatternLessonsMap(user.id),
+    memoryRepo.getLessonsForPatterns(user.id),
   ]);
 
   const {

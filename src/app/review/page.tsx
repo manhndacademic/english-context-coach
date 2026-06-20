@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/auth/guards";
 import { ReviewSession } from "./session";
 import { getMistakePatternRepository } from "@/domain/memory";
-import { getMistakePatternLessonsMap } from "@/app/actions/review";
 import { PageLayout } from "@/components/ui/page-layout";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -27,7 +26,7 @@ export default async function ReviewPage({ searchParams }: PageProps) {
   }
 
   const patterns = rawPatterns.map((p) => p.toPlainObject());
-  const lessonsMap = await getMistakePatternLessonsMap(user.id);
+  const lessonsMap = await repo.getLessonsForPatterns(user.id);
 
   return (
     <PageLayout user={user}>

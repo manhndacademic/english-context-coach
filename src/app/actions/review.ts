@@ -97,18 +97,6 @@ export const retryReviewPromptGenerationAction = validatedAction(
   }
 );
 
-export async function getMistakePatternLessonsMap(
-  userId: string
-): Promise<Record<string, Array<{ id: string; title: string | null }>>> {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    return {};
-  }
-
-  return getMistakePatternRepository().getLessonsForPatterns(userId);
-}
-
 const submitPhrasePracticeSchema = z.object({
   practiceId: z
     .string()

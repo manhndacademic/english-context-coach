@@ -4,15 +4,20 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { hashPassword, validatePassword } from "@/lib/auth/password";
 
 export type AuthActionState = {
   error?: string;
 };
 
-export async function registerAction(_state: AuthActionState, formData: FormData): Promise<AuthActionState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+export async function registerAction(
+  _state: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
@@ -20,7 +25,11 @@ export async function registerAction(_state: AuthActionState, formData: FormData
   const passwordError = validatePassword(password);
   if (passwordError) return { error: passwordError };
 
-  const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, email))
+    .limit(1);
   if (existing) return { error: "An account already exists for this email." };
 
   await db.insert(schema.users).values({
@@ -33,8 +42,13 @@ export async function registerAction(_state: AuthActionState, formData: FormData
   redirect("/dashboard");
 }
 
-export async function loginAction(_state: AuthActionState, formData: FormData): Promise<AuthActionState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+export async function loginAction(
+  _state: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "");
 
   try {
@@ -53,5 +67,9 @@ export async function googleLoginAction() {
 }
 
 export async function logoutAction() {
+  const session = await auth();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
   await signOut({ redirectTo: "/login" });
 }
