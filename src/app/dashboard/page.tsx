@@ -73,7 +73,11 @@ export default async function DashboardPage() {
 
   return (
     <PageLayout user={user}>
-      <div className="grid grid-cols-1 min-[860px]:grid-cols-[1.4fr_0.8fr] gap-layout-gap items-start">
+      <div className="flex flex-col gap-layout-gap max-w-5xl mx-auto w-full">
+        {/* Top Review Banner */}
+        <ReviewNudge count={dueCount} firstDuePattern={firstDuePattern} />
+
+        {/* Middle Progressive Paste Form */}
         <SectionCard>
           <div className="flex items-start gap-4 flex-col sm:flex-row">
             <div className="bg-accent-light text-accent p-3 rounded-md shrink-0">
@@ -96,72 +100,72 @@ export default async function DashboardPage() {
           </div>
         </SectionCard>
 
-        <aside className="grid gap-layout-gap">
-          {/* Review Nudge — shown when there are due review items */}
-          <ReviewNudge count={dueCount} firstDuePattern={firstDuePattern} />
+        {/* Bottom Grid for Stats and Info */}
+        <div className="grid grid-cols-1 min-[860px]:grid-cols-[1fr_1.2fr] gap-layout-gap items-start">
+          {/* Stats, Streak, and Repeated Mistakes */}
+          <div className="grid gap-layout-gap w-full">
+            <DashboardStats
+              dueCount={dueCount}
+              patternCount={patternCount}
+              masteredCount={masteredCount}
+              reviewSuccessRate={reviewSuccessRate}
+              exercisesCompleted={exercisesCompleted}
+              lessonsCompleted={lessonsCompleted}
+            />
 
-          {/* Learning Streak */}
-          <StreakBadge days={streakDays} />
+            <StreakBadge days={streakDays} />
 
-          {/* Spaced Repetition Summary Box */}
-          <DashboardStats
-            dueCount={dueCount}
-            patternCount={patternCount}
-            masteredCount={masteredCount}
-            reviewSuccessRate={reviewSuccessRate}
-            exercisesCompleted={exercisesCompleted}
-            lessonsCompleted={lessonsCompleted}
-          />
+            <RepeatedMistakesPanel repeatedMistakes={repeatedMistakes} />
+          </div>
 
-          {/* Repeated Mistakes Card */}
-          <RepeatedMistakesPanel repeatedMistakes={repeatedMistakes} />
-        </aside>
+          {/* Recent Lessons */}
+          <div className="w-full">
+            <SectionCard className="gap-4.5">
+              <SectionCard.Header
+                title="Các bài học gần đây"
+                icon={<BookOpen size={20} className="text-muted" />}
+              />
+              <SectionCard.Body className="gap-4">
+                {recentLessons.length ? (
+                  recentLessons.map((lesson) => (
+                    <LessonCard lesson={lesson} key={lesson.id} />
+                  ))
+                ) : (
+                  <p className="text-muted text-sm leading-relaxed m-0">
+                    Chưa có bài học nào. Hãy dán một đoạn văn bản tiếng Anh ở
+                    trên để bắt đầu bài học đầu tiên.
+                  </p>
+                )}
+              </SectionCard.Body>
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* Progress Trend Charts */}
+        <section className="grid grid-cols-1 min-[960px]:grid-cols-2 gap-layout-gap">
+          <SectionCard className="gap-4">
+            <SectionCard.Header
+              title="Thành thạo tích lũy"
+              description="Số mẫu lỗi đã thành thạo (mastered) tích lũy theo tuần"
+              icon={<TrendingUp size={20} className="text-accent" />}
+            />
+            <SectionCard.Body>
+              <MasteredTrendChart data={masteredTrend} />
+            </SectionCard.Body>
+          </SectionCard>
+
+          <SectionCard className="gap-4">
+            <SectionCard.Header
+              title="Tỷ lệ dịch literal"
+              description="Tỷ lệ lỗi dịch word-by-word (literal_translation) trên tổng số lỗi theo tuần"
+              icon={<TrendingDown size={20} className="text-warning" />}
+            />
+            <SectionCard.Body>
+              <LiteralErrorTrendChart data={literalErrorTrend} />
+            </SectionCard.Body>
+          </SectionCard>
+        </section>
       </div>
-
-      {/* Progress Trend Charts */}
-      <section className="grid grid-cols-1 min-[960px]:grid-cols-2 gap-layout-gap">
-        <SectionCard className="gap-4">
-          <SectionCard.Header
-            title="Thành thạo tích lũy"
-            description="Số mẫu lỗi đã thành thạo (mastered) tích lũy theo tuần"
-            icon={<TrendingUp size={20} className="text-accent" />}
-          />
-          <SectionCard.Body>
-            <MasteredTrendChart data={masteredTrend} />
-          </SectionCard.Body>
-        </SectionCard>
-
-        <SectionCard className="gap-4">
-          <SectionCard.Header
-            title="Tỷ lệ dịch literal"
-            description="Tỷ lệ lỗi dịch word-by-word (literal_translation) trên tổng số lỗi theo tuần"
-            icon={<TrendingDown size={20} className="text-warning" />}
-          />
-          <SectionCard.Body>
-            <LiteralErrorTrendChart data={literalErrorTrend} />
-          </SectionCard.Body>
-        </SectionCard>
-      </section>
-
-      {/* Recent Lessons Section */}
-      <SectionCard className="gap-4.5">
-        <SectionCard.Header
-          title="Các bài học gần đây"
-          icon={<BookOpen size={20} className="text-muted" />}
-        />
-        <SectionCard.Body className="gap-4">
-          {recentLessons.length ? (
-            recentLessons.map((lesson) => (
-              <LessonCard lesson={lesson} key={lesson.id} />
-            ))
-          ) : (
-            <p className="text-muted text-sm leading-relaxed m-0">
-              Chưa có bài học nào. Hãy dán một đoạn văn bản tiếng Anh ở trên để
-              bắt đầu bài học đầu tiên.
-            </p>
-          )}
-        </SectionCard.Body>
-      </SectionCard>
     </PageLayout>
   );
 }

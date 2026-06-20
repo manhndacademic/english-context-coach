@@ -9,6 +9,7 @@ export interface PracticeLike {
     explanationVi?: string;
   } | null;
   mistakePattern?: { dueAt: Date; masteryState: MasteryState } | null;
+  exercise?: { correctionItemId?: string | null } | null;
 }
 
 export interface CompletionStats {

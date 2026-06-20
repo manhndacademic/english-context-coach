@@ -21,12 +21,14 @@ interface CompletionSummaryProps {
   stats: CompletionStats;
   practices?: PracticeLike[];
   onRetry: () => void;
+  correctionItems?: any[];
 }
 
 export function CompletionSummary({
   stats,
   practices = [],
   onRetry,
+  correctionItems = [],
 }: CompletionSummaryProps) {
   const {
     total,
@@ -139,63 +141,93 @@ export function CompletionSummary({
         </div>
       ) : null}
 
-      {/* Mastery Progress Preview */}
-      {uniqueErrors.length > 0 && (
+      {/* CorrectionItems Summary for diff lessons */}
+      {correctionItems && correctionItems.length > 0 ? (
         <div className="bg-surface border border-border/80 rounded-lg p-4 grid gap-3 mt-1 text-left">
           <h4 className="text-xs font-black uppercase text-muted tracking-wider m-0 flex items-center gap-1.5">
-            🎯 Cập nhật sổ tay lỗi (Error Memory)
+            📝 Kết quả sửa lỗi (Correction Summary)
           </h4>
           <div className="grid gap-2.5">
-            {uniqueErrors.map((err, idx) => (
-              <div
-                key={idx}
-                className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <code className="text-accent font-extrabold px-1.5 py-0.5 rounded bg-accent-light border border-accent/10 font-mono">
-                    {err!.conceptKey}
-                  </code>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase",
-                      err!.isRepeated
-                        ? "bg-danger-light text-danger border-danger/15"
-                        : "bg-info-light text-info border-info/15"
-                    )}
-                  >
-                    {err!.isRepeated ? "Lặp lại" : "Mới phát hiện"}
-                  </span>
+            {correctionItems.map((item, idx) => {
+              const hasMistake = practices.some(
+                (p) => p.exercise?.correctionItemId === item.id && p.userError
+              );
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono bg-danger-light text-danger-strong border border-danger/10 px-1.5 py-0.5 rounded line-through decoration-danger">
+                        {item.draftPhrase}
+                      </span>
+                      <span className="text-muted">→</span>
+                      <span className="font-mono bg-success-light text-success-strong border border-success/10 px-1.5 py-0.5 rounded font-bold">
+                        {item.correctedPhrase}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase",
+                        hasMistake
+                          ? "bg-warning-light text-warning border-warning/15"
+                          : "bg-success-light text-success border-success/15"
+                      )}
+                    >
+                      {hasMistake ? "Cần luyện thêm" : "Đã thuộc"}
+                    </span>
+                  </div>
+                  {item.explanationVi && (
+                    <p className="text-muted m-0 leading-relaxed font-medium mt-1">
+                      {item.explanationVi}
+                    </p>
+                  )}
                 </div>
-                {err!.explanationVi && (
-                  <p className="text-muted m-0 leading-relaxed font-medium">
-                    {err!.explanationVi}
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+      ) : (
+        /* Mastery Progress Preview for standard lessons */
+        uniqueErrors.length > 0 && (
+          <div className="bg-surface border border-border/80 rounded-lg p-4 grid gap-3 mt-1 text-left">
+            <h4 className="text-xs font-black uppercase text-muted tracking-wider m-0 flex items-center gap-1.5">
+              🎯 Cập nhật sổ tay lỗi (Error Memory)
+            </h4>
+            <div className="grid gap-2.5">
+              {uniqueErrors.map((err, idx) => (
+                <div
+                  key={idx}
+                  className="bg-surface-strong border border-border rounded-md p-3 text-xs grid gap-1.5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <code className="text-accent font-extrabold px-1.5 py-0.5 rounded bg-accent-light border border-accent/10 font-mono">
+                      {err!.conceptKey}
+                    </code>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase",
+                        err!.isRepeated
+                          ? "bg-danger-light text-danger border-danger/15"
+                          : "bg-info-light text-info border-info/15"
+                      )}
+                    >
+                      {err!.isRepeated ? "Lặp lại" : "Mới phát hiện"}
+                    </span>
+                  </div>
+                  {err!.explanationVi && (
+                    <p className="text-muted m-0 leading-relaxed font-medium">
+                      {err!.explanationVi}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
       )}
-
-      {/* Weekly Goal Progress Bar */}
-      <div className="bg-surface-strong border border-border rounded-lg p-4 grid gap-2.5 mt-1 text-left">
-        <div className="flex justify-between items-center text-xs">
-          <span className="text-muted font-bold">
-            Mục tiêu tuần (Weekly Goal)
-          </span>
-          <span className="text-accent font-extrabold">3 / 5 bài học</span>
-        </div>
-        <div className="w-full bg-border rounded-full h-2.5 overflow-hidden">
-          <div
-            className="bg-accent h-full rounded-full transition-all duration-500"
-            style={{ width: "60%" }}
-          ></div>
-        </div>
-        <p className="text-[11px] text-muted m-0 leading-relaxed font-medium">
-          🚀 Bạn đã hoàn thành <strong>60%</strong> mục tiêu tuần. Cố gắng duy
-          trì để củng cố phản xạ tự nhiên!
-        </p>
-      </div>
 
       {/* Review schedule note */}
       {savedMistakes > 0 && (
@@ -207,23 +239,24 @@ export function CompletionSummary({
 
       {/* CTA buttons */}
       <div className="flex flex-col sm:flex-row gap-2.5">
-        {repeatedErrors > 0 && (
+        {repeatedErrors > 0 ? (
           <Link
             href="/review"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold no-underline flex-1 transition-all hover:-translate-y-px bg-danger text-white shadow-[0_2px_8px_rgba(220,38,38,0.25)]"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold no-underline flex-[2] transition-all hover:-translate-y-px bg-danger text-white shadow-[0_2px_8px_rgba(220,38,38,0.25)] hover:bg-danger-hover text-center cursor-pointer"
           >
-            <RefreshCw size={14} /> Ôn tập lỗi lặp lại
+            <RefreshCw size={14} /> Ôn tập lỗi lặp lại ngay
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold no-underline flex-[2] transition-all hover:-translate-y-px bg-accent text-white shadow-[0_2px_8px_rgba(5,150,105,0.25)] hover:bg-accent-hover text-center cursor-pointer"
+          >
+            Học bài mới <ArrowRight size={14} />
           </Link>
         )}
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold no-underline flex-1 transition-all hover:-translate-y-px bg-accent text-white shadow-[0_2px_8px_rgba(5,150,105,0.25)]"
-        >
-          Học bài mới <ArrowRight size={14} />
-        </Link>
         <button
           onClick={onRetry}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all hover:-translate-y-px flex-1 bg-surface-strong text-text border border-border"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all hover:-translate-y-px flex-1 bg-surface-strong text-text border border-border cursor-pointer"
         >
           <RotateCcw size={14} /> Làm lại
         </button>

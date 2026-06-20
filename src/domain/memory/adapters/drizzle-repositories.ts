@@ -18,10 +18,10 @@ import type {
   MistakePatternRepository,
   PhrasePracticeRepository,
   TransactionCoordinator,
-  GradableExercise,
   MemoryKeyPhraseInput,
   PracticeHistoryRepository,
   MemoryLessonLookup,
+  GradableExerciseInstance,
 } from "../ports";
 
 const hcmDateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -37,18 +37,7 @@ export class DrizzleExerciseRepository implements ExerciseRepository {
   async findExercise(
     exerciseId: string,
     userId: string
-  ): Promise<
-    | (GradableExercise & {
-        id: string;
-        lessonId: string;
-        userId: string;
-        keyPhraseId: string | null;
-        lessonFocusId: string | null;
-        orderIndex: number;
-        createdAt: Date;
-      })
-    | null
-  > {
+  ): Promise<GradableExerciseInstance | null> {
     const [row] = await this.dbClient
       .select()
       .from(schema.exercises)
@@ -136,6 +125,33 @@ export class DrizzleAttemptRepository implements AttemptRepository {
       })
       .returning();
     return row;
+  }
+
+  async deleteUserErrorByAttemptId(
+    attemptId: string
+  ): Promise<UserError | null> {
+    const [row] = await this.dbClient
+      .delete(schema.userErrors)
+      .where(eq(schema.userErrors.attemptId, attemptId))
+      .returning();
+    return row ?? null;
+  }
+
+  async findAttemptsByExercise(
+    exerciseId: string,
+    userId: string
+  ): Promise<Attempt[]> {
+    const rows = await this.dbClient
+      .select()
+      .from(schema.attempts)
+      .where(
+        and(
+          eq(schema.attempts.exerciseId, exerciseId),
+          eq(schema.attempts.userId, userId)
+        )
+      )
+      .orderBy(asc(schema.attempts.createdAt));
+    return rows as Attempt[];
   }
 }
 
@@ -251,6 +267,28 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
           reviewPromptLockedBy: row.reviewPromptLockedBy,
         },
       });
+  }
+
+  async decrementOrDeleteMistakePattern(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ): Promise<void> {
+    const existing = await this.findPatternByConcept(
+      userId,
+      conceptKey,
+      errorType
+    );
+    if (!existing) return;
+
+    if (existing.occurrenceCount <= 1) {
+      await this.dbClient
+        .delete(schema.mistakePatterns)
+        .where(eq(schema.mistakePatterns.id, existing.id));
+    } else {
+      existing.decrementOccurrence();
+      await this.saveMistakePattern(existing);
+    }
   }
 
   async claimReviewPromptJob(workerId: string): Promise<MistakePattern | null> {
@@ -1055,6 +1093,15 @@ export class DrizzleMemoryLessonLookup implements MemoryLessonLookup {
       .select()
       .from(schema.lessonFocuses)
       .where(eq(schema.lessonFocuses.id, lessonFocusId))
+      .limit(1);
+    return row ? (row as any) : null;
+  }
+
+  async findCorrectionItem(correctionItemId: string) {
+    const [row] = await this.dbClient
+      .select()
+      .from(schema.correctionItems)
+      .where(eq(schema.correctionItems.id, correctionItemId))
       .limit(1);
     return row ? (row as any) : null;
   }

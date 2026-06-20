@@ -68,6 +68,7 @@ export class PhrasePractice {
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
     private _reviewPromptLockedBy: string | null,
+    public readonly draftPhrase: string | null = null,
     public readonly keyPhraseId: string | null = null,
     public readonly literalTranslationTrapVi: string | null = null,
     public readonly whyConfusingVi: string | null = null,
@@ -86,6 +87,7 @@ export class PhrasePractice {
     category: any;
     meaningVi: string;
     isSensitive: boolean;
+    draftPhrase?: string | null;
   }): PhrasePractice {
     return new PhrasePractice(
       input.id,
@@ -117,6 +119,7 @@ export class PhrasePractice {
       null,
       null,
       null,
+      input.draftPhrase ?? null,
       input.keyPhraseId,
       null, // literalTranslationTrapVi
       null, // whyConfusingVi
@@ -173,6 +176,7 @@ export class PhrasePractice {
       state.reviewPromptError,
       parseDate(state.reviewPromptLockedAt),
       state.reviewPromptLockedBy,
+      state.draftPhrase ?? null,
       state.keyPhraseId ?? null,
       keyPhraseData?.literalTranslationVi ??
         state.literalTranslationTrapVi ??
@@ -377,6 +381,7 @@ export class PhrasePractice {
       reviewPromptError: this._reviewPromptError,
       reviewPromptLockedAt: this._reviewPromptLockedAt,
       reviewPromptLockedBy: this._reviewPromptLockedBy,
+      draftPhrase: this.draftPhrase,
     };
   }
 
@@ -412,6 +417,7 @@ export class PhrasePractice {
       reviewPromptError: this._reviewPromptError,
       reviewPromptLockedAt: this._reviewPromptLockedAt?.toISOString() ?? null,
       reviewPromptLockedBy: this._reviewPromptLockedBy,
+      draftPhrase: this.draftPhrase,
       literalTranslationTrapVi: this.literalTranslationTrapVi,
       whyConfusingVi: this.whyConfusingVi,
       examples: this.examples,
@@ -450,6 +456,7 @@ export interface PhrasePracticePlain {
   reviewPromptError: string | null;
   reviewPromptLockedAt: string | null;
   reviewPromptLockedBy: string | null;
+  draftPhrase: string | null;
   literalTranslationTrapVi: string | null;
   whyConfusingVi: string | null;
   examples: { exampleEn: string; exampleVi: string }[] | null;

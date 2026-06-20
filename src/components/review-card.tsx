@@ -12,7 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import {
-  submitReviewAttemptAction,
+  submitUnifiedReviewAttemptAction,
   type ReviewResultState,
 } from "@/app/actions/review";
 import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
@@ -39,7 +39,10 @@ export function ReviewCard({
   lessons,
   onComplete,
 }: {
-  pattern: MistakePatternPlain;
+  pattern: MistakePatternPlain & {
+    itemType?: "pattern" | "practice";
+    isRecent?: boolean;
+  };
   lessons?: Array<{ id: string; title: string | null }>;
   onComplete: () => void;
 }) {
@@ -48,12 +51,15 @@ export function ReviewCard({
   const [state, formAction, isPending] = useActionState<
     ReviewResultState,
     FormData
-  >(submitReviewAttemptAction, {});
+  >(submitUnifiedReviewAttemptAction, {});
+
+  const isRecent = pattern.isRecent ?? false;
 
   const isChoiceType =
-    pattern.reviewType === "meaning_choice" ||
-    pattern.reviewType === "trap_choice" ||
-    pattern.reviewType === "trap_detect";
+    !isRecent &&
+    (pattern.reviewType === "meaning_choice" ||
+      pattern.reviewType === "trap_choice" ||
+      pattern.reviewType === "trap_detect");
 
   const choiceSet = useMemo(
     () =>
@@ -75,7 +81,10 @@ export function ReviewCard({
   const disclosure = getReviewDisclosureState(hasSubmitted);
   const nextReviewDate = formatReviewDate(state.nextReviewAt);
   const naturalAnswer =
-    state.naturalAnswer ?? pattern.reviewCorrectAnswer ?? pattern.meaningVi;
+    state.naturalAnswer ??
+    (isRecent
+      ? pattern.normalizedPhrase
+      : (pattern.reviewCorrectAnswer ?? pattern.meaningVi));
 
   return (
     <article
@@ -92,7 +101,7 @@ export function ReviewCard({
             {translateCategory(pattern.category)}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent-light text-accent border border-accent/10">
-            {pattern.errorType.replaceAll("_", " ")}
+            {pattern.errorType?.replaceAll("_", " ") ?? ""}
           </span>
         </div>
 
@@ -169,22 +178,49 @@ export function ReviewCard({
       {/* Prompt / Challenge block */}
       <div className="grid gap-3">
         <h3 className="text-base font-bold text-text flex items-center gap-2 m-0">
-          <HelpCircle size={16} className="text-accent" /> Yêu cầu dịch:
+          <HelpCircle size={16} className="text-accent" />{" "}
+          {isRecent ? "Sửa lỗi cụm từ sau:" : "Yêu cầu dịch:"}
         </h3>
         <p className="text-muted text-sm m-0 -mt-1 leading-relaxed">
-          {renderRichText(promptVi)}
+          {isRecent
+            ? "Hãy viết lại cụm từ/câu tiếng Anh chính xác."
+            : renderRichText(promptVi)}
         </p>
 
         <blockquote className="font-serif text-lg sm:text-xl font-bold text-accent-strong bg-gradient-to-br from-surface to-surface-strong border border-border border-l-4 border-l-accent p-5 rounded-r-xl my-1 leading-relaxed italic shadow-inner">
-          {renderRichText(promptEn)}
+          {isRecent
+            ? renderRichText(pattern.draftPhrase || "")
+            : renderRichText(promptEn)}
         </blockquote>
       </div>
 
       {/* User Input Form */}
       <form action={formAction} className="grid gap-4">
-        <input name="patternId" type="hidden" value={pattern.id} />
+        <input name="id" type="hidden" value={pattern.id} />
+        <input
+          name="itemType"
+          type="hidden"
+          value={pattern.itemType ?? "pattern"}
+        />
 
-        {isChoiceType ? (
+        {isRecent ? (
+          <div className="grid gap-2 text-left">
+            <label htmlFor="answer" className="text-sm font-semibold text-text">
+              Nhập cụm từ/câu tiếng Anh chính xác
+            </label>
+            <input
+              id="answer"
+              disabled={isPending || state.isCorrect}
+              name="answer"
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Viết lại cụm từ/câu tiếng Anh chính xác ở đây..."
+              required
+              type="text"
+              value={answer}
+              className="w-full border border-border rounded-xl bg-background text-text px-4 h-12 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+            />
+          </div>
+        ) : isChoiceType ? (
           <div className="grid gap-2 text-left">
             <span className="text-sm font-semibold text-text">
               Chọn câu trả lời đúng
@@ -274,7 +310,9 @@ export function ReviewCard({
               ? "Đang chấm điểm..."
               : isChoiceType
                 ? "Gửi câu trả lời"
-                : "Gửi bản dịch"}
+                : isRecent
+                  ? "Gửi câu trả lời"
+                  : "Gửi bản dịch"}
           </Button>
         ) : (
           <Button
@@ -299,7 +337,7 @@ export function ReviewCard({
           naturalAnswer={naturalAnswer}
           nextReviewDate={nextReviewDate}
           masteryState={state.masteryState}
-          isSubjectiveType={!isChoiceType}
+          isSubjectiveType={!isChoiceType && !isRecent}
           score={state.score ?? undefined}
         />
       ) : null}

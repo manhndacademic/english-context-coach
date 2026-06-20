@@ -16,12 +16,18 @@ vi.mock("@/lib/auth/guards", () => ({
 const mockFindDueMistakePatterns = vi.fn();
 const mockFindMistakePattern = vi.fn();
 const mockGetLessonsForPatterns = vi.fn(() => Promise.resolve({}));
+const mockFindDuePhrasePractices = vi.fn();
+const mockFindPhrasePractice = vi.fn();
 
 vi.mock("@/domain/memory", () => ({
   getMistakePatternRepository: vi.fn(() => ({
     findDueMistakePatterns: mockFindDueMistakePatterns,
     findMistakePattern: mockFindMistakePattern,
     getLessonsForPatterns: mockGetLessonsForPatterns,
+  })),
+  getPhrasePracticeRepository: vi.fn(() => ({
+    findDuePhrasePractices: mockFindDuePhrasePractices,
+    findPhrasePractice: mockFindPhrasePractice,
   })),
 }));
 
@@ -43,6 +49,8 @@ vi.mock("./session", () => ({
 describe("ReviewPage Server Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFindDuePhrasePractices.mockResolvedValue([]);
+    mockFindPhrasePractice.mockResolvedValue(null);
   });
 
   it("fetches all due mistake patterns by default when patternId is not provided", async () => {

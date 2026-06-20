@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppHeader } from "@/components/app-header";
 import { LessonHeader } from "./LessonHeader";
 import { ExercisePanel } from "./ExercisePanel";
 import { generateExercisesAction } from "@/app/actions/source-texts";
 import { diffWords } from "@/domain/lesson/diff-engine";
+import { RepeatedMistakeBanner } from "./RepeatedMistakeBanner";
 
 interface DiffLessonLayoutProps {
   user: {
@@ -38,6 +39,7 @@ interface DiffLessonLayoutProps {
     correctionItems?: any[];
     exercises: any[];
     exercisePractices: any[];
+    mistakePatterns?: any[];
     progress: any;
   };
   now: number;
@@ -55,6 +57,7 @@ export function DiffLessonLayout({
     correctionItems = [],
     exercises = [],
     exercisePractices = [],
+    mistakePatterns = [],
     progress,
   } = lessonData;
 
@@ -72,6 +75,25 @@ export function DiffLessonLayout({
 
   // Calculate deterministic word-level differences
   const diffs = diffWords(draftContent, correctedContent);
+
+  const matchedRepeatedMistakes = useMemo(() => {
+    return correctionItems
+      .map((item) => {
+        const pattern = mistakePatterns.find(
+          (p) =>
+            p.conceptKey.toLowerCase().trim() ===
+            item.correctedPhrase.toLowerCase().trim()
+        );
+        if (pattern) {
+          return {
+            item,
+            pattern,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as Array<{ item: any; pattern: any }>;
+  }, [correctionItems, mistakePatterns]);
 
   const handleGenerateExercises = async (formData: FormData) => {
     await generateExercisesAction(formData);
@@ -91,6 +113,10 @@ export function DiffLessonLayout({
       />
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">
         <LessonHeader lesson={lesson} progress={progress} now={now} />
+
+        {currentPhase === "understand" && (
+          <RepeatedMistakeBanner repeatedMistakes={matchedRepeatedMistakes} />
+        )}
 
         <div
           className={`grid grid-cols-1 ${
@@ -185,7 +211,7 @@ export function DiffLessonLayout({
                         Ví dụ tương tự:
                       </span>
                       <div className="font-serif italic text-text text-base">
-                        "{item.exampleEn}"
+                        &ldquo;{item.exampleEn}&rdquo;
                       </div>
                       <div className="text-muted text-sm mt-0.5">
                         ({item.exampleVi})
@@ -226,7 +252,11 @@ export function DiffLessonLayout({
           {hasSideColumn ? (
             <div className="grid gap-4">
               <div className="relative" id="exercise-panel-section">
-                <ExercisePanel lesson={lesson} practices={exercisePractices} />
+                <ExercisePanel
+                  lesson={lesson}
+                  practices={exercisePractices}
+                  correctionItems={correctionItems}
+                />
 
                 {/* Case 1: Exercises not generated yet (Idle) */}
                 {lesson.exerciseStatus === "idle" && (

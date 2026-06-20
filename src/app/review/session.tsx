@@ -11,7 +11,7 @@ export function ReviewSession({
   patterns,
   lessonsMap = {},
 }: {
-  patterns: MistakePatternPlain[];
+  patterns: any[];
   lessonsMap?: Record<string, Array<{ id: string; title: string | null }>>;
 }) {
   const router = useRouter();

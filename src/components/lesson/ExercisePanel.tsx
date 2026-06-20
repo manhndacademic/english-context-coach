@@ -7,9 +7,14 @@ interface ExercisePanelProps {
     exerciseStatus: string;
   };
   practices: any[];
+  correctionItems?: any[];
 }
 
-export function ExercisePanel({ lesson, practices }: ExercisePanelProps) {
+export function ExercisePanel({
+  lesson,
+  practices,
+  correctionItems = [],
+}: ExercisePanelProps) {
   if (
     lesson.exerciseStatus === "pending" ||
     lesson.exerciseStatus === "running"
@@ -52,7 +57,11 @@ export function ExercisePanel({ lesson, practices }: ExercisePanelProps) {
       </div>
       <div className="mt-3">
         {practices.length ? (
-          <ExerciseStepper key={lesson.id} practices={practices} />
+          <ExerciseStepper
+            key={lesson.id}
+            practices={practices}
+            correctionItems={correctionItems}
+          />
         ) : (
           <p className="text-muted text-sm leading-relaxed m-0">
             {lesson.exerciseStatus === "failed"

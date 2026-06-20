@@ -50,6 +50,14 @@ export interface MemoryLessonLookup {
     conceptPhrase: string;
     conceptMeaningVi: string;
   } | null>;
+  findCorrectionItem(correctionItemId: string): Promise<{
+    id: string;
+    draftPhrase: string;
+    correctedPhrase: string;
+    explanationVi: string;
+    category: KeyPhraseCategory;
+    errorType: string;
+  } | null>;
 }
 
 export type GradableExerciseInstance = GradableExercise & {
@@ -58,6 +66,7 @@ export type GradableExerciseInstance = GradableExercise & {
   userId: string;
   keyPhraseId: string | null;
   lessonFocusId: string | null;
+  correctionItemId: string | null;
   orderIndex: number;
   createdAt: Date;
 };
@@ -113,6 +122,12 @@ export interface AttemptRepository {
     isSourceSensitive: boolean;
     isRepeated: boolean;
   }): Promise<UserError>;
+
+  deleteUserErrorByAttemptId(attemptId: string): Promise<UserError | null>;
+  findAttemptsByExercise(
+    exerciseId: string,
+    userId: string
+  ): Promise<Attempt[]>;
 }
 
 export interface MistakePatternRepository {
@@ -128,6 +143,11 @@ export interface MistakePatternRepository {
   ): Promise<MistakePattern | null>;
   upsertMistakePattern(pattern: MistakePattern): Promise<MistakePattern>;
   saveMistakePattern(pattern: MistakePattern): Promise<void>;
+  decrementOrDeleteMistakePattern(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ): Promise<void>;
   claimReviewPromptJob(workerId: string): Promise<MistakePattern | null>;
   findDueMistakePatterns(
     userId: string,

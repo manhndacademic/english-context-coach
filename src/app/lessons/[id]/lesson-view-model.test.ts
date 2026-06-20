@@ -286,49 +286,20 @@ describe("classifyInputMode", () => {
   it("classifies not_english correctly", () => {
     const flags = classifyInputMode("not_english");
     expect(flags.isNotEnglishOrUnsupported).toBe(true);
-    expect(flags.isDeveloperError).toBe(false);
-    expect(flags.isGrammarCorrection).toBe(false);
   });
 
   it("classifies unsupported correctly", () => {
     const flags = classifyInputMode("unsupported");
     expect(flags.isNotEnglishOrUnsupported).toBe(true);
-    expect(flags.isDeveloperError).toBe(false);
-    expect(flags.isGrammarCorrection).toBe(false);
-  });
-
-  it("classifies developer_error_explanation correctly", () => {
-    const flags = classifyInputMode("developer_error_explanation");
-    expect(flags.isNotEnglishOrUnsupported).toBe(false);
-    expect(flags.isDeveloperError).toBe(true);
-    expect(flags.isGrammarCorrection).toBe(false);
-  });
-
-  it("classifies fix_and_understand as grammar correction", () => {
-    const flags = classifyInputMode("fix_and_understand");
-    expect(flags.isGrammarCorrection).toBe(true);
-    expect(flags.isNotEnglishOrUnsupported).toBe(false);
-    expect(flags.isDeveloperError).toBe(false);
-  });
-
-  it("classifies naturalize_english as grammar correction", () => {
-    const flags = classifyInputMode("naturalize_english");
-    expect(flags.isGrammarCorrection).toBe(true);
-    expect(flags.isNotEnglishOrUnsupported).toBe(false);
-    expect(flags.isDeveloperError).toBe(false);
   });
 
   it("classifies standard mode as none of the above", () => {
     const flags = classifyInputMode("standard");
     expect(flags.isNotEnglishOrUnsupported).toBe(false);
-    expect(flags.isDeveloperError).toBe(false);
-    expect(flags.isGrammarCorrection).toBe(false);
   });
 
   it("returns all false for an empty string", () => {
     const flags = classifyInputMode("");
     expect(flags.isNotEnglishOrUnsupported).toBe(false);
-    expect(flags.isDeveloperError).toBe(false);
-    expect(flags.isGrammarCorrection).toBe(false);
   });
 });

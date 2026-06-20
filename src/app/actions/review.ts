@@ -164,3 +164,67 @@ export const retryPhrasePracticePromptGenerationAction = validatedAction(
     revalidatePath("/phrase-practice");
   }
 );
+
+const submitUnifiedReviewAttemptSchema = z.object({
+  id: z.string().uuid(),
+  itemType: z.enum(["pattern", "practice"]),
+  answer: z.string().trim().min(1, "Vui lòng nhập câu trả lời"),
+});
+
+export const submitUnifiedReviewAttemptAction = validatedAction(
+  submitUnifiedReviewAttemptSchema,
+  async (data, user): Promise<ReviewResultState> => {
+    const engine = getLearnerMemoryEngine();
+    if (data.itemType === "pattern") {
+      const result = await engine.submitReviewAttempt({
+        userId: user.id,
+        patternId: data.id,
+        answer: data.answer,
+      });
+
+      if (!result.success) {
+        return { error: result.error ?? "Đã xảy ra lỗi khi chấm điểm ôn tập." };
+      }
+
+      revalidatePath("/dashboard");
+      revalidatePath("/review");
+
+      return {
+        success: true,
+        score: result.score,
+        isCorrect: result.isCorrect,
+        feedbackVi: result.feedbackVi,
+        masteryState: result.masteryState,
+        nextReviewAt: result.nextReviewAt?.toISOString(),
+        naturalAnswer: result.naturalAnswer,
+        feedbackDetails: result.feedbackDetails,
+        literalTranslationTrap: result.literalTranslationTrap ?? undefined,
+      };
+    } else {
+      const result = await engine.submitPhrasePractice({
+        userId: user.id,
+        practiceId: data.id,
+        answer: data.answer,
+      });
+
+      if (!result.success) {
+        return { error: result.error ?? "Đã xảy ra lỗi khi chấm điểm ôn tập." };
+      }
+
+      revalidatePath("/dashboard");
+      revalidatePath("/review");
+
+      return {
+        success: true,
+        score: result.score,
+        isCorrect: result.isCorrect,
+        feedbackVi: result.feedbackVi,
+        masteryState: result.masteryState,
+        nextReviewAt: result.nextReviewAt?.toISOString(),
+        naturalAnswer: result.naturalAnswer,
+        feedbackDetails: result.feedbackDetails,
+        literalTranslationTrap: result.literalTranslationTrap ?? undefined,
+      };
+    }
+  }
+);

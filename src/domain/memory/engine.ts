@@ -50,6 +50,7 @@ type ResolvedMemoryConcept = {
   explanationVi: string;
   safeReviewPromptVi: string;
   isSensitive: boolean;
+  draftPhrase: string | null;
 };
 
 function categoryForLessonFocus(category: LessonFocusCategory): MemoryCategory {
@@ -203,13 +204,33 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         createdAt: new Date(),
       };
 
-      // 1. Grade the attempt (AI call outside transaction)
-      const grade = await this.grader.grade({
-        userId: input.userId,
-        lessonId: undefined,
-        exercise: mockExercise,
-        answer: input.answer,
-      });
+      // 1. Grade the attempt (AI call outside transaction, or local match if recent)
+      const createdAtDate = new Date(pattern.createdAt);
+      const isRecent =
+        pattern.draftPhrase &&
+        Date.now() - createdAtDate.getTime() <= 7 * 24 * 60 * 60 * 1000;
+
+      let grade: LearnerGradingResult;
+      if (isRecent) {
+        const isAnswerCorrect =
+          input.answer.trim().toLowerCase() ===
+          pattern.normalizedPhrase.trim().toLowerCase();
+        grade = {
+          score: isAnswerCorrect ? 100 : 0,
+          isCorrect: isAnswerCorrect,
+          feedbackVi: isAnswerCorrect
+            ? "Chính xác! Bạn đã ghi nhớ đúng cụm từ."
+            : `Chưa chính xác. Cụm từ đúng là: "${pattern.normalizedPhrase}".`,
+          naturalAnswer: pattern.normalizedPhrase,
+        };
+      } else {
+        grade = await this.grader.grade({
+          userId: input.userId,
+          lessonId: undefined,
+          exercise: mockExercise,
+          answer: input.answer,
+        });
+      }
 
       pattern.recordReviewAttempt(grade.isCorrect, grade.score);
 
@@ -316,13 +337,33 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         createdAt: new Date(),
       };
 
-      // 1. Grade the attempt (AI call outside transaction)
-      const grade = await this.grader.grade({
-        userId: input.userId,
-        lessonId: undefined,
-        exercise: mockExercise,
-        answer: input.answer,
-      });
+      // 1. Grade the attempt (AI call outside transaction, or local match if recent)
+      const createdAtDate = new Date(practice.createdAt);
+      const isRecent =
+        practice.draftPhrase &&
+        Date.now() - createdAtDate.getTime() <= 7 * 24 * 60 * 60 * 1000;
+
+      let grade: LearnerGradingResult;
+      if (isRecent) {
+        const isAnswerCorrect =
+          input.answer.trim().toLowerCase() ===
+          practice.normalizedPhrase.trim().toLowerCase();
+        grade = {
+          score: isAnswerCorrect ? 100 : 0,
+          isCorrect: isAnswerCorrect,
+          feedbackVi: isAnswerCorrect
+            ? "Chính xác! Bạn đã ghi nhớ đúng cụm từ."
+            : `Chưa chính xác. Cụm từ đúng là: "${practice.normalizedPhrase}".`,
+          naturalAnswer: practice.normalizedPhrase,
+        };
+      } else {
+        grade = await this.grader.grade({
+          userId: input.userId,
+          lessonId: undefined,
+          exercise: mockExercise,
+          answer: input.answer,
+        });
+      }
 
       practice.recordReviewAttempt(grade.isCorrect, grade.score);
 
@@ -384,6 +425,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
               meaningVi: practice.meaningVi,
               safeReviewPromptVi: practice.meaningVi,
               isSensitive: practice.isSensitive,
+              draftPhrase: practice.draftPhrase,
             });
             await repos.mistakePatterns.upsertMistakePattern(newPattern);
           }
@@ -677,6 +719,30 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     });
 
     if (!this.shouldCreateUserError(input.grade)) {
+      if (input.grade.isCorrect) {
+        const previousAttempts = await repos.attempts.findAttemptsByExercise(
+          input.exercise.id,
+          input.userId
+        );
+        const incorrectAttempts = previousAttempts.filter(
+          (a) => !a.isCorrect && a.id !== attempt.id
+        );
+
+        if (incorrectAttempts.length > 0) {
+          for (const prev of incorrectAttempts) {
+            const deletedError =
+              await repos.attempts.deleteUserErrorByAttemptId(prev.id);
+            if (deletedError) {
+              await repos.mistakePatterns.decrementOrDeleteMistakePattern(
+                input.userId,
+                deletedError.conceptKey,
+                deletedError.errorType
+              );
+            }
+          }
+        }
+      }
+
       return {
         attempt,
         userErrorCreated: false,
@@ -749,6 +815,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         meaningVi: memory.conceptMeaningVi,
         safeReviewPromptVi: memory.safeReviewPromptVi,
         isSensitive: false,
+        draftPhrase: memory.draftPhrase,
       });
       pattern = await repos.mistakePatterns.upsertMistakePattern(pattern);
     }
@@ -785,27 +852,40 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     const lessonFocus = input.exercise.lessonFocusId
       ? await this.lessonRepo.findLessonFocus(input.exercise.lessonFocusId)
       : null;
+    const correctionItem = input.exercise.correctionItemId
+      ? await this.lessonRepo.findCorrectionItem(
+          input.exercise.correctionItemId
+        )
+      : null;
+
     const errorData = input.grade.error!;
     const fallbackTarget =
+      correctionItem?.correctedPhrase ??
       input.exercise.correctAnswer ??
       input.exercise.promptEn ??
       input.exercise.promptVi;
     const targetItem = fallbackTarget || errorData.targetItem || "";
     const normalizedPhrase =
       keyPhrase?.normalizedPhrase ??
-      this.textProcessor.normalizePhrase(lessonFocus?.title ?? targetItem);
+      this.textProcessor.normalizePhrase(
+        correctionItem?.correctedPhrase ?? lessonFocus?.title ?? targetItem
+      );
     const senseKey =
       keyPhrase?.senseKey ??
       this.textProcessor.normalizePhrase(
-        `${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? targetItem}`
+        correctionItem
+          ? `exercise:${correctionItem.correctedPhrase}`
+          : `${lessonFocus?.category ?? "exercise"}:${lessonFocus?.title ?? targetItem}`
       );
     const category =
       keyPhrase?.category ??
+      (correctionItem?.category as any) ??
       (lessonFocus
         ? categoryForLessonFocus(lessonFocus.category as any)
         : "general_phrase");
     const meaningVi =
       keyPhrase?.meaningVi ??
+      correctionItem?.explanationVi ??
       lessonFocus?.explanationVi ??
       errorData.explanationVi ??
       "Ôn lại nghĩa tự nhiên trong ngữ cảnh.";
@@ -813,16 +893,21 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
     const conceptKey =
       keyPhrase?.conceptKey ??
       lessonFocus?.conceptKey ??
+      correctionItem?.correctedPhrase ??
       this.textProcessor.normalizePhrase(targetItem);
     const conceptPhrase =
       keyPhrase?.conceptPhrase ??
       lessonFocus?.conceptPhrase ??
+      correctionItem?.correctedPhrase ??
       normalizedPhrase;
     const conceptMeaningVi =
       keyPhrase?.conceptMeaningVi ?? lessonFocus?.conceptMeaningVi ?? meaningVi;
     const safeReviewPromptVi = `Ôn lại cụm "${conceptPhrase}" theo nghĩa tự nhiên trong ngữ cảnh.`;
     const originalPhrase =
-      keyPhrase?.phrase ?? lessonFocus?.title ?? targetItem;
+      keyPhrase?.phrase ??
+      correctionItem?.draftPhrase ??
+      lessonFocus?.title ??
+      targetItem;
 
     const isSensitive =
       Boolean(keyPhrase?.isSensitive) ||
@@ -844,6 +929,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
       explanationVi,
       safeReviewPromptVi,
       isSensitive,
+      draftPhrase: correctionItem?.draftPhrase ?? null,
     };
   }
 }

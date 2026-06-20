@@ -37,7 +37,7 @@ describe("validatedAction", () => {
     // Call without FormData
     const result = await action(null);
     expect(result).toEqual({
-      error: "Không tìm thấy dữ liệu form (Form data is required).",
+      error: "Không tìm thấy dữ liệu đầu vào (No input data found).",
     });
     expect(handler).not.toHaveBeenCalled();
   });

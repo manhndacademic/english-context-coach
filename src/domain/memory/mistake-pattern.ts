@@ -73,7 +73,8 @@ export class MistakePattern {
     private _reviewPromptAttempts: number,
     private _reviewPromptError: string | null,
     private _reviewPromptLockedAt: Date | null,
-    private _reviewPromptLockedBy: string | null
+    private _reviewPromptLockedBy: string | null,
+    public readonly draftPhrase: string | null = null
   ) {}
 
   static createNew(input: {
@@ -87,6 +88,7 @@ export class MistakePattern {
     meaningVi: string;
     safeReviewPromptVi: string;
     isSensitive: boolean;
+    draftPhrase?: string | null;
   }): MistakePattern {
     return new MistakePattern(
       input.id,
@@ -119,7 +121,8 @@ export class MistakePattern {
       0,
       null,
       null,
-      null
+      null,
+      input.draftPhrase ?? null
     );
   }
 
@@ -138,6 +141,7 @@ export class MistakePattern {
     category: any;
     meaningVi: string;
     isSensitive: boolean;
+    draftPhrase?: string | null;
   }): MistakePattern {
     return new MistakePattern(
       input.id,
@@ -172,7 +176,8 @@ export class MistakePattern {
       0,
       null,
       null,
-      null
+      null,
+      input.draftPhrase ?? null
     );
   }
 
@@ -219,7 +224,8 @@ export class MistakePattern {
       state.reviewPromptAttempts,
       state.reviewPromptError,
       parseDate(state.reviewPromptLockedAt),
-      state.reviewPromptLockedBy
+      state.reviewPromptLockedBy,
+      state.draftPhrase ?? null
     );
   }
 
@@ -296,6 +302,11 @@ export class MistakePattern {
     if (!this._reviewPromptEn) {
       this._reviewPromptStatus = "queued";
     }
+  }
+
+  decrementOccurrence() {
+    this._occurrenceCount = Math.max(0, this._occurrenceCount - 1);
+    this._updatedAt = new Date();
   }
 
   isDue(now = new Date()): boolean {
@@ -435,6 +446,7 @@ export class MistakePattern {
       reviewPromptError: this._reviewPromptError,
       reviewPromptLockedAt: this._reviewPromptLockedAt,
       reviewPromptLockedBy: this._reviewPromptLockedBy,
+      draftPhrase: this.draftPhrase,
     };
   }
 
@@ -471,6 +483,7 @@ export class MistakePattern {
       reviewPromptError: this._reviewPromptError,
       reviewPromptLockedAt: this._reviewPromptLockedAt?.toISOString() ?? null,
       reviewPromptLockedBy: this._reviewPromptLockedBy,
+      draftPhrase: this.draftPhrase,
     };
   }
 }
@@ -507,4 +520,5 @@ export interface MistakePatternPlain {
   reviewPromptError: string | null;
   reviewPromptLockedAt: string | null;
   reviewPromptLockedBy: string | null;
+  draftPhrase: string | null;
 }

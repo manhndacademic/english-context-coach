@@ -98,9 +98,5 @@ export function classifyInputMode(inputMode: string) {
   return {
     isNotEnglishOrUnsupported:
       inputMode === "not_english" || inputMode === "unsupported",
-    isDeveloperError: inputMode === "developer_error_explanation",
-    isGrammarCorrection:
-      inputMode === "fix_and_understand" || inputMode === "naturalize_english",
-    isMixedLanguage: inputMode === "mixed_language_support",
   };
 }

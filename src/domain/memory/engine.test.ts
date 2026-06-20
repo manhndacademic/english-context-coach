@@ -44,12 +44,15 @@ class MockDatabaseState {
       meaningVi: input.meaningVi,
       safeReviewPromptVi: input.safeReviewPromptVi,
       isSensitive: input.isSensitive ?? false,
+      draftPhrase: input.draftPhrase ?? null,
     });
     if (
       input.reviewPromptStatus ||
       input.intervalDays ||
       input.masteryState ||
-      input.reviewPromptEn
+      input.reviewPromptEn ||
+      input.createdAt ||
+      input.draftPhrase
     ) {
       const reconstituted = MistakePattern.reconstitute({
         ...created.toDbRow(),
@@ -115,6 +118,25 @@ class MockAttemptRepository implements AttemptRepository {
     this.state.userErrors.push(created);
     return created;
   }
+
+  async deleteUserErrorByAttemptId(attemptId: string): Promise<any | null> {
+    const matched = this.state.userErrors.find(
+      (e) => e.attemptId === attemptId
+    );
+    this.state.userErrors = this.state.userErrors.filter(
+      (e) => e.attemptId !== attemptId
+    );
+    return matched ?? null;
+  }
+
+  async findAttemptsByExercise(
+    exerciseId: string,
+    userId: string
+  ): Promise<any[]> {
+    return this.state.attempts.filter(
+      (a) => a.exerciseId === exerciseId && a.userId === userId
+    );
+  }
 }
 
 class MockMistakePatternRepository implements MistakePatternRepository {
@@ -154,6 +176,25 @@ class MockMistakePatternRepository implements MistakePatternRepository {
 
   async saveMistakePattern(pattern: MistakePattern) {
     this.state.mistakePatterns.set(pattern.id, pattern);
+  }
+
+  async decrementOrDeleteMistakePattern(
+    userId: string,
+    conceptKey: string,
+    errorType: string
+  ): Promise<void> {
+    const existing = await this.findPatternByConcept(
+      userId,
+      conceptKey,
+      errorType
+    );
+    if (!existing) return;
+    if (existing.occurrenceCount <= 1) {
+      this.state.mistakePatterns.delete(existing.id);
+    } else {
+      existing.decrementOccurrence();
+      this.state.mistakePatterns.set(existing.id, existing);
+    }
   }
 
   async claimReviewPromptJob(workerId: string) {
@@ -355,6 +396,7 @@ class MockReviewPromptGenerator implements ReviewPromptGenerator {
 class MockLessonRepository implements MemoryLessonLookup {
   keyPhrases = new Map<string, any>();
   lessonFocuses = new Map<string, any>();
+  correctionItems = new Map<string, any>();
 
   async findKeyPhrase(keyPhraseId: string) {
     return this.keyPhrases.get(keyPhraseId) ?? null;
@@ -362,6 +404,10 @@ class MockLessonRepository implements MemoryLessonLookup {
 
   async findLessonFocus(lessonFocusId: string) {
     return this.lessonFocuses.get(lessonFocusId) ?? null;
+  }
+
+  async findCorrectionItem(correctionItemId: string) {
+    return this.correctionItems.get(correctionItemId) ?? null;
   }
 }
 
@@ -786,6 +832,27 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         expect(existing.intervalDays).toBe(0);
       });
 
+      it("uses CorrectionItem fields and sets draftPhrase when correctionItemId is present", async () => {
+        lessonRepo.correctionItems.set("correction-1", {
+          id: "correction-1",
+          draftPhrase: "I very like this",
+          correctedPhrase: "I really like this",
+          explanationVi: "Nên dùng really like thay vì very like.",
+          category: "general_phrase",
+          errorType: "phrase_misunderstanding",
+        });
+
+        await runTransition({ correctionItemId: "correction-1" }, {});
+
+        const pattern = Array.from(repo.mistakePatterns.values())[0];
+        expect(repo.userErrors[0].conceptKey).toBe("I really like this");
+        expect(pattern.normalizedPhrase).toBe("I really like this");
+        expect(pattern.draftPhrase).toBe("I very like this");
+        expect(pattern.meaningVi).toBe(
+          "Nên dùng really like thay vì very like."
+        );
+      });
+
       it("reactivates a mastered MistakePattern immediately when missed again", async () => {
         const mastered = MistakePattern.reconstitute({
           ...MistakePattern.createNew({
@@ -854,6 +921,149 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         expect(repo.mistakePatterns.size).toBe(0);
       });
     });
+
+    describe("quick retries in-place", () => {
+      it("cleans up UserError and decrements/deletes MistakePattern when retry is correct", async () => {
+        const exercise = {
+          id: "exercise-retry-1",
+          lessonId: "lesson-retry",
+          userId: "user-1",
+          keyPhraseId: null,
+          lessonFocusId: null,
+          type: "natural_translation",
+          promptVi: "Dịch tự nhiên.",
+          promptEn: "Could you push this back?",
+          choices: null,
+          correctAnswer: "dời việc này lại",
+          acceptableAnswers: null,
+          rubricVi: null,
+          orderIndex: 1,
+          createdAt: new Date(),
+        };
+        repo.exercises.set(exercise.id, exercise);
+
+        grader.result = {
+          score: 50,
+          isCorrect: false,
+          feedbackVi: "Chưa đúng.",
+          error: {
+            shouldSave: true,
+            confidence: 90,
+            errorType: "phrase_misunderstanding",
+            explanationVi: "Sai nghĩa cụm.",
+            targetItem: "push back",
+          },
+        };
+
+        const attempt1Result = await engine.submitAttempt({
+          userId: "user-1",
+          exerciseId: exercise.id,
+          lessonId: "lesson-retry",
+          answer: "đẩy lưng",
+        });
+
+        expect(attempt1Result.success).toBe(true);
+        expect(attempt1Result.isCorrect).toBe(false);
+        expect(repo.userErrors).toHaveLength(1);
+        expect(repo.mistakePatterns.size).toBe(1);
+
+        grader.result = {
+          score: 100,
+          isCorrect: true,
+          feedbackVi: "Chính xác!",
+        };
+
+        const attempt2Result = await engine.submitAttempt({
+          userId: "user-1",
+          exerciseId: exercise.id,
+          lessonId: "lesson-retry",
+          answer: "dời việc này lại",
+        });
+
+        expect(attempt2Result.success).toBe(true);
+        expect(attempt2Result.isCorrect).toBe(true);
+        expect(repo.userErrors).toHaveLength(0);
+        expect(repo.mistakePatterns.size).toBe(0);
+      });
+
+      it("decrements MistakePattern instead of deleting it if occurrence count was > 1", async () => {
+        const exercise = {
+          id: "exercise-retry-2",
+          lessonId: "lesson-retry",
+          userId: "user-1",
+          keyPhraseId: null,
+          lessonFocusId: null,
+          type: "natural_translation",
+          promptVi: "Dịch tự nhiên.",
+          promptEn: "Could you push this back?",
+          choices: null,
+          correctAnswer: "dời việc này lại",
+          acceptableAnswers: null,
+          rubricVi: null,
+          orderIndex: 1,
+          createdAt: new Date(),
+        };
+        repo.exercises.set(exercise.id, exercise);
+
+        const existing = MistakePattern.createNew({
+          id: "existing-pattern-1",
+          userId: "user-1",
+          conceptKey: "dời việc này lại",
+          normalizedPhrase: "dời việc này lại",
+          senseKey: "exercise:dời việc này lại",
+          category: "general_phrase",
+          errorType: "phrase_misunderstanding",
+          meaningVi: "Sai nghĩa cụm.",
+          safeReviewPromptVi: "Dịch",
+          isSensitive: false,
+        });
+        repo.mistakePatterns.set(existing.id, existing);
+
+        grader.result = {
+          score: 50,
+          isCorrect: false,
+          feedbackVi: "Chưa đúng.",
+          error: {
+            shouldSave: true,
+            confidence: 90,
+            errorType: "phrase_misunderstanding",
+            explanationVi: "Sai nghĩa cụm.",
+            targetItem: "push back",
+          },
+        };
+
+        const attempt1Result = await engine.submitAttempt({
+          userId: "user-1",
+          exerciseId: exercise.id,
+          lessonId: "lesson-retry",
+          answer: "đẩy lưng",
+        });
+
+        expect(attempt1Result.success).toBe(true);
+        expect(repo.userErrors).toHaveLength(1);
+        expect(existing.occurrenceCount).toBe(2);
+
+        grader.result = {
+          score: 100,
+          isCorrect: true,
+          feedbackVi: "Chính xác!",
+        };
+
+        const attempt2Result = await engine.submitAttempt({
+          userId: "user-1",
+          exerciseId: exercise.id,
+          lessonId: "lesson-retry",
+          answer: "dời việc này lại",
+        });
+
+        expect(attempt2Result.success).toBe(true);
+        expect(repo.userErrors).toHaveLength(0);
+        expect(repo.mistakePatterns.size).toBe(1);
+        const pattern = repo.mistakePatterns.get(existing.id);
+        expect(pattern).toBeDefined();
+        expect(pattern.occurrenceCount).toBe(1);
+      });
+    });
   });
 
   describe("submitReviewAttempt", () => {
@@ -867,6 +1077,42 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("Mistake pattern not found.");
       expect(repo.reviewAttempts.length).toBe(0);
+    });
+
+    it("grades recent mistake patterns locally without AI grader", async () => {
+      const pattern = await repo.upsertMistakePattern({
+        userId: "user-1",
+        conceptKey: "really_like",
+        normalizedPhrase: "really like",
+        senseKey: "sense-1",
+        category: "phrasal_verb",
+        errorType: "phrase_misunderstanding",
+        meaningVi: "thực sự thích",
+        safeReviewPromptVi: "Dịch",
+        isSensitive: false,
+        draftPhrase: "very like",
+        createdAt: new Date(),
+      });
+
+      const result = await engine.submitReviewAttempt({
+        userId: "user-1",
+        patternId: pattern.id,
+        answer: "  really like  ",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.isCorrect).toBe(true);
+      expect(result.score).toBe(100);
+
+      const wrongResult = await engine.submitReviewAttempt({
+        userId: "user-1",
+        patternId: pattern.id,
+        answer: "very like",
+      });
+
+      expect(wrongResult.success).toBe(true);
+      expect(wrongResult.isCorrect).toBe(false);
+      expect(wrongResult.score).toBe(0);
     });
 
     it("handles correct review answer: increments intervals and triggers prompt generation", async () => {
@@ -1137,6 +1383,32 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
         isSensitive: false,
       });
       repo.phrasePractices.set(practice.id, practice);
+    });
+
+    it("grades recent phrase practices locally without AI grader", async () => {
+      const pRecent = PhrasePractice.createNew({
+        id: "practice-recent-1",
+        userId: "user-1",
+        keyPhraseId: "kp-1",
+        conceptKey: "really_like",
+        normalizedPhrase: "really like",
+        senseKey: "sense-1",
+        category: "phrasal_verb" as any,
+        meaningVi: "thực sự thích",
+        isSensitive: false,
+        draftPhrase: "very like",
+      });
+      repo.phrasePractices.set(pRecent.id, pRecent);
+
+      const result = await engine.submitPhrasePractice({
+        userId: "user-1",
+        practiceId: pRecent.id,
+        answer: "really like",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.isCorrect).toBe(true);
+      expect(result.score).toBe(100);
     });
 
     it("grades a correct answer, updates interval/repetitions, and records practice attempt", async () => {

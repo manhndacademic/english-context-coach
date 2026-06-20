@@ -28,9 +28,11 @@ function formatLabel(value: string) {
 export function ExerciseCard({
   practice,
   isCurrent = false,
+  onNext,
 }: {
   practice: ExercisePractice;
   isCurrent?: boolean;
+  onNext?: () => void;
 }) {
   const { exercise, attempts, keyPhrase, lessonFocus, userError } = practice;
   const latest = attempts[0];
@@ -41,6 +43,10 @@ export function ExerciseCard({
     latest && !latest.isCorrect ? latest.answer : ""
   );
   const [isPracticingAgain, setIsPracticingAgain] = useState(false);
+
+  const isInputDisabled =
+    (solved && !isPracticingAgain) ||
+    (attempts.length >= 2 && !isPracticingAgain);
 
   const status: ExerciseStatus = solved
     ? "solved"
@@ -208,6 +214,7 @@ export function ExerciseCard({
       </div>
 
       <form
+        id={`exercise-form-${exercise.id}`}
         action={async (formData) => {
           await submitAttemptAction(formData);
           setIsPracticingAgain(false);
@@ -240,7 +247,7 @@ export function ExerciseCard({
                 )}`}
               >
                 <input
-                  disabled={solved && !isPracticingAgain}
+                  disabled={isInputDisabled}
                   name="answer"
                   required
                   type="radio"
@@ -267,7 +274,7 @@ export function ExerciseCard({
             Câu trả lời của bạn
             <textarea
               name="answer"
-              disabled={solved && !isPracticingAgain}
+              disabled={isInputDisabled}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={getExercisePlaceholder(exercise.type, needsRetry)}
               required
@@ -288,25 +295,49 @@ export function ExerciseCard({
             Luyện tập lại
           </button>
         ) : (
-          <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
+          (!latest || isPracticingAgain) && (
+            <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
+          )
         )}
       </form>
 
       {latest ? (
-        <GradingFeedback
-          type="exercise"
-          isCorrect={latest.isCorrect ?? false}
-          feedbackVi={latest.feedbackVi ?? ""}
-          answer={latest.answer ?? ""}
-          feedbackDetails={metadata?.feedbackDetails}
-          naturalAnswer={metadata?.naturalAnswer}
-          literalTranslationTrap={metadata?.literalTranslationTrap}
-          solved={solved}
-          isSubjectiveType={isSubjectiveType}
-          isRepeated={isRepeated}
-          showSuggestion={showSuggestion}
-          score={latest.score ?? undefined}
-        />
+        <div className="grid gap-3">
+          <GradingFeedback
+            type="exercise"
+            isCorrect={latest.isCorrect ?? false}
+            feedbackVi={latest.feedbackVi ?? ""}
+            answer={latest.answer ?? ""}
+            feedbackDetails={metadata?.feedbackDetails}
+            naturalAnswer={metadata?.naturalAnswer}
+            literalTranslationTrap={metadata?.literalTranslationTrap}
+            solved={solved}
+            isSubjectiveType={isSubjectiveType}
+            isRepeated={isRepeated}
+            showSuggestion={showSuggestion}
+            score={latest.score ?? undefined}
+          />
+          {!latest.isCorrect && !isPracticingAgain && (
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              {attempts.length === 1 && (
+                <button
+                  form={`exercise-form-${exercise.id}`}
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px cursor-pointer"
+                >
+                  Thử lại 1 lần
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onNext}
+                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-border bg-surface text-text hover:bg-surface-strong px-5 font-semibold text-sm transition-all shadow-sm cursor-pointer"
+              >
+                Đi tiếp →
+              </button>
+            </div>
+          )}
+        </div>
       ) : null}
     </article>
   );
