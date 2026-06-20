@@ -580,7 +580,7 @@ export const phrasePractices = pgTable(
     }),
     conceptKey: text("concept_key").notNull(),
     normalizedPhrase: text("normalized_phrase").notNull(),
-    senseKey: text("sense_key"),
+    senseKey: text("sense_key").notNull(),
     category: phraseCategoryEnum("category").notNull(),
     meaningVi: text("meaning_vi").notNull(),
     safeReviewPromptVi: text("safe_review_prompt_vi").notNull(),
@@ -617,7 +617,8 @@ export const phrasePractices = pgTable(
   (table) => ({
     aggregateUnique: uniqueIndex("phrase_practices_aggregate_unique").on(
       table.userId,
-      table.conceptKey
+      table.conceptKey,
+      table.senseKey
     ),
     dueIdx: index("phrase_practices_due_idx").on(
       table.userId,

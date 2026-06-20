@@ -26,6 +26,7 @@ export type ReviewResultState = {
     nextPracticeItem?: string | null;
     detailedExplanation: string;
   } | null;
+  literalTranslationTrap?: string;
   error?: string;
 };
 
@@ -65,6 +66,7 @@ export const submitReviewAttemptAction = validatedAction(
       nextReviewAt: result.nextReviewAt?.toISOString(),
       naturalAnswer: result.naturalAnswer,
       feedbackDetails: result.feedbackDetails,
+      literalTranslationTrap: result.literalTranslationTrap ?? undefined,
     };
   }
 );
@@ -143,6 +145,7 @@ export const submitPhrasePracticeAction = validatedAction(
       nextReviewAt: result.nextReviewAt?.toISOString(),
       naturalAnswer: result.naturalAnswer,
       feedbackDetails: result.feedbackDetails,
+      literalTranslationTrap: result.literalTranslationTrap ?? undefined,
     };
   }
 );

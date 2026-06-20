@@ -73,7 +73,12 @@ export class PhrasePractice {
     private _reviewPromptLockedAt: Date | null,
     private _reviewPromptLockedBy: string | null,
     public readonly source: MistakePatternSource = "phrase",
-    public readonly keyPhraseId: string | null = null
+    public readonly keyPhraseId: string | null = null,
+    public readonly literalTranslationTrapVi: string | null = null,
+    public readonly whyConfusingVi: string | null = null,
+    public readonly examples:
+      | { exampleEn: string; exampleVi: string }[]
+      | null = null
   ) {}
 
   static createNew(input: {
@@ -118,11 +123,21 @@ export class PhrasePractice {
       null,
       null,
       "phrase", // source
-      input.keyPhraseId
+      input.keyPhraseId,
+      null, // literalTranslationTrapVi
+      null, // whyConfusingVi
+      null // examples
     );
   }
 
-  static reconstitute(state: any): PhrasePractice {
+  static reconstitute(
+    state: any,
+    keyPhraseData?: {
+      literalTranslationVi?: string | null;
+      whyConfusingVi?: string | null;
+      examples?: { exampleEn: string; exampleVi: string }[] | null;
+    }
+  ): PhrasePractice {
     const parseDate = (val: any) => {
       if (!val) return null;
       if (val instanceof Date) return val;
@@ -165,7 +180,12 @@ export class PhrasePractice {
       parseDate(state.reviewPromptLockedAt),
       state.reviewPromptLockedBy,
       state.source ?? "phrase",
-      state.keyPhraseId ?? null
+      state.keyPhraseId ?? null,
+      keyPhraseData?.literalTranslationVi ??
+        state.literalTranslationTrapVi ??
+        null,
+      keyPhraseData?.whyConfusingVi ?? state.whyConfusingVi ?? null,
+      keyPhraseData?.examples ?? state.examples ?? null
     );
   }
 
@@ -401,6 +421,9 @@ export class PhrasePractice {
       reviewPromptError: this._reviewPromptError,
       reviewPromptLockedAt: this._reviewPromptLockedAt?.toISOString() ?? null,
       reviewPromptLockedBy: this._reviewPromptLockedBy,
+      literalTranslationTrapVi: this.literalTranslationTrapVi,
+      whyConfusingVi: this.whyConfusingVi,
+      examples: this.examples,
     };
   }
 }
@@ -437,4 +460,7 @@ export interface PhrasePracticePlain {
   reviewPromptError: string | null;
   reviewPromptLockedAt: string | null;
   reviewPromptLockedBy: string | null;
+  literalTranslationTrapVi: string | null;
+  whyConfusingVi: string | null;
+  examples: { exampleEn: string; exampleVi: string }[] | null;
 }

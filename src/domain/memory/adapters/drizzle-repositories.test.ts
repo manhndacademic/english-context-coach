@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { DrizzleMistakePatternRepository } from "./drizzle-repositories";
+import {
+  DrizzleMistakePatternRepository,
+  DrizzlePhrasePracticeRepository,
+} from "./drizzle-repositories";
+import { PhrasePractice } from "../phrase-practice";
 
 const formatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Ho_Chi_Minh",
@@ -222,6 +226,98 @@ describe("DrizzleMistakePatternRepository.getDashboardMetrics", () => {
       expect(result.length).toBe(1);
       expect(result[0].id).toBe("pattern-1");
       expect(mockDbClient.select).toHaveBeenCalled();
+    });
+  });
+});
+
+describe("DrizzlePhrasePracticeRepository", () => {
+  it("persists the generated prompt type and choices", async () => {
+    let conflictUpdate: Record<string, unknown> | undefined;
+    const insertChain: any = {
+      values: () => insertChain,
+      onConflictDoUpdate: (config: { set: Record<string, unknown> }) => {
+        conflictUpdate = config.set;
+        return Promise.resolve();
+      },
+    };
+    const repository = new DrizzlePhrasePracticeRepository({
+      insert: () => insertChain,
+    } as any);
+    const practice = PhrasePractice.createNew({
+      id: "practice-1",
+      userId: "user-1",
+      keyPhraseId: "phrase-1",
+      conceptKey: "run",
+      normalizedPhrase: "run into",
+      senseKey: "meet-unexpectedly",
+      category: "phrasal_verb",
+      meaningVi: "tình cờ gặp",
+      isSensitive: false,
+    });
+    practice.updateReviewPrompt({
+      reviewType: "meaning_choice",
+      reviewPromptEn: "What does run into mean here?",
+      reviewPromptVi: "Cụm từ này có nghĩa gì?",
+      reviewRubricVi: "Chọn đúng nghĩa theo ngữ cảnh.",
+      reviewCorrectAnswer: "tình cờ gặp",
+      reviewAcceptableAnswers: ["vô tình gặp"],
+      reviewChoices: ["tình cờ gặp", "điều hành"],
+    });
+
+    await repository.savePhrasePractice(practice);
+
+    expect(conflictUpdate).toMatchObject({
+      reviewType: "meaning_choice",
+      reviewChoices: ["tình cờ gặp", "điều hành"],
+    });
+  });
+
+  it("preserves scheduling state when a prompt job is claimed", async () => {
+    const claimedAt = new Date("2026-06-20T00:00:00Z");
+    const repository = new DrizzlePhrasePracticeRepository(
+      {} as any,
+      (() =>
+        Promise.resolve([
+          {
+            id: "practice-1",
+            userId: "user-1",
+            keyPhraseId: "phrase-1",
+            source: "phrase",
+            conceptKey: "run",
+            normalizedPhrase: "run into",
+            senseKey: "meet-unexpectedly",
+            category: "phrasal_verb",
+            meaningVi: "tình cờ gặp",
+            safeReviewPromptVi: "tình cờ gặp",
+            intervalDays: 12,
+            easeFactor: 2.15,
+            repetitions: 4,
+            masteryState: "active",
+            dueAt: claimedAt,
+            lastReviewedAt: claimedAt,
+            isSensitive: false,
+            createdAt: claimedAt,
+            updatedAt: claimedAt,
+            reviewType: "meaning_choice",
+            reviewChoices: ["tình cờ gặp", "điều hành"],
+            reviewPromptStatus: "running",
+            reviewPromptAttempts: 2,
+            reviewPromptError: null,
+            reviewPromptLockedAt: claimedAt,
+            reviewPromptLockedBy: "worker-1",
+          },
+        ])) as any
+    );
+
+    const practice = await repository.claimReviewPromptJob("worker-1");
+
+    expect(practice?.toPlainObject()).toMatchObject({
+      keyPhraseId: "phrase-1",
+      intervalDays: 12,
+      easeFactor: 2.15,
+      repetitions: 4,
+      reviewType: "meaning_choice",
+      reviewChoices: ["tình cờ gặp", "điều hành"],
     });
   });
 });

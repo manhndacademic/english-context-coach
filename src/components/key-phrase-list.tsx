@@ -10,10 +10,7 @@ import {
 } from "lucide-react";
 import { renderRichText } from "@/lib/rich-text";
 import type { KeyPhrase } from "@/domain/lesson";
-
-function formatLabel(value: string) {
-  return value.replaceAll("_", " ");
-}
+import { translateCategory } from "@/lib/utils";
 
 async function dismissPhrase(patternId: string) {
   const res = await fetch(`/api/review/patterns/${patternId}/dismiss`, {
@@ -91,7 +88,7 @@ export function KeyPhraseList({
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
-                    {formatLabel(phrase.category)}
+                    {translateCategory(phrase.category)}
                   </span>
                   <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
                     {phrase.difficulty}

@@ -101,8 +101,8 @@ export interface AttemptRepository {
 
   createUserError(error: {
     userId: string;
-    attemptId: string;
-    lessonId: string;
+    attemptId: string | null;
+    lessonId: string | null;
     keyPhraseId: string | null;
     lessonFocusId: string | null;
     errorType: string;
@@ -135,10 +135,6 @@ export interface MistakePatternRepository {
     limit: number
   ): Promise<MistakePattern[]>;
   findAllMistakePatterns(userId: string): Promise<MistakePattern[]>;
-  bulkCreateFromKeyPhrases(
-    userId: string,
-    phrases: MemoryKeyPhraseInput[]
-  ): Promise<{ inserted: number; skipped: number }>;
   scrubSensitiveContentForSourceText(
     userId: string,
     sourceTextId: string
@@ -175,7 +171,8 @@ export interface PhrasePracticeRepository {
   findPhrasePracticeById(practiceId: string): Promise<PhrasePractice | null>;
   findPracticeByConcept(
     userId: string,
-    conceptKey: string
+    conceptKey: string,
+    senseKey: string
   ): Promise<PhrasePractice | null>;
   upsertPhrasePractice(practice: PhrasePractice): Promise<PhrasePractice>;
   savePhrasePractice(practice: PhrasePractice): Promise<void>;

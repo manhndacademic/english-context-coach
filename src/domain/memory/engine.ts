@@ -251,6 +251,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         masteryState: pattern.masteryState,
         nextReviewAt: pattern.dueAt,
         naturalAnswer: grade.naturalAnswer ?? correctAnswer,
+        literalTranslationTrap: grade.literalTranslationTrap,
       };
     } catch (error) {
       console.error(
@@ -343,6 +344,51 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
           feedbackVi: grade.feedbackVi,
         });
 
+        if (!grade.isCorrect && this.shouldCreateUserError(grade)) {
+          const errorData = grade.error!;
+          const existingPattern =
+            await repos.mistakePatterns.findPatternByConcept(
+              practice.userId,
+              practice.conceptKey,
+              errorData.errorType!
+            );
+          const isRepeated = !!existingPattern;
+
+          await repos.attempts.createUserError({
+            userId: practice.userId,
+            attemptId: null,
+            lessonId: null,
+            keyPhraseId: practice.keyPhraseId,
+            lessonFocusId: null,
+            errorType: errorData.errorType!,
+            conceptKey: practice.conceptKey,
+            normalizedPhrase: practice.normalizedPhrase,
+            senseKey: practice.senseKey ?? "",
+            explanationVi: grade.feedbackVi,
+            isSourceSensitive: practice.isSensitive,
+            isRepeated,
+          });
+
+          if (existingPattern) {
+            existingPattern.incrementOccurrence();
+            await repos.mistakePatterns.saveMistakePattern(existingPattern);
+          } else {
+            const newPattern = MistakePattern.createNew({
+              id: this.createId(),
+              userId: practice.userId,
+              conceptKey: practice.conceptKey,
+              normalizedPhrase: practice.normalizedPhrase,
+              senseKey: practice.senseKey,
+              category: practice.category,
+              errorType: errorData.errorType!,
+              meaningVi: practice.meaningVi,
+              safeReviewPromptVi: practice.meaningVi,
+              isSensitive: practice.isSensitive,
+            });
+            await repos.mistakePatterns.upsertMistakePattern(newPattern);
+          }
+        }
+
         await repos.phrasePractices.savePhrasePractice(practice);
       });
 
@@ -363,6 +409,7 @@ export class DefaultLearnerMemoryEngine implements LearnerMemoryEngineInterface 
         masteryState: practice.masteryState,
         nextReviewAt: practice.dueAt,
         naturalAnswer: grade.naturalAnswer ?? correctAnswer,
+        literalTranslationTrap: grade.literalTranslationTrap,
       };
     } catch (error) {
       console.error(

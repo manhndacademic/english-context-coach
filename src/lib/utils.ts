@@ -28,3 +28,16 @@ export function cleanEmbeddedQuotesOrBackticks(
 
   return cleaned;
 }
+
+export function translateCategory(category: string): string {
+  const mapping: Record<string, string> = {
+    idiom: "Thành ngữ",
+    phrasal_verb: "Cụm động từ",
+    technical_term: "Thuật ngữ kỹ thuật",
+    collocation: "Collocation (Cấu kết từ)",
+    grammar_pattern: "Cấu trúc ngữ pháp",
+    business_phrase: "Cụm từ thương mại",
+    general_phrase: "Cụm từ thông dụng",
+  };
+  return mapping[category] ?? category.replaceAll("_", " ");
+}

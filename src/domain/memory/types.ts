@@ -90,6 +90,7 @@ export interface ReviewFormResult {
   masteryState?: MasteryState;
   nextReviewAt?: Date;
   naturalAnswer?: string;
+  literalTranslationTrap?: string | null;
   feedbackDetails?: {
     whatWasWrong: string;
     whyItWasWrong: string;
@@ -116,6 +117,7 @@ export interface PhrasePracticeFormResult {
   masteryState?: MasteryState;
   nextReviewAt?: Date;
   naturalAnswer?: string;
+  literalTranslationTrap?: string | null;
   feedbackDetails?: {
     whatWasWrong: string;
     whyItWasWrong: string;

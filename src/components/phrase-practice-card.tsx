@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
 import { GradingFeedback } from "@/components/grading-feedback";
 import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
+import { translateCategory } from "@/lib/utils";
 
 function formatReviewDate(value?: string) {
   if (!value) return null;
@@ -69,6 +70,10 @@ export function PhrasePracticeCard({
   const naturalAnswer =
     state.naturalAnswer ?? practice.reviewCorrectAnswer ?? practice.meaningVi;
 
+  const confText = [practice.literalTranslationTrapVi, practice.whyConfusingVi]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <article
       className={`border border-border rounded-xl p-6 sm:p-8 bg-surface relative grid gap-5 shadow-lg transition-all duration-200 ${
@@ -81,7 +86,7 @@ export function PhrasePracticeCard({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-surface-strong border border-border text-muted">
-            {practice.category.replaceAll("_", " ")}
+            {translateCategory(practice.category)}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent-light text-accent border border-accent/10">
             Luyện tập cụm từ
@@ -129,6 +134,47 @@ export function PhrasePracticeCard({
               )
             </span>
           </div>
+
+          {/* Literal translation trap and explanation */}
+          {confText.trim().length > 0 && (
+            <div className="mt-3 bg-danger-light border-l-4 border-danger p-3 rounded-r-lg grid gap-2 text-left">
+              <div className="flex items-center gap-1.5 text-muted text-xs font-extrabold uppercase tracking-wider">
+                <AlertCircle size={14} className="text-danger" />
+                <span className="text-danger font-bold">
+                  Bẫy dịch từ &amp; Độ nhầm lẫn
+                </span>
+              </div>
+              <div className="text-sm leading-relaxed text-[#7a1515] dark:text-[#ff8585]">
+                {renderRichText(confText)}
+              </div>
+            </div>
+          )}
+
+          {/* Examples */}
+          {practice.examples && practice.examples.length > 0 && (
+            <div className="mt-3 bg-surface-strong/60 p-3 rounded-lg border border-border grid gap-2 text-left">
+              <div className="flex items-center gap-1.5 text-muted text-xs font-extrabold uppercase tracking-wider">
+                <HelpCircle size={14} />
+                <span className="font-bold">Ví dụ thực tế</span>
+              </div>
+              <ol className="list-decimal pl-4 m-0 grid gap-2">
+                {practice.examples.map((ex: any, idx: number) => (
+                  <li key={idx} className="text-sm leading-relaxed pl-1">
+                    {ex.exampleEn && (
+                      <span className="font-serif italic font-semibold text-accent-strong block">
+                        {ex.exampleEn}
+                      </span>
+                    )}
+                    {ex.exampleVi && (
+                      <span className="text-muted text-xs block mt-0.5">
+                        {ex.exampleVi}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
       )}
 
@@ -263,6 +309,7 @@ export function PhrasePracticeCard({
           answer={answer}
           feedbackDetails={state.feedbackDetails}
           naturalAnswer={naturalAnswer}
+          literalTranslationTrap={state.literalTranslationTrap}
           nextReviewDate={nextReviewDate}
           masteryState={state.masteryState}
           isSubjectiveType={!isChoiceType}

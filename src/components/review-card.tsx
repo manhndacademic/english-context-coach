@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
 import { GradingFeedback } from "@/components/grading-feedback";
 import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
+import { translateCategory } from "@/lib/utils";
 
 function formatReviewDate(value?: string) {
   if (!value) return null;
@@ -86,7 +87,7 @@ export function ReviewCard({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-surface-strong border border-border text-muted">
-            {pattern.category.replaceAll("_", " ")}
+            {translateCategory(pattern.category)}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent-light text-accent border border-accent/10">
             {pattern.errorType.replaceAll("_", " ")}

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { DefaultLearnerMemoryEngine } from "./engine";
 import { getTextProcessor } from "@/domain/text";
 import { MistakePattern } from "./mistake-pattern";
+import { PhrasePractice } from "./phrase-practice";
 import type {
   ExerciseRepository,
   AttemptRepository,
@@ -183,10 +184,6 @@ class MockMistakePatternRepository implements MistakePatternRepository {
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  async bulkCreateFromKeyPhrases(_userId: string, phrases: any[]) {
-    return { inserted: phrases.length, skipped: 0 };
-  }
-
   async scrubSensitiveContentForSourceText(
     _userId: string,
     _sourceTextId: string
@@ -225,9 +222,17 @@ class MockPhrasePracticeRepository implements PhrasePracticeRepository {
     return this.state.phrasePractices.get(practiceId) ?? null;
   }
 
-  async findPracticeByConcept(userId: string, conceptKey: string) {
+  async findPracticeByConcept(
+    userId: string,
+    conceptKey: string,
+    senseKey: string
+  ) {
     for (const practice of this.state.phrasePractices.values()) {
-      if (practice.userId === userId && practice.conceptKey === conceptKey) {
+      if (
+        practice.userId === userId &&
+        practice.conceptKey === conceptKey &&
+        practice.senseKey === senseKey
+      ) {
         return practice;
       }
     }
@@ -1113,6 +1118,152 @@ describe("LearnerMemoryEngine Domain Orchestrator", () => {
       expect(updatedPattern.reviewPromptStatus).toBe("queued");
       expect(updatedPattern.reviewPromptAttempts).toBe(1);
       expect(updatedPattern.reviewPromptError).toBe("Quota exceeded");
+    });
+  });
+
+  describe("submitPhrasePractice", () => {
+    let practice: PhrasePractice;
+
+    beforeEach(async () => {
+      practice = PhrasePractice.createNew({
+        id: "practice-1",
+        userId: "user-1",
+        keyPhraseId: "kp-1",
+        conceptKey: "push_back",
+        normalizedPhrase: "push back",
+        senseKey: "sense-1",
+        category: "phrasal_verb" as any,
+        meaningVi: "dời lại / trì hoãn",
+        isSensitive: false,
+      });
+      repo.phrasePractices.set(practice.id, practice);
+    });
+
+    it("grades a correct answer, updates interval/repetitions, and records practice attempt", async () => {
+      grader.result = {
+        score: 100,
+        isCorrect: true,
+        feedbackVi: "Nghĩa chính xác!",
+      };
+
+      const result = await engine.submitPhrasePractice({
+        userId: "user-1",
+        practiceId: practice.id,
+        answer: "dời lại",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.isCorrect).toBe(true);
+      expect(result.score).toBe(100);
+
+      // Check practice attempt
+      expect(repo.reviewAttempts.length).toBe(1);
+      expect(repo.reviewAttempts[0].isCorrect).toBe(true);
+      expect(repo.reviewAttempts[0].phrasePracticeId).toBe(practice.id);
+
+      // Check practice updates
+      const updated = repo.phrasePractices.get(practice.id);
+      expect(updated.repetitions).toBe(1);
+      expect(updated.intervalDays).toBe(1);
+      expect(notifyQueueCalls).toBe(1);
+    });
+
+    it("handles incorrect answer: records attempt, generates UserError, and creates MistakePattern", async () => {
+      grader.result = {
+        score: 20,
+        isCorrect: false,
+        feedbackVi: "Sai nghĩa rồi.",
+        error: {
+          shouldSave: true,
+          confidence: 95,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Dịch sai cụm push back.",
+          targetItem: "push back",
+        },
+      };
+
+      const result = await engine.submitPhrasePractice({
+        userId: "user-1",
+        practiceId: practice.id,
+        answer: "đẩy lưng",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.isCorrect).toBe(false);
+
+      // Check practice attempt
+      expect(repo.reviewAttempts.length).toBe(1);
+      expect(repo.reviewAttempts[0].isCorrect).toBe(false);
+
+      // Check UserError created with null attemptId/lessonId
+      expect(repo.userErrors.length).toBe(1);
+      const userError = repo.userErrors[0];
+      expect(userError.userId).toBe("user-1");
+      expect(userError.attemptId).toBeNull();
+      expect(userError.lessonId).toBeNull();
+      expect(userError.conceptKey).toBe("push_back");
+      expect(userError.senseKey).toBe("sense-1");
+      expect(userError.keyPhraseId).toBe("kp-1");
+      expect(userError.isRepeated).toBe(false);
+
+      // Check MistakePattern created
+      expect(repo.mistakePatterns.size).toBe(1);
+      const pattern = Array.from(repo.mistakePatterns.values())[0];
+      expect(pattern.userId).toBe("user-1");
+      expect(pattern.conceptKey).toBe("push_back");
+      expect(pattern.senseKey).toBe("sense-1");
+      expect(pattern.errorType).toBe("phrase_misunderstanding");
+      expect(pattern.occurrenceCount).toBe(1);
+    });
+
+    it("increments mistake pattern count on repeated incorrect phrase practice submissions", async () => {
+      // 1. First incorrect attempt
+      grader.result = {
+        score: 30,
+        isCorrect: false,
+        feedbackVi: "Sai rồi.",
+        error: {
+          shouldSave: true,
+          confidence: 90,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Giải thích.",
+          targetItem: "push back",
+        },
+      };
+
+      await engine.submitPhrasePractice({
+        userId: "user-1",
+        practiceId: practice.id,
+        answer: "đẩy lưng lần 1",
+      });
+
+      // 2. Second incorrect attempt for same concept/errorType
+      grader.result = {
+        score: 40,
+        isCorrect: false,
+        feedbackVi: "Vẫn sai.",
+        error: {
+          shouldSave: true,
+          confidence: 95,
+          errorType: "phrase_misunderstanding",
+          explanationVi: "Giải thích lần 2.",
+          targetItem: "push back",
+        },
+      };
+
+      const result = await engine.submitPhrasePractice({
+        userId: "user-1",
+        practiceId: practice.id,
+        answer: "đẩy lưng lần 2",
+      });
+
+      expect(result.success).toBe(true);
+      expect(repo.userErrors.length).toBe(2);
+      expect(repo.userErrors[1].isRepeated).toBe(true);
+
+      expect(repo.mistakePatterns.size).toBe(1);
+      const pattern = Array.from(repo.mistakePatterns.values())[0];
+      expect(pattern.occurrenceCount).toBe(2);
     });
   });
 });

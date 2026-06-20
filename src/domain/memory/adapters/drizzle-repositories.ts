@@ -108,8 +108,8 @@ export class DrizzleAttemptRepository implements AttemptRepository {
 
   async createUserError(error: {
     userId: string;
-    attemptId: string;
-    lessonId: string;
+    attemptId: string | null;
+    lessonId: string | null;
     keyPhraseId: string | null;
     lessonFocusId: string | null;
     errorType: string;
@@ -324,47 +324,6 @@ export class DrizzleMistakePatternRepository implements MistakePatternRepository
       .where(eq(schema.mistakePatterns.userId, userId))
       .orderBy(desc(schema.mistakePatterns.updatedAt));
     return rows.map((r) => MistakePattern.reconstitute(r));
-  }
-
-  async bulkCreateFromKeyPhrases(
-    userId: string,
-    phrases: MemoryKeyPhraseInput[]
-  ): Promise<{ inserted: number; skipped: number }> {
-    if (phrases.length === 0) {
-      return { inserted: 0, skipped: 0 };
-    }
-
-    const values = phrases.map((phrase) => ({
-      userId,
-      source: "phrase" as const,
-      keyPhraseId: phrase.id,
-      conceptKey: phrase.conceptKey,
-      normalizedPhrase: phrase.normalizedPhrase,
-      senseKey: phrase.senseKey,
-      category: phrase.category,
-      errorType: "phrase_misunderstanding" as const,
-      meaningVi: phrase.conceptMeaningVi,
-      safeReviewPromptVi: phrase.conceptMeaningVi,
-      isSensitive: phrase.isSensitive,
-      reviewPromptStatus: "queued" as const,
-    }));
-
-    const insertedRows = await this.dbClient
-      .insert(schema.mistakePatterns)
-      .values(values)
-      .onConflictDoNothing({
-        target: [
-          schema.mistakePatterns.userId,
-          schema.mistakePatterns.conceptKey,
-          schema.mistakePatterns.errorType,
-        ],
-      })
-      .returning({ id: schema.mistakePatterns.id });
-
-    return {
-      inserted: insertedRows.length,
-      skipped: phrases.length - insertedRows.length,
-    };
   }
 
   async scrubSensitiveContentForSourceText(
@@ -759,15 +718,27 @@ export class DrizzlePracticeHistoryRepository implements PracticeHistoryReposito
 }
 
 export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository {
-  constructor(private dbClient: DbClient = db) {}
+  constructor(
+    private dbClient: DbClient = db,
+    private rawSqlClient: typeof rawSql = rawSql
+  ) {}
 
   async findPhrasePractice(
     practiceId: string,
     userId: string
   ): Promise<PhrasePractice | null> {
     const [row] = await this.dbClient
-      .select()
+      .select({
+        practice: schema.phrasePractices,
+        literalTranslationVi: schema.keyPhrases.literalTranslationVi,
+        whyConfusingVi: schema.keyPhrases.whyConfusingVi,
+        examples: schema.keyPhrases.examples,
+      })
       .from(schema.phrasePractices)
+      .leftJoin(
+        schema.keyPhrases,
+        eq(schema.phrasePractices.keyPhraseId, schema.keyPhrases.id)
+      )
       .where(
         and(
           eq(schema.phrasePractices.id, practiceId),
@@ -775,35 +746,73 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         )
       )
       .limit(1);
-    return row ? PhrasePractice.reconstitute(row) : null;
+    return row
+      ? PhrasePractice.reconstitute(row.practice, {
+          literalTranslationVi: row.literalTranslationVi,
+          whyConfusingVi: row.whyConfusingVi,
+          examples: row.examples,
+        })
+      : null;
   }
 
   async findPhrasePracticeById(
     practiceId: string
   ): Promise<PhrasePractice | null> {
     const [row] = await this.dbClient
-      .select()
+      .select({
+        practice: schema.phrasePractices,
+        literalTranslationVi: schema.keyPhrases.literalTranslationVi,
+        whyConfusingVi: schema.keyPhrases.whyConfusingVi,
+        examples: schema.keyPhrases.examples,
+      })
       .from(schema.phrasePractices)
+      .leftJoin(
+        schema.keyPhrases,
+        eq(schema.phrasePractices.keyPhraseId, schema.keyPhrases.id)
+      )
       .where(eq(schema.phrasePractices.id, practiceId))
       .limit(1);
-    return row ? PhrasePractice.reconstitute(row) : null;
+    return row
+      ? PhrasePractice.reconstitute(row.practice, {
+          literalTranslationVi: row.literalTranslationVi,
+          whyConfusingVi: row.whyConfusingVi,
+          examples: row.examples,
+        })
+      : null;
   }
 
   async findPracticeByConcept(
     userId: string,
-    conceptKey: string
+    conceptKey: string,
+    senseKey: string
   ): Promise<PhrasePractice | null> {
     const [row] = await this.dbClient
-      .select()
+      .select({
+        practice: schema.phrasePractices,
+        literalTranslationVi: schema.keyPhrases.literalTranslationVi,
+        whyConfusingVi: schema.keyPhrases.whyConfusingVi,
+        examples: schema.keyPhrases.examples,
+      })
       .from(schema.phrasePractices)
+      .leftJoin(
+        schema.keyPhrases,
+        eq(schema.phrasePractices.keyPhraseId, schema.keyPhrases.id)
+      )
       .where(
         and(
           eq(schema.phrasePractices.userId, userId),
-          eq(schema.phrasePractices.conceptKey, conceptKey)
+          eq(schema.phrasePractices.conceptKey, conceptKey),
+          eq(schema.phrasePractices.senseKey, senseKey)
         )
       )
       .limit(1);
-    return row ? PhrasePractice.reconstitute(row) : null;
+    return row
+      ? PhrasePractice.reconstitute(row.practice, {
+          literalTranslationVi: row.literalTranslationVi,
+          whyConfusingVi: row.whyConfusingVi,
+          examples: row.examples,
+        })
+      : null;
   }
 
   async upsertPhrasePractice(
@@ -817,6 +826,7 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         target: [
           schema.phrasePractices.userId,
           schema.phrasePractices.conceptKey,
+          schema.phrasePractices.senseKey,
         ],
         set: {
           intervalDays: 0,
@@ -842,6 +852,7 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         target: [
           schema.phrasePractices.userId,
           schema.phrasePractices.conceptKey,
+          schema.phrasePractices.senseKey,
         ],
         set: {
           intervalDays: row.intervalDays,
@@ -856,6 +867,8 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
           reviewRubricVi: row.reviewRubricVi,
           reviewCorrectAnswer: row.reviewCorrectAnswer,
           reviewAcceptableAnswers: row.reviewAcceptableAnswers,
+          reviewType: row.reviewType,
+          reviewChoices: row.reviewChoices,
           reviewPromptStatus: row.reviewPromptStatus,
           reviewPromptAttempts: row.reviewPromptAttempts,
           reviewPromptError: row.reviewPromptError,
@@ -866,7 +879,7 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
   }
 
   async claimReviewPromptJob(workerId: string): Promise<PhrasePractice | null> {
-    const rows = (await rawSql`
+    const rows = (await this.rawSqlClient`
       update phrase_practices
       set review_prompt_status = 'running',
           review_prompt_locked_at = now(),
@@ -885,6 +898,8 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
       returning
         id,
         user_id as "userId",
+        source,
+        key_phrase_id as "keyPhraseId",
         concept_key as "conceptKey",
         normalized_phrase as "normalizedPhrase",
         sense_key as "senseKey",
@@ -892,6 +907,8 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         meaning_vi as "meaningVi",
         safe_review_prompt_vi as "safeReviewPromptVi",
         interval_days as "intervalDays",
+        ease_factor as "easeFactor",
+        repetitions,
         mastery_state as "masteryState",
         due_at as "dueAt",
         last_reviewed_at as "lastReviewedAt",
@@ -903,6 +920,8 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         review_rubric_vi as "reviewRubricVi",
         review_correct_answer as "reviewCorrectAnswer",
         review_acceptable_answers as "reviewAcceptableAnswers",
+        review_type as "reviewType",
+        review_choices as "reviewChoices",
         review_prompt_status as "reviewPromptStatus",
         review_prompt_attempts as "reviewPromptAttempts",
         review_prompt_error as "reviewPromptError",
@@ -919,8 +938,17 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
     limit: number
   ): Promise<PhrasePractice[]> {
     const rows = await this.dbClient
-      .select()
+      .select({
+        practice: schema.phrasePractices,
+        literalTranslationVi: schema.keyPhrases.literalTranslationVi,
+        whyConfusingVi: schema.keyPhrases.whyConfusingVi,
+        examples: schema.keyPhrases.examples,
+      })
       .from(schema.phrasePractices)
+      .leftJoin(
+        schema.keyPhrases,
+        eq(schema.phrasePractices.keyPhraseId, schema.keyPhrases.id)
+      )
       .where(
         and(
           eq(schema.phrasePractices.userId, userId),
@@ -931,16 +959,37 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
       )
       .orderBy(asc(schema.phrasePractices.dueAt))
       .limit(limit);
-    return rows.map((r) => PhrasePractice.reconstitute(r));
+    return rows.map((r) =>
+      PhrasePractice.reconstitute(r.practice, {
+        literalTranslationVi: r.literalTranslationVi,
+        whyConfusingVi: r.whyConfusingVi,
+        examples: r.examples,
+      })
+    );
   }
 
   async findAllPhrasePractices(userId: string): Promise<PhrasePractice[]> {
     const rows = await this.dbClient
-      .select()
+      .select({
+        practice: schema.phrasePractices,
+        literalTranslationVi: schema.keyPhrases.literalTranslationVi,
+        whyConfusingVi: schema.keyPhrases.whyConfusingVi,
+        examples: schema.keyPhrases.examples,
+      })
       .from(schema.phrasePractices)
+      .leftJoin(
+        schema.keyPhrases,
+        eq(schema.phrasePractices.keyPhraseId, schema.keyPhrases.id)
+      )
       .where(eq(schema.phrasePractices.userId, userId))
       .orderBy(desc(schema.phrasePractices.updatedAt));
-    return rows.map((r) => PhrasePractice.reconstitute(r));
+    return rows.map((r) =>
+      PhrasePractice.reconstitute(r.practice, {
+        literalTranslationVi: r.literalTranslationVi,
+        whyConfusingVi: r.whyConfusingVi,
+        examples: r.examples,
+      })
+    );
   }
 
   async bulkCreateFromKeyPhrases(
@@ -972,6 +1021,7 @@ export class DrizzlePhrasePracticeRepository implements PhrasePracticeRepository
         target: [
           schema.phrasePractices.userId,
           schema.phrasePractices.conceptKey,
+          schema.phrasePractices.senseKey,
         ],
       })
       .returning({ id: schema.phrasePractices.id });

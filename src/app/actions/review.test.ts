@@ -145,6 +145,7 @@ describe("Review Actions", () => {
         .values({
           userId: testUser.id,
           conceptKey: "test-retry-phrase-concept",
+          senseKey: "default",
           category: "general_phrase",
           normalizedPhrase: "phrase practice target",
           meaningVi: "nghĩa luyện tập",
