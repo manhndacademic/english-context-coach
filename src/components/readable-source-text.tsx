@@ -396,8 +396,13 @@ export function ReadableSourceText({
             >
               <div className="flex flex-col gap-2">
                 <div>
-                  <h4 className="font-bold text-accent-strong text-base">
-                    {activePhrase.phrase}
+                  <h4 className="font-bold text-accent-strong text-base flex items-baseline gap-2 flex-wrap">
+                    <span>{activePhrase.phrase}</span>
+                    {activePhrase.ipa && (
+                      <span className="font-sans text-xs text-muted italic font-medium font-normal">
+                        /{activePhrase.ipa}/
+                      </span>
+                    )}
                   </h4>
                   <p className="text-sm text-text font-medium mt-1">
                     {activePhrase.meaningVi}
