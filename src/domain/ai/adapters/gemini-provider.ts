@@ -323,7 +323,7 @@ export class GeminiLLMProvider implements LLMProvider {
     }
     accumulateTokens(callResult.inputTokens, callResult.outputTokens);
 
-    let rawText = callResult.text;
+    const rawText = callResult.text;
     logger.trace(
       `[GeminiProvider] Raw text response received from model ${model} for purpose ${
         prompt.purpose

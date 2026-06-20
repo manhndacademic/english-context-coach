@@ -287,7 +287,7 @@ export function ReadableSourceText({
           });
           setIsLookupOpen(true);
         }
-      } catch (err) {
+      } catch {
         // Range selection error (common when selecting across elements)
       }
     } else {
@@ -594,7 +594,8 @@ export function ReadableSourceText({
                     >
                       {isSaving ? (
                         <>
-                          <Loader2 size={10} className="animate-spin" /> Đang lưu...
+                          <Loader2 size={10} className="animate-spin" /> Đang
+                          lưu...
                         </>
                       ) : (
                         "💾 Lưu ôn tập (SRS)"

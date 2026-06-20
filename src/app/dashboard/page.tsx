@@ -47,7 +47,7 @@ export default async function DashboardPage() {
   const memoryEngine = getLearnerMemoryEngine();
   const mistakePatternRepo = getMistakePatternRepository();
 
-  const [recentLessons, _, dashboardMetrics, duePatterns] = await Promise.all([
+  const [recentLessons, , dashboardMetrics, duePatterns] = await Promise.all([
     lessonRepo.getRecentLessons(user.id, 6),
     lessonRepo.getSourceTextsCount(user.id),
     memoryEngine.getDashboardMetrics(user.id, now),

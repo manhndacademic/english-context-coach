@@ -29,7 +29,7 @@ function formatLabelDate(dateStr: string): string {
       month: "short",
       day: "numeric",
     });
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 }

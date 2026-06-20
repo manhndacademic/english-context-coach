@@ -49,7 +49,7 @@ export function AppHeader({
       } else {
         document.documentElement.setAttribute("data-theme", activeTheme);
       }
-    } catch (e) {}
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export function AppHeader({
       } else {
         document.documentElement.setAttribute("data-theme", newTheme);
       }
-    } catch (e) {}
+    } catch {}
   };
 
   return (

@@ -8,7 +8,7 @@ import { sql } from "@/db";
 export async function notifyJobQueued() {
   try {
     // 1. Notify PostgreSQL to trigger any listeners and dynamically import BullMQ queues in parallel
-    const [_, queues] = await Promise.all([
+    const [, queues] = await Promise.all([
       sql`NOTIFY jobs_trigger`.catch((err) => {
         console.error("[JobTrigger] PostgreSQL NOTIFY error:", err);
       }),

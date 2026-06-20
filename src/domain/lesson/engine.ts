@@ -353,7 +353,7 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       stage: null,
     });
 
-    let currentStage = job.stage as "analysis" | "exercises";
+    const currentStage = job.stage as "analysis" | "exercises";
 
     try {
       const sourceText = await this.sourceTexts.findSourceText(

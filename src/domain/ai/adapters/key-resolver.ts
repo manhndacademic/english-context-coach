@@ -10,7 +10,7 @@ export function parseApiKeys(envKeysStr: string | undefined): string[] {
   if (!envKeysStr) return [];
   const rawParts = envKeysStr.split(/[,\n]+/);
   const keys: string[] = [];
-  for (let part of rawParts) {
+  for (const part of rawParts) {
     let clean = part.split("#")[0].split("//")[0];
     clean = clean.trim();
     if (clean) {
