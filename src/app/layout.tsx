@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Roboto } from "next/font/google";
 import "./globals.css";
 
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning className={roboto.variable}>
       <head>
-        <script
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {

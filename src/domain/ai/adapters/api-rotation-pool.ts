@@ -187,7 +187,16 @@ export class ApiRotationPool {
       options.hasSchema
     );
 
-    for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
+    const attempt = async (
+      modelIdx: number
+    ): Promise<{ result: T; resolvedModel: string }> => {
+      if (modelIdx >= models.length) {
+        throw new AiError(
+          `All models in the ${options.modelKind} pool are rate-limited or unavailable.`,
+          "all_models_failed"
+        );
+      }
+
       const model = this.getNextAvailable(
         options.modelKind,
         exhaustedModels,
@@ -208,16 +217,13 @@ export class ApiRotationPool {
 
         if (isRateLimit && modelIdx < models.length - 1) {
           this.markRateLimited(model);
-          continue; // rotates to next model
+          return attempt(modelIdx + 1); // rotates to next model recursively
         }
         throw err;
       }
-    }
+    };
 
-    throw new AiError(
-      `All models in the ${options.modelKind} pool are rate-limited or unavailable.`,
-      "all_models_failed"
-    );
+    return attempt(0);
   }
 
   private async executeWithModelRotation<T>(

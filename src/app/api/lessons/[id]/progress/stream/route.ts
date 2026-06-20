@@ -111,13 +111,19 @@ export async function GET(
 
   const stream = new ReadableStream({
     async start(controller) {
-      while (!request.signal.aborted) {
+      async function poll() {
+        if (request.signal.aborted) {
+          controller.close();
+          return;
+        }
+
         const snapshot = await repo.getLessonProgress({
           lessonId: id,
           userId: user.id,
           afterMilestoneId: cursor.milestoneId,
           afterThoughtId: cursor.thoughtId,
         });
+
         if (!snapshot) {
           controller.close();
           return;
@@ -139,7 +145,10 @@ export async function GET(
         }
 
         await delay(1_000);
+        await poll();
       }
+
+      await poll();
 
       controller.close();
     },

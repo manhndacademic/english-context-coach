@@ -432,7 +432,9 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       );
       let exercises: SaveExercisesInput | null = null;
 
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const runExerciseGeneration = async (
+        attempt: number
+      ): Promise<SaveExercisesInput> => {
         const candidate = await this.genEngine.generateExercises(
           analysis,
           async (text) => {
@@ -455,14 +457,16 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
 
         try {
           assertCompleteExercises(candidate, analysis, this.textProcessor);
-          exercises = candidate;
-          break;
+          return candidate;
         } catch (error) {
-          if (attempt === 2) {
+          if (attempt >= 2) {
             throw error;
           }
+          return runExerciseGeneration(attempt + 1);
         }
-      }
+      };
+
+      exercises = await runExerciseGeneration(1);
 
       if (!exercises) {
         throw new Error(

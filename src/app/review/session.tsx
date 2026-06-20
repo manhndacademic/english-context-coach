@@ -31,7 +31,7 @@ export function ReviewSession({
   if (!sessionPatterns.length || currentIndex >= sessionPatterns.length) {
     return (
       <div className="bg-surface border border-border rounded-xl p-8 sm:p-12 shadow-lg flex flex-col items-center justify-center text-center gap-6 max-w-xl mx-auto w-full transition-all duration-200">
-        <div className="bg-success-light text-success p-4 rounded-full border border-success/15 w-16 h-16 flex items-center justify-center animate-bounce shadow-md">
+        <div className="bg-success-light text-success p-4 rounded-full border border-success/15 w-16 h-16 flex items-center justify-center animate-pulse shadow-md">
           <CheckCircle2 size={32} />
         </div>
         <div className="grid gap-2">
