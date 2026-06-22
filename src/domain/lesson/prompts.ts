@@ -4,9 +4,11 @@ import {
   analysisSchema,
   exercisesSchema,
   diffAnalysisSchema,
+  writingCoachAnalysisSchema,
   type AnalysisResult,
   type ExercisesResult,
   type DiffAnalysisResult,
+  type WritingCoachAnalysisResult,
 } from "./schemas";
 import type { SaveAnalysisInput } from "./ports";
 
@@ -14,12 +16,14 @@ const PROMPT_VERSIONS = {
   analysis: "analysis-v3",
   exercises: "exercises-v1",
   diffAnalysis: "diff-analysis-v1",
+  writingCoach: "writing-coach-v1",
 } as const;
 
 const SCHEMA_VERSIONS = {
   analysis: "analysis-schema-v1",
   exercises: "exercises-schema-v1",
   diffAnalysis: "diff-analysis-schema-v1",
+  writingCoach: "writing-coach-schema-v1",
 } as const;
 
 const analysisJsonShape = {
@@ -506,6 +510,89 @@ export class DiffExercisesPrompt implements Prompt<ExercisesResult> {
       "",
       "Here is the list of Correction Items to generate exercises for:",
       JSON.stringify(correctionsWithMetadata, null, 2),
+    ];
+
+    return list.join("\n\n");
+  }
+}
+
+const writingCoachJsonShape = {
+  title:
+    "short neutral Vietnamese/English title describing the core correction",
+  documentType:
+    "email | chat_message | ticket | code_review | technical_doc | meeting_notes | general",
+  formality: "formal | semi_formal | casual",
+  suggestedText: "the full improved version (AppSuggestion)",
+  detectedLevel: "A2 | B1 | B2 | C1",
+  summaryVi:
+    "summary of the changes made and the learner's intent in Vietnamese",
+  naturalTranslationVi: "natural Vietnamese translation of the suggestedText",
+  contextExplanationVi:
+    "Vietnamese explanation of the context, tone, and appropriate usage",
+  toneAnalysisVi:
+    "overall tone assessment of the original text compared to the suggested version in Vietnamese",
+  corrections: [
+    {
+      draftPhrase: "the wrong/awkward phrase from the draft text",
+      correctedPhrase: "the correct/natural phrase from the suggested text",
+      explanationVi:
+        "Vietnamese explanation of why this change was made, including grammar rules or natural usage patterns",
+      literalTrapVi:
+        "optional string: Vietnamese note highlighting literal word-by-word translation traps to avoid. If none, set to null.",
+      culturalNoteVi:
+        "Vietnamese note explaining the cultural, register, or tone reasons behind this change (e.g. email conventions, Slack thread etiquette, ticket imperative mood, etc.). If none, set to null.",
+      exampleEn:
+        "a new context-relevant example English sentence using the corrected/natural phrase",
+      exampleVi: "natural Vietnamese translation of the new example sentence",
+      category:
+        "idiom | phrasal_verb | technical_term | collocation | grammar_pattern | business_phrase | general_phrase",
+      errorType:
+        "literal_translation | phrase_misunderstanding | technical_term_misunderstanding | phrasal_verb_error | collocation_error | grammar_structure_misread | pronoun_reference_misread | tone_register_misread | missing_context",
+    },
+  ],
+};
+
+export class WritingCoachPrompt implements Prompt<WritingCoachAnalysisResult> {
+  public readonly purpose = "analysis";
+  public readonly promptVersion = PROMPT_VERSIONS.writingCoach;
+  public readonly schemaVersion = SCHEMA_VERSIONS.writingCoach;
+  public readonly schema = writingCoachAnalysisSchema;
+  public readonly modelKind = "analysis";
+  public readonly expectedShape = writingCoachJsonShape;
+
+  constructor(private readonly draftText: string) {}
+
+  render(): string {
+    const list = [
+      "You are English Context Coach for Vietnamese learners.",
+      "Analyze the learner's DraftText (original, draft version) and provide corrections, explanations, and context-calibrated improvements.",
+      "Follow these steps:",
+      "1. Detect the DocumentType of the draft text. Choose from: email, chat_message, ticket, code_review, technical_doc, meeting_notes, general.",
+      "2. Detect the Formality of the draft text. Choose from: formal, semi_formal, casual.",
+      "3. Generate a full improved version (suggestedText / AppSuggestion) of the text. The suggestedText must calibrate its corrections per the detected DocumentType and Formality:",
+      "   - email: teach greeting/closing conventions, hedging, polite indirectness",
+      "   - chat_message: allow contractions, catch genuine errors only, teach thread etiquette",
+      "   - ticket: teach acceptance criteria format, imperative mood, concise technical writing",
+      "   - code_review: teach 'nit:'/'LGTM' conventions, suggestion-vs-request tone",
+      "   - technical_doc: teach passive voice conventions, section structure, hedging in rationale",
+      "   - meeting_notes: teach action item format, attribution, tense consistency",
+      "   - general: baseline English analysis",
+      "   And per Formality:",
+      "   - formal: strict on hedging, no contractions, full sentences, polite indirectness",
+      "   - semi_formal: allow contractions, moderate directness, professional but approachable",
+      "   - casual: minimal correction on tone, focus only on genuine errors",
+      "4. Identify specific differences/corrections between the learner's DraftText and your suggestedText. For each correction:",
+      "   - Keep explanationVi concise, friendly, and practical in Vietnamese. Use markdown backticks (`...`) when referencing English words/phrases inside Vietnamese explanations.",
+      "   - Set culturalNoteVi to explain the cultural, tone, register, or channel-specific reasoning behind the change (e.g. why 'check state' is replaced by 'check the status' in an email). If none, set to null.",
+      "   - Identify literal translation traps if applicable. Set `literalTrapVi` to highlight how word-by-word translation leads to this error. If none, set to null.",
+      "   - Generate a new context-relevant English example sentence (`exampleEn`) utilizing the corrected phrase. Provide its natural translation (`exampleVi`). Do NOT wrap words in single quotes ('...') or backticks (`...`) in the generated English sentences.",
+      "   - Classify the category and errorType.",
+      "5. Classify the overall CEFR level (A2, B1, B2, or C1) and provide a short neutral title.",
+      "6. Provide a toneAnalysisVi (Vietnamese overall tone assessment comparing the draft and suggested versions).",
+      "Return strict JSON only. No markdown formatting.",
+      "JSON shape:",
+      JSON.stringify(writingCoachJsonShape),
+      `Draft text (original):\n${this.draftText}`,
     ];
 
     return list.join("\n\n");

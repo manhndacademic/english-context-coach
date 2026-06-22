@@ -470,6 +470,48 @@ class MockGenerationEngine implements GenerationEngine {
     };
   }
 
+  async generateWritingCoachAnalysis(
+    _draftText: string,
+    onThought?: any,
+    userId?: string,
+    lessonId?: string
+  ): Promise<any> {
+    this.lastAnalysisUserId = userId;
+    this.lastAnalysisLessonId = lessonId;
+    if (this.analysisError) throw this.analysisError;
+    if (onThought) {
+      await onThought("Thought Writing Coach");
+    }
+    return {
+      title: "Mock Writing Coach Lesson",
+      textType: "email",
+      formality: "semi_formal",
+      suggestedText: "I am writing to check the status.",
+      inputMode: "write",
+      detectedLevel: "B1",
+      summaryVi: "Mock writing coach summary",
+      naturalTranslationVi: "Tôi viết để kiểm tra trạng thái.",
+      contextExplanationVi: "Giọng điệu phù hợp.",
+      keyPhrases: [],
+      sentenceBreakdowns: [],
+      lessonFocuses: [],
+      correctionItems: [
+        {
+          draftPhrase: "check state",
+          correctedPhrase: "check the status",
+          explanationVi: "Dùng từ phù hợp hơn",
+          literalTrapVi: null,
+          culturalNoteVi:
+            "Trong email công việc, 'check the status' tự nhiên hơn.",
+          exampleEn: "Can you check the status of the ticket?",
+          exampleVi: "Bạn có thể kiểm tra trạng thái của ticket không?",
+          category: "general_phrase",
+          errorType: "collocation_error",
+        },
+      ],
+    };
+  }
+
   async generateExercises(
     analysis: any,
     onThought?: any,
@@ -939,6 +981,38 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
         expect(savedLesson.correctionItems[0].draftPhrase).toBe("very like");
         expect(savedLesson.correctionItems[0].correctedPhrase).toBe(
           "really like"
+        );
+      }
+    });
+
+    it("runs writing coach analysis and saves columns in write mode", async () => {
+      const queueRes = await engine.queue(
+        "user-write-test",
+        "This is draft text.",
+        "write"
+      );
+      expect(queueRes.ok).toBe(true);
+      if (queueRes.ok) {
+        const result = await engine.processNext("worker-write-test");
+        expect(result.status).toBe("processed");
+        if (result.status === "processed") {
+          expect(result.success).toBe(true);
+        }
+
+        const savedLesson = repo.lessons.get(queueRes.lessonId);
+        expect(savedLesson).toBeDefined();
+        expect(savedLesson.inputMode).toBe("write");
+        expect(savedLesson.formality).toBe("semi_formal");
+        expect(savedLesson.suggestedText).toBe(
+          "I am writing to check the status."
+        );
+        expect(savedLesson.correctionItems).toHaveLength(1);
+        expect(savedLesson.correctionItems[0].draftPhrase).toBe("check state");
+        expect(savedLesson.correctionItems[0].correctedPhrase).toBe(
+          "check the status"
+        );
+        expect(savedLesson.correctionItems[0].culturalNoteVi).toBe(
+          "Trong email công việc, 'check the status' tự nhiên hơn."
         );
       }
     });

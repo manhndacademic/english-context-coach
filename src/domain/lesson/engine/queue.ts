@@ -69,13 +69,16 @@ export async function queue(
     };
   }
 
+  const draftContent =
+    input.requestedMode === "write" ? input.content : input.draftContent;
+
   const result = await deps.tx.createSourceTextAndLessonAndJob(
     input.userId,
     input.content,
     "Untitled source",
     contentHash,
     input.requestedMode,
-    input.draftContent
+    draftContent
   );
 
   await Promise.all([

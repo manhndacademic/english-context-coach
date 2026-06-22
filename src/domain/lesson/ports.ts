@@ -466,6 +466,13 @@ export interface GenerationEngine {
     lessonId?: string
   ): Promise<SaveAnalysisInput>;
 
+  generateWritingCoachAnalysis?(
+    draftText: string,
+    onThought?: (text: string) => Promise<void>,
+    userId?: string,
+    lessonId?: string
+  ): Promise<SaveAnalysisInput>;
+
   generateExercises(
     analysis: SaveAnalysisInput,
     onThought?: (text: string) => Promise<void>,

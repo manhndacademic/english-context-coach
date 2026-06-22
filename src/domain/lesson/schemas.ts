@@ -218,5 +218,21 @@ export const diffAnalysisSchema = z.object({
   corrections: z.array(correctionItemSchema),
 });
 
+export const writingCoachAnalysisSchema = z.object({
+  title: z.string().min(1).max(80),
+  documentType: textTypeSchema,
+  formality: formalitySchema,
+  suggestedText: z.string().min(1),
+  detectedLevel: levelSchema,
+  summaryVi: z.string().min(1),
+  naturalTranslationVi: z.string().min(1),
+  contextExplanationVi: z.string().min(1),
+  toneAnalysisVi: z.string().min(1),
+  corrections: z.array(correctionItemSchema),
+});
+
 export type DiffAnalysisResult = z.infer<typeof diffAnalysisSchema>;
 export type CorrectionItemResult = z.infer<typeof correctionItemSchema>;
+export type WritingCoachAnalysisResult = z.infer<
+  typeof writingCoachAnalysisSchema
+>;

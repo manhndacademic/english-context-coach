@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 
@@ -34,14 +34,14 @@ And per Formality:
 
 ## Acceptance criteria
 
-- [ ] `WritingCoachPrompt` class exists and renders a prompt that detects DocumentType + Formality and generates corrections with culturalNoteVi
-- [ ] `writingCoachAnalysisSchema` validates AI output including `documentType`, `formality`, `suggestedText`, `toneAnalysisVi`, and corrections with `culturalNoteVi`
-- [ ] `GenerationEngine` interface includes `generateWritingCoachAnalysis()` method
-- [ ] `GeminiGenerationEngine` implements `generateWritingCoachAnalysis()` — calls prompt, runs `diffWords()`, merges results
-- [ ] Job-runner routes write mode (DraftText, no user SourceText) to writing coach engine
-- [ ] Job-runner continues routing diff mode and read mode to their existing engines (no regression)
-- [ ] Integration test: given a DraftText in write mode, `LessonGenerationEngine.processNext()` produces a Lesson with CorrectionItems containing `culturalNoteVi`, detected `textType` (DocumentType), and `formality`
-- [ ] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
+- [x] `WritingCoachPrompt` class exists and renders a prompt that detects DocumentType + Formality and generates corrections with culturalNoteVi
+- [x] `writingCoachAnalysisSchema` validates AI output including `documentType`, `formality`, `suggestedText`, `toneAnalysisVi`, and corrections with `culturalNoteVi`
+- [x] `GenerationEngine` interface includes `generateWritingCoachAnalysis()` method
+- [x] `GeminiGenerationEngine` implements `generateWritingCoachAnalysis()` — calls prompt, runs `diffWords()`, merges results
+- [x] Job-runner routes write mode (DraftText, no user SourceText) to writing coach engine
+- [x] Job-runner continues routing diff mode and read mode to their existing engines (no regression)
+- [x] Integration test: given a DraftText in write mode, `LessonGenerationEngine.processNext()` produces a Lesson with CorrectionItems containing `culturalNoteVi`, detected `textType` (DocumentType), and `formality`
+- [x] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
 
 ## Blocked by
 

@@ -147,6 +147,35 @@ async function executeJob(
       let preparedAnalysis: SaveAnalysisInput;
 
       if (
+        lesson.inputMode === "write" &&
+        draftText &&
+        deps.genEngine.generateWritingCoachAnalysis
+      ) {
+        logSpringStyle(
+          "INFO",
+          workerId,
+          `Running writing coach analysis for Lesson ${job.lessonId}...`
+        );
+        preparedAnalysis = await deps.genEngine.generateWritingCoachAnalysis(
+          draftText.content,
+          async (text) => {
+            const sanitized = sanitizeGenerationThought(
+              text,
+              deps.textProcessor
+            );
+            if (sanitized) {
+              await deps.progress.recordThought({
+                lessonId: job.lessonId,
+                generationJobId: job.id,
+                stage: "analysis",
+                text: sanitized,
+              });
+            }
+          },
+          job.userId,
+          job.lessonId
+        );
+      } else if (
         lesson.inputMode === "diff" &&
         draftText &&
         deps.genEngine.generateDiffAnalysis

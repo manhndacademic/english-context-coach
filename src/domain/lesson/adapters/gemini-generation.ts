@@ -3,9 +3,18 @@ import {
   AnalysisPrompt,
   ExercisesPrompt,
   DiffExercisesPrompt,
+  WritingCoachPrompt,
 } from "../prompts";
-import { generateDiffAnalysis as runDiffEngine } from "../diff-engine";
-import { type AnalysisResult, type ExercisesResult } from "../schemas";
+import {
+  generateDiffAnalysis as runDiffEngine,
+  diffWords,
+  extractDiffPairs,
+} from "../diff-engine";
+import {
+  type AnalysisResult,
+  type ExercisesResult,
+  type WritingCoachAnalysisResult,
+} from "../schemas";
 import type {
   GenerationEngine,
   SaveAnalysisInput,
@@ -106,6 +115,72 @@ export class GeminiGenerationEngine implements GenerationEngine {
       lessonId: activeLessonId,
       onThought,
     });
+  }
+
+  async generateWritingCoachAnalysis(
+    draftText: string,
+    onThought?: (text: string) => Promise<void>,
+    userId?: string,
+    lessonId?: string
+  ): Promise<SaveAnalysisInput> {
+    const activeUserId = userId ?? this.userId;
+    const activeLessonId = lessonId ?? this.lessonId;
+
+    const result = (await this.llm.generateJson({
+      userId: activeUserId,
+      lessonId: activeLessonId,
+      prompt: new WritingCoachPrompt(draftText),
+      onThought,
+    })) as WritingCoachAnalysisResult;
+
+    // Deterministic diffing to confirm changes exist
+    const diffs = diffWords(draftText, result.suggestedText);
+    const rawPairs = extractDiffPairs(diffs);
+
+    if (rawPairs.length === 0) {
+      return {
+        title: result.title || "Bài học sửa lỗi",
+        textType: result.documentType as any,
+        formality: result.formality as any,
+        suggestedText: result.suggestedText,
+        inputMode: "write",
+        detectedLevel: result.detectedLevel as any,
+        summaryVi:
+          "Không phát hiện thấy lỗi sai nào trong văn bản nháp của bạn.",
+        naturalTranslationVi: result.naturalTranslationVi,
+        contextExplanationVi: result.contextExplanationVi,
+        keyPhrases: [],
+        sentenceBreakdowns: [],
+        lessonFocuses: [],
+        correctionItems: [],
+      };
+    }
+
+    return {
+      title: result.title || "Bài học sửa lỗi",
+      textType: result.documentType as any,
+      formality: result.formality as any,
+      suggestedText: result.suggestedText,
+      inputMode: "write",
+      detectedLevel: result.detectedLevel as any,
+      summaryVi: result.summaryVi,
+      naturalTranslationVi: result.naturalTranslationVi,
+      contextExplanationVi: result.contextExplanationVi,
+      keyPhrases: [],
+      sentenceBreakdowns: [],
+      lessonFocuses: [],
+      correctionItems: (result.corrections ?? []).map((item) => ({
+        draftPhrase: cleanEmbeddedQuotesOrBackticks(item.draftPhrase),
+        correctedPhrase: cleanEmbeddedQuotesOrBackticks(item.correctedPhrase),
+        explanationVi: item.explanationVi,
+        literalTrapVi: item.literalTrapVi || null,
+        culturalNoteVi: item.culturalNoteVi || null,
+        exampleEn: cleanEmbeddedQuotesOrBackticks(item.exampleEn),
+        exampleVi: cleanEmbeddedQuotesOrBackticks(item.exampleVi),
+        category: item.category,
+        errorType: item.errorType,
+      })),
+    };
   }
 
   async generateExercises(
