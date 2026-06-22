@@ -56,7 +56,7 @@ describe("GeminiGenerationEngine - generateWritingCoachAnalysis", () => {
     expect(result.detectedLevel).toBe("B2");
     expect(result.summaryVi).toBe("Tóm tắt");
     expect(result.naturalTranslationVi).toBe("Dịch tự nhiên");
-    expect(result.contextExplanationVi).toBe("Giải thích ngữ cảnh");
+    expect(result.contextExplanationVi).toBe("Phân tích giọng điệu");
     expect(result.correctionItems).toHaveLength(1);
 
     const firstCorrection = result.correctionItems![0];

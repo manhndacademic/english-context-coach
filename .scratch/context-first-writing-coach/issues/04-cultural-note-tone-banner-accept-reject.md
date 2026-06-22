@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 
@@ -18,14 +18,14 @@ Specifically:
 
 ## Acceptance criteria
 
-- [ ] Each correction card displays `culturalNoteVi` when present, in a visually distinct callout
-- [ ] Correction cards without `culturalNoteVi` render without the callout (no empty space)
-- [ ] Tone analysis banner renders at the top of the diff view when data is available
-- [ ] Each correction card has an accept/reject toggle defaulting to "accepted"
-- [ ] Rejected corrections are visually dimmed with a "Tham khảo" label
-- [ ] Accept/reject state is tracked in component state
-- [ ] Existing diff mode lessons (without culturalNoteVi) continue to render correctly
-- [ ] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
+- [x] Each correction card displays `culturalNoteVi` when present, in a visually distinct callout
+- [x] Correction cards without `culturalNoteVi` render without the callout (no empty space)
+- [x] Tone analysis banner renders at the top of the diff view when data is available
+- [x] Each correction card has an accept/reject toggle defaulting to "accepted"
+- [x] Rejected corrections are visually dimmed with a "Tham khảo" label
+- [x] Accept/reject state is tracked in component state
+- [x] Existing diff mode lessons (without culturalNoteVi) continue to render correctly
+- [x] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
 
 ## Blocked by
 

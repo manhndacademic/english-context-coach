@@ -70,6 +70,20 @@ export function DiffLessonLayout({
     }
   );
 
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+
+  const toggleReject = (id: string) => {
+    setRejectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const draftContent = draftText?.content || "";
   const correctedContent = sourceText?.content || "";
 
@@ -125,6 +139,20 @@ export function DiffLessonLayout({
         >
           {/* Left Column: Diff view and CorrectionItem list */}
           <div className="grid gap-item-gap">
+            {lesson.contextExplanationVi && (
+              <section className="bg-accent/5 border border-accent/20 rounded-lg p-5 shadow-sm flex items-start gap-3">
+                <span className="text-xl">📢</span>
+                <div>
+                  <h4 className="font-bold text-accent text-sm m-0 mb-1">
+                    Đánh giá giọng điệu (Tone Analysis)
+                  </h4>
+                  <p className="text-sm text-text leading-relaxed m-0 whitespace-pre-wrap">
+                    {lesson.contextExplanationVi}
+                  </p>
+                </div>
+              </section>
+            )}
+
             <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-5">
               <div className="flex flex-col gap-1">
                 <h2 className="text-2xl font-bold text-text m-0">
@@ -169,58 +197,94 @@ export function DiffLessonLayout({
               <h3 className="text-xl font-bold text-text mb-1">
                 Chi tiết điểm sửa lỗi ({correctionItems.length})
               </h3>
-              {correctionItems.map((item, index) => (
-                <div
-                  key={item.id || index}
-                  className="bg-surface border border-border rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden grid gap-4"
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold tracking-wider uppercase bg-surface-strong border border-border text-text px-2 py-0.5 rounded">
-                      {item.category.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-[10px] font-bold tracking-wider uppercase bg-danger/10 text-danger px-2 py-0.5 rounded">
-                      {item.errorType.replace(/_/g, " ")}
-                    </span>
-                  </div>
+              {correctionItems.map((item, index) => {
+                const itemKey = item.id || index.toString();
+                const isRejected = rejectedIds.has(itemKey);
+                return (
+                  <div
+                    key={item.id || index}
+                    className={`bg-surface border border-border rounded-lg p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden grid gap-4 ${
+                      isRejected
+                        ? "opacity-60 bg-surface-strong/30 border-dashed border-border/85"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold tracking-wider uppercase bg-surface-strong border border-border text-text px-2 py-0.5 rounded">
+                          {item.category.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[10px] font-bold tracking-wider uppercase bg-danger/10 text-danger px-2 py-0.5 rounded">
+                          {item.errorType.replace(/_/g, " ")}
+                        </span>
+                        {isRejected && (
+                          <span className="text-[10px] font-bold tracking-wider uppercase bg-muted/20 text-muted border border-muted/30 px-2 py-0.5 rounded">
+                            💡 Tham khảo
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="flex items-center gap-3 flex-wrap bg-surface-strong/50 border border-border/40 rounded-md p-3">
-                    <span className="text-red-600 line-through font-serif text-base font-semibold">
-                      {item.draftPhrase}
-                    </span>
-                    <span className="text-muted font-serif">➔</span>
-                    <span className="text-green-600 font-serif text-lg font-bold">
-                      {item.correctedPhrase}
-                    </span>
-                  </div>
-
-                  <div className="grid gap-3 text-sm">
-                    <div className="text-text leading-relaxed">
-                      <strong>Giải thích:</strong> {item.explanationVi}
+                      <button
+                        type="button"
+                        onClick={() => toggleReject(itemKey)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition-all border cursor-pointer select-none ${
+                          isRejected
+                            ? "bg-muted/10 text-muted border-muted/20 hover:bg-muted/20"
+                            : "bg-accent/10 text-accent border-accent/20 hover:bg-accent/25"
+                        }`}
+                      >
+                        {isRejected ? "↩️ Giữ bản gốc" : "✅ Đồng ý sửa"}
+                      </button>
                     </div>
 
-                    {item.literalTrapVi && (
-                      <div className="bg-warning-light border-l-4 border-warning p-3 rounded-r-md text-text">
-                        <span className="font-bold text-warning">
-                          ⚠️ Bẫy dịch từng từ:
-                        </span>{" "}
-                        {item.literalTrapVi}
-                      </div>
-                    )}
-
-                    <div className="border-t border-border/60 pt-3 mt-1">
-                      <span className="text-xs text-muted block mb-1">
-                        Ví dụ tương tự:
+                    <div className="flex items-center gap-3 flex-wrap bg-surface-strong/50 border border-border/40 rounded-md p-3">
+                      <span className="text-red-600 line-through font-serif text-base font-semibold">
+                        {item.draftPhrase}
                       </span>
-                      <div className="font-serif italic text-text text-base">
-                        &ldquo;{item.exampleEn}&rdquo;
+                      <span className="text-muted font-serif">➔</span>
+                      <span className="text-green-600 font-serif text-lg font-bold">
+                        {item.correctedPhrase}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 text-sm">
+                      <div className="text-text leading-relaxed">
+                        <strong>Giải thích:</strong> {item.explanationVi}
                       </div>
-                      <div className="text-muted text-sm mt-0.5">
-                        ({item.exampleVi})
+
+                      {item.literalTrapVi && (
+                        <div className="bg-warning-light border-l-4 border-warning p-3 rounded-r-md text-text">
+                          <span className="font-bold text-warning">
+                            ⚠️ Bẫy dịch từng từ:
+                          </span>{" "}
+                          {item.literalTrapVi}
+                        </div>
+                      )}
+
+                      {item.culturalNoteVi && (
+                        <div className="bg-accent/5 border-l-4 border-accent p-3 rounded-r-md text-text">
+                          <span className="font-bold text-accent flex items-center gap-1 mb-1 text-xs">
+                            🌏 Lưu ý bối cảnh & văn hóa:
+                          </span>{" "}
+                          {item.culturalNoteVi}
+                        </div>
+                      )}
+
+                      <div className="border-t border-border/60 pt-3 mt-1">
+                        <span className="text-xs text-muted block mb-1">
+                          Ví dụ tương tự:
+                        </span>
+                        <div className="font-serif italic text-text text-base">
+                          &ldquo;{item.exampleEn}&rdquo;
+                        </div>
+                        <div className="text-muted text-sm mt-0.5">
+                          ({item.exampleVi})
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </section>
 
             {hasSideColumn && currentPhase === "understand" && (

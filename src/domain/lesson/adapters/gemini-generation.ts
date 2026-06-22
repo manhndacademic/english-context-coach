@@ -148,7 +148,8 @@ export class GeminiGenerationEngine implements GenerationEngine {
         summaryVi:
           "Không phát hiện thấy lỗi sai nào trong văn bản nháp của bạn.",
         naturalTranslationVi: result.naturalTranslationVi,
-        contextExplanationVi: result.contextExplanationVi,
+        contextExplanationVi:
+          result.toneAnalysisVi || result.contextExplanationVi,
         keyPhrases: [],
         sentenceBreakdowns: [],
         lessonFocuses: [],
@@ -165,7 +166,8 @@ export class GeminiGenerationEngine implements GenerationEngine {
       detectedLevel: result.detectedLevel as any,
       summaryVi: result.summaryVi,
       naturalTranslationVi: result.naturalTranslationVi,
-      contextExplanationVi: result.contextExplanationVi,
+      contextExplanationVi:
+        result.toneAnalysisVi || result.contextExplanationVi,
       keyPhrases: [],
       sentenceBreakdowns: [],
       lessonFocuses: [],

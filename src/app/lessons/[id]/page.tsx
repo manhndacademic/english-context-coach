@@ -120,7 +120,10 @@ export default async function LessonPage({
     );
   }
 
-  if (lesson.inputMode === "diff" && lessonData.draftText) {
+  if (
+    (lesson.inputMode === "diff" || lesson.inputMode === "write") &&
+    lessonData.draftText
+  ) {
     return (
       <DiffLessonLayout
         user={{ email: user.email, role: user.role, image: user.image }}
