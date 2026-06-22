@@ -72,9 +72,13 @@ export function SourceTextForm() {
 
   const [draftValue, setDraftValue] = useState("");
   const [correctedValue, setCorrectedValue] = useState("");
+  const [showCorrected, setShowCorrected] = useState(false);
+
+  const showStep2 = draftValue.trim().length > 0 && showCorrected;
+  const isDiffMode = showStep2 && correctedValue.trim().length > 0;
 
   const mainLength = getPlainTextLength(
-    correctedValue.trim() ? correctedValue : draftValue
+    isDiffMode ? correctedValue : draftValue
   );
 
   const handlePasteDraft = async () => {
@@ -103,25 +107,23 @@ export function SourceTextForm() {
     }
   };
 
-  const showStep2 = draftValue.trim().length > 0;
-
   return (
     <form action={action} className="grid gap-5">
       {/* Hidden Fields for Server Action */}
       <input
         type="hidden"
         name="content"
-        value={correctedValue.trim() ? correctedValue : draftValue}
+        value={isDiffMode ? correctedValue : draftValue}
       />
       <input
         type="hidden"
         name="draftContent"
-        value={correctedValue.trim() ? draftValue : ""}
+        value={isDiffMode ? draftValue : ""}
       />
       <input
         type="hidden"
         name="inputMode"
-        value={correctedValue.trim() ? "diff" : "understand_and_practice"}
+        value={isDiffMode ? "diff" : "write"}
       />
 
       {/* Step 1: Original / Draft Text */}
@@ -155,12 +157,27 @@ export function SourceTextForm() {
                 onClick={() => {
                   setDraftValue(tmpl.draft);
                   setCorrectedValue(tmpl.corrected);
+                  setShowCorrected(!!tmpl.corrected);
                 }}
                 className="text-xs bg-surface border border-border text-text hover:bg-surface-strong px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm select-none"
               >
                 {tmpl.label}
               </button>
             ))}
+          </div>
+        )}
+
+        {draftValue.trim().length > 0 && (
+          <div className="flex justify-start mt-3">
+            <button
+              type="button"
+              onClick={() => setShowCorrected(!showCorrected)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:text-accent-hover transition-all cursor-pointer select-none bg-accent/5 px-2.5 py-1.5 rounded border border-accent/20 hover:bg-accent/10"
+            >
+              {showCorrected
+                ? "✨ Bỏ bản đã sửa (Chế độ tự động cải thiện)"
+                : "✨ Tôi đã có bản sửa (Chế độ so sánh đối chiếu)"}
+            </button>
           </div>
         )}
       </div>
@@ -207,9 +224,9 @@ export function SourceTextForm() {
         >
           {pending
             ? "Đang xếp hàng xử lý..."
-            : correctedValue.trim()
+            : isDiffMode
               ? "So sánh lỗi sai & bắt đầu học"
-              : "Bắt đầu phân tích & dịch nghĩa"}
+              : "Phân tích & cải thiện"}
         </button>
         <span
           className={`text-xs ${mainLength > SOURCE_TEXT_MAX_LENGTH ? "text-danger font-bold" : "text-muted"}`}

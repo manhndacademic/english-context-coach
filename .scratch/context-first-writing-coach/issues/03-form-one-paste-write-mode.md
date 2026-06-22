@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 
@@ -18,14 +18,14 @@ The key behavioral change: previously, a single paste always meant "understand t
 
 ## Acceptance criteria
 
-- [ ] Form submits `inputMode: "write"` when no corrected text is provided
-- [ ] Form submits `inputMode: "diff"` when corrected text is provided (unchanged behavior)
-- [ ] `createSourceTextAction` creates a `draftText` record in write mode
-- [ ] Submit button shows "Phân tích & cải thiện" in write mode
-- [ ] Submit button shows "So sánh lỗi sai" in diff mode (unchanged)
-- [ ] The optional "Tôi có bản đã sửa" expander still works for diff mode
-- [ ] Learner is redirected to `/lessons/[id]` after submission (unchanged)
-- [ ] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
+- [x] Form submits `inputMode: "write"` when no corrected text is provided
+- [x] Form submits `inputMode: "diff"` when corrected text is provided (unchanged behavior)
+- [x] `createSourceTextAction` creates a `draftText` record in write mode
+- [x] Submit button shows "Phân tích & cải thiện" in write mode
+- [x] Submit button shows "So sánh lỗi sai" in diff mode (unchanged)
+- [x] The optional "Tôi có bản đã sửa" expander still works for diff mode
+- [x] Learner is redirected to `/lessons/[id]` after submission (unchanged)
+- [x] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
 
 ## Blocked by
 

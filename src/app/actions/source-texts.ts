@@ -32,6 +32,7 @@ const createSourceTextSchema = z.object({
     "developer_error_explanation",
     "unsupported",
     "diff",
+    "write",
   ]),
   draftContent: z.string().trim().optional(),
 });
