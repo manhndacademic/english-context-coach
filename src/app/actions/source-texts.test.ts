@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createSourceTextAction } from "./source-texts";
+import {
+  createSourceTextAction,
+  changeLessonContextAction,
+} from "./source-texts";
 import { getLessonGenerationEngine } from "@/domain/lesson";
 import { requireUser } from "@/lib/auth/guards";
 
@@ -29,6 +32,7 @@ vi.mock("@/domain/lesson", () => {
     retry: vi.fn(),
     deleteSourceText: vi.fn(),
     queueExerciseGeneration: vi.fn(),
+    changeContext: vi.fn(),
   };
   return {
     getLessonGenerationEngine: () => mockEngine,
@@ -102,6 +106,46 @@ describe("Source Texts Actions", () => {
       const result = await createSourceTextAction(null, formData);
       expect(result.error).toBeDefined();
       expect(getLessonGenerationEngine().queue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("changeLessonContextAction", () => {
+    it("successfully calls engine changeContext and revalidates path", async () => {
+      const mockEngine = getLessonGenerationEngine();
+      vi.mocked(mockEngine.changeContext).mockResolvedValue({
+        ok: true,
+        lessonId: "lesson-xyz",
+        sourceTextId: "st-xyz",
+      });
+
+      const result = await changeLessonContextAction(null, {
+        lessonId: "12345678-1234-1234-1234-1234567890ab",
+        newDocumentType: "chat_message",
+        newFormality: "casual",
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        lessonId: "lesson-xyz",
+        sourceTextId: "st-xyz",
+      });
+
+      expect(mockEngine.changeContext).toHaveBeenCalledWith(
+        mockUser.id,
+        "12345678-1234-1234-1234-1234567890ab",
+        "chat_message",
+        "casual"
+      );
+    });
+
+    it("fails validation when lessonId is not a valid UUID", async () => {
+      const result = await changeLessonContextAction(null, {
+        lessonId: "invalid-uuid",
+        newDocumentType: "email",
+      });
+
+      expect((result as any).error).toBeDefined();
+      expect(getLessonGenerationEngine().changeContext).not.toHaveBeenCalled();
     });
   });
 });

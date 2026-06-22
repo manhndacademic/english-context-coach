@@ -429,6 +429,13 @@ export interface LessonTransactionRepository {
     lessonId: string,
     stage: "analysis" | "exercises"
   ): Promise<GenerationJob>;
+
+  changeLessonContext(
+    userId: string,
+    lessonId: string,
+    documentType?: string,
+    formality?: string
+  ): Promise<{ lesson: Lesson; job: GenerationJob }>;
 }
 
 /**
@@ -529,4 +536,10 @@ export interface LessonGenerationEngine {
     lessonId: string,
     userId: string
   ): Promise<GenerationProgress | null>;
+  changeContext(
+    userId: string,
+    lessonId: string,
+    documentType?: string,
+    formality?: string
+  ): Promise<LessonGenerationResult>;
 }

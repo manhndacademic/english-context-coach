@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 
@@ -20,16 +20,16 @@ Specifically:
 
 ## Acceptance criteria
 
-- [ ] DocumentType badge renders with correct icon and label based on `lesson.textType`
-- [ ] Formality badge renders with correct label based on `lesson.formality`
-- [ ] Clicking a badge shows a chip list with all available values for that axis
-- [ ] Selecting a different value shows a confirmation prompt
-- [ ] `changeLessonContextAction` updates `text_type` and/or `formality` on the lesson
-- [ ] `changeLessonContextAction` deletes existing correction items, key phrases, sentence breakdowns, lesson focuses, and exercises
-- [ ] `changeLessonContextAction` sets `analysisStatus = 'pending'` and queues a new analysis job
-- [ ] After re-analysis, the lesson page shows updated corrections and cultural notes for the new context
-- [ ] Legacy lessons without `formality` show gracefully (no crash, badge shows "Auto" or is hidden)
-- [ ] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
+- [x] DocumentType badge renders with correct icon and label based on `lesson.textType`
+- [x] Formality badge renders with correct label based on `lesson.formality`
+- [x] Clicking a badge shows a chip list with all available values for that axis
+- [x] Selecting a different value shows a confirmation prompt
+- [x] `changeLessonContextAction` updates `text_type` and/or `formality` on the lesson
+- [x] `changeLessonContextAction` deletes existing correction items, key phrases, sentence breakdowns, lesson focuses, and exercises
+- [x] `changeLessonContextAction` sets `analysisStatus = 'pending'` and queues a new analysis job
+- [x] After re-analysis, the lesson page shows updated corrections and cultural notes for the new context
+- [x] Legacy lessons without `formality` show gracefully (no crash, badge shows "Auto" or is hidden)
+- [x] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
 
 ## Blocked by
 

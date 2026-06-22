@@ -1082,4 +1082,73 @@ export class DrizzleLessonRepository implements LessonRepository {
       return job;
     })) as GenerationJob;
   }
+
+  async changeLessonContext(
+    userId: string,
+    lessonId: string,
+    documentType?: string,
+    formality?: string
+  ): Promise<{ lesson: Lesson; job: GenerationJob }> {
+    return (await this.dbClient.transaction(async (tx: DrizzleTx) => {
+      await tx
+        .delete(schema.exercises)
+        .where(eq(schema.exercises.lessonId, lessonId));
+      await tx
+        .delete(schema.correctionItems)
+        .where(eq(schema.correctionItems.lessonId, lessonId));
+      await tx
+        .delete(schema.keyPhrases)
+        .where(eq(schema.keyPhrases.lessonId, lessonId));
+      await tx
+        .delete(schema.sentenceBreakdowns)
+        .where(eq(schema.sentenceBreakdowns.lessonId, lessonId));
+      await tx
+        .delete(schema.lessonFocuses)
+        .where(eq(schema.lessonFocuses.lessonId, lessonId));
+
+      const updateData: any = {
+        analysisStatus: "pending",
+        exerciseStatus: "idle",
+        updatedAt: new Date(),
+      };
+      if (documentType) {
+        updateData.textType = documentType;
+      }
+      if (formality) {
+        updateData.formality = formality;
+      }
+
+      const [lesson] = await tx
+        .update(schema.lessons)
+        .set(updateData)
+        .where(
+          and(
+            eq(schema.lessons.id, lessonId),
+            eq(schema.lessons.userId, userId)
+          )
+        )
+        .returning();
+
+      const [job] = await tx
+        .update(schema.generationJobs)
+        .set({
+          status: "queued",
+          stage: "analysis",
+          attempts: 0,
+          lockedAt: null,
+          lockedBy: null,
+          errorMessage: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.generationJobs.lessonId, lessonId),
+            eq(schema.generationJobs.userId, userId)
+          )
+        )
+        .returning();
+
+      return { lesson, job };
+    })) as { lesson: Lesson; job: GenerationJob };
+  }
 }

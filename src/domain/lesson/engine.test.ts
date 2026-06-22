@@ -163,6 +163,32 @@ class MockLessonRepository implements LessonRepository {
     return job as unknown as GenerationJob;
   }
 
+  async changeLessonContext(
+    _userId: string,
+    lessonId: string,
+    documentType?: string,
+    formality?: string
+  ) {
+    const lesson = this.lessons.get(lessonId);
+    if (lesson) {
+      if (documentType) lesson.textType = documentType;
+      if (formality) lesson.formality = formality;
+      lesson.analysisStatus = "pending";
+      lesson.exerciseStatus = "idle";
+    }
+    // find job for this lesson
+    let job = null;
+    for (const j of this.generationJobs.values()) {
+      if (j.lessonId === lessonId) {
+        j.status = "queued";
+        j.stage = "analysis";
+        job = j;
+        break;
+      }
+    }
+    return { lesson, job } as any;
+  }
+
   async claimJob(_workerId: string) {
     for (const j of this.generationJobs.values()) {
       if (j.status === "queued") {
@@ -1014,6 +1040,42 @@ describe("DefaultLessonGenerationEngine Domain Orchestrator", () => {
         expect(savedLesson.correctionItems[0].culturalNoteVi).toBe(
           "Trong email công việc, 'check the status' tự nhiên hơn."
         );
+      }
+    });
+
+    it("successfully updates lesson context and resets analysis status on changeContext", async () => {
+      const queueRes = await engine.queue(
+        "user-context-change-test",
+        "Some text",
+        "write"
+      );
+      expect(queueRes.ok).toBe(true);
+      if (queueRes.ok) {
+        const lesson = repo.lessons.get(queueRes.lessonId);
+        lesson.analysisStatus = "succeeded";
+        lesson.exerciseStatus = "succeeded";
+
+        const changeRes = await engine.changeContext(
+          "user-context-change-test",
+          queueRes.lessonId,
+          "email",
+          "formal"
+        );
+
+        expect(changeRes.ok).toBe(true);
+        if (changeRes.ok) {
+          expect(lesson.textType).toBe("email");
+          expect(lesson.formality).toBe("formal");
+          expect(lesson.analysisStatus).toBe("pending");
+          expect(lesson.exerciseStatus).toBe("idle");
+
+          const job = repo.generationJobs.get(
+            `job-${repo.generationJobs.size}`
+          );
+          expect(job).toBeDefined();
+          expect(job.status).toBe("queued");
+          expect(job.stage).toBe("analysis");
+        }
       }
     });
 

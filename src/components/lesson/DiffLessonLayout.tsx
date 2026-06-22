@@ -4,9 +4,48 @@ import { useState, useMemo } from "react";
 import { AppHeader } from "@/components/app-header";
 import { LessonHeader } from "./LessonHeader";
 import { ExercisePanel } from "./ExercisePanel";
-import { generateExercisesAction } from "@/app/actions/source-texts";
+import {
+  generateExercisesAction,
+  changeLessonContextAction,
+} from "@/app/actions/source-texts";
 import { diffWords } from "@/domain/lesson/diff-engine";
 import { RepeatedMistakeBanner } from "./RepeatedMistakeBanner";
+
+const DOCUMENT_TYPES = [
+  { value: "email", label: "Email", icon: "📧" },
+  { value: "chat_message", label: "Chat", icon: "💬" },
+  { value: "ticket", label: "Ticket", icon: "🎫" },
+  { value: "code_review", label: "Code Review", icon: "👀" },
+  { value: "technical_doc", label: "Technical Doc", icon: "📄" },
+  { value: "meeting_notes", label: "Meeting Notes", icon: "📝" },
+  { value: "general", label: "General", icon: "🌐" },
+  // legacy
+  { value: "work_message", label: "Work Message", icon: "💼" },
+  { value: "article", label: "Article", icon: "📰" },
+  { value: "academic", label: "Academic", icon: "🎓" },
+  { value: "unknown", label: "Unknown", icon: "❓" },
+];
+
+const FORMALITY_LEVELS = [
+  { value: "formal", label: "Formal" },
+  { value: "semi_formal", label: "Semi-formal" },
+  { value: "casual", label: "Casual" },
+];
+
+function getDocTypeIcon(type: string | null): string {
+  const found = DOCUMENT_TYPES.find((d) => d.value === type);
+  return found ? found.icon : "🌐";
+}
+
+function getDocTypeLabel(type: string | null): string {
+  const found = DOCUMENT_TYPES.find((d) => d.value === type);
+  return found ? found.label : "General";
+}
+
+function getFormalityLabel(form: string | null): string {
+  const found = FORMALITY_LEVELS.find((f) => f.value === form);
+  return found ? found.label : "Auto";
+}
 
 interface DiffLessonLayoutProps {
   user: {
@@ -29,6 +68,7 @@ interface DiffLessonLayoutProps {
       summaryVi: string | null;
       naturalTranslationVi: string | null;
       contextExplanationVi: string | null;
+      formality?: string | null;
     };
     sourceText: {
       content: string | null;
@@ -71,6 +111,8 @@ export function DiffLessonLayout({
   );
 
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [showDocTypeChips, setShowDocTypeChips] = useState(false);
+  const [showFormalityChips, setShowFormalityChips] = useState(false);
 
   const toggleReject = (id: string) => {
     setRejectedIds((prev) => {
@@ -82,6 +124,42 @@ export function DiffLessonLayout({
       }
       return next;
     });
+  };
+
+  const handleUpdateDocType = async (newType: string) => {
+    const confirm = window.confirm(
+      "Đổi bối cảnh sẽ phân tích lại toàn bộ. Tiếp tục?"
+    );
+    if (!confirm) return;
+
+    setShowDocTypeChips(false);
+    const result = await changeLessonContextAction({
+      lessonId: lesson.id,
+      newDocumentType: newType,
+    });
+    if (result.ok) {
+      window.location.reload();
+    } else {
+      alert("Có lỗi xảy ra: " + result.error);
+    }
+  };
+
+  const handleUpdateFormality = async (newFormality: string) => {
+    const confirm = window.confirm(
+      "Đổi bối cảnh sẽ phân tích lại toàn bộ. Tiếp tục?"
+    );
+    if (!confirm) return;
+
+    setShowFormalityChips(false);
+    const result = await changeLessonContextAction({
+      lessonId: lesson.id,
+      newFormality: newFormality,
+    });
+    if (result.ok) {
+      window.location.reload();
+    } else {
+      alert("Có lỗi xảy ra: " + result.error);
+    }
   };
 
   const draftContent = draftText?.content || "";
@@ -139,6 +217,105 @@ export function DiffLessonLayout({
         >
           {/* Left Column: Diff view and CorrectionItem list */}
           <div className="grid gap-item-gap">
+            {/* Context override badges */}
+            <section className="bg-surface border border-border rounded-lg p-4 shadow-sm flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs text-muted font-bold uppercase tracking-wider">
+                  Bối cảnh giao tiếp:
+                </span>
+
+                {/* DocumentType Badge */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDocTypeChips(!showDocTypeChips);
+                      setShowFormalityChips(false);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-bold text-accent hover:bg-accent/15 cursor-pointer transition-all"
+                  >
+                    <span>{getDocTypeIcon(lesson.textType)}</span>
+                    <span>{getDocTypeLabel(lesson.textType)}</span>
+                    <span className="text-xs opacity-65">▼</span>
+                  </button>
+                </div>
+
+                {/* Formality Badge */}
+                {lesson.formality && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowFormalityChips(!showFormalityChips);
+                        setShowDocTypeChips(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-bold text-accent hover:bg-accent/15 cursor-pointer transition-all"
+                    >
+                      <span>⚖️</span>
+                      <span>{getFormalityLabel(lesson.formality)}</span>
+                      <span className="text-xs opacity-65">▼</span>
+                    </button>
+                  </div>
+                )}
+
+                {!lesson.formality && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted/10 border border-muted/20 rounded-full text-sm font-bold text-muted select-none">
+                    <span>⚖️</span>
+                    <span>Auto</span>
+                  </div>
+                )}
+              </div>
+
+              {/* DocumentType chip list */}
+              {showDocTypeChips && (
+                <div className="border border-border/85 rounded-md p-3 bg-surface-strong/30 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {DOCUMENT_TYPES.map((type) => {
+                    const active = lesson.textType === type.value;
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => handleUpdateDocType(type.value)}
+                        disabled={active}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-all border cursor-pointer ${
+                          active
+                            ? "bg-accent text-white border-accent cursor-default"
+                            : "bg-surface text-text border-border hover:bg-surface-strong"
+                        }`}
+                      >
+                        <span>{type.icon}</span>
+                        <span>{type.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Formality chip list */}
+              {showFormalityChips && (
+                <div className="border border-border/85 rounded-md p-3 bg-surface-strong/30 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {FORMALITY_LEVELS.map((form) => {
+                    const active = lesson.formality === form.value;
+                    return (
+                      <button
+                        key={form.value}
+                        type="button"
+                        onClick={() => handleUpdateFormality(form.value)}
+                        disabled={active}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-all border cursor-pointer ${
+                          active
+                            ? "bg-accent text-white border-accent cursor-default"
+                            : "bg-surface text-text border-border hover:bg-surface-strong"
+                        }`}
+                      >
+                        <span>{form.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             {lesson.contextExplanationVi && (
               <section className="bg-accent/5 border border-accent/20 rounded-lg p-5 shadow-sm flex items-start gap-3">
                 <span className="text-xl">📢</span>

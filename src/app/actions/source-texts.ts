@@ -151,3 +151,41 @@ export const generateExercisesAction = validatedAction(
     return result;
   }
 );
+
+const changeLessonContextSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+  newDocumentType: z
+    .enum([
+      "email",
+      "chat_message",
+      "ticket",
+      "code_review",
+      "technical_doc",
+      "meeting_notes",
+      "general",
+      "work_message",
+      "article",
+      "academic",
+      "unknown",
+    ])
+    .optional(),
+  newFormality: z.enum(["formal", "semi_formal", "casual"]).optional(),
+});
+
+export const changeLessonContextAction = validatedAction(
+  changeLessonContextSchema,
+  async (data, user) => {
+    const result = await getLessonGenerationEngine().changeContext(
+      user.id,
+      data.lessonId,
+      data.newDocumentType,
+      data.newFormality
+    );
+    if (result.ok) {
+      revalidatePath(`/lessons/${data.lessonId}`);
+    }
+    return result;
+  }
+);

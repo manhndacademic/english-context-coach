@@ -143,4 +143,43 @@ export class DefaultLessonGenerationEngine implements LessonGenerationEngineInte
       progress: this.progress,
     });
   }
+
+  async changeContext(
+    userId: string,
+    lessonId: string,
+    documentType?: string,
+    formality?: string
+  ): Promise<LessonGenerationResult> {
+    const lesson = await this.lessonContent.findLesson(lessonId, userId);
+    if (!lesson) {
+      return {
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Lesson not found.",
+      };
+    }
+
+    const result = await this.tx.changeLessonContext(
+      userId,
+      lessonId,
+      documentType,
+      formality
+    );
+
+    await Promise.all([
+      this.progress.recordMilestone({
+        lessonId: result.lesson.id,
+        generationJobId: result.job.id,
+        code: "queued",
+        stage: null,
+      }),
+      this.collaborators.notifyJobQueued(),
+    ]);
+
+    return {
+      ok: true,
+      lessonId: result.lesson.id,
+      sourceTextId: result.lesson.sourceTextId,
+    };
+  }
 }
