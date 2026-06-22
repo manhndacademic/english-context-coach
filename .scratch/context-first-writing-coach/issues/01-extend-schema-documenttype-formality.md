@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 
@@ -21,16 +21,16 @@ Specifically:
 
 ## Acceptance criteria
 
-- [ ] `textTypeEnum` in `enums.ts` includes `chat_message`, `ticket`, `code_review`, `meeting_notes` alongside existing values
-- [ ] New `formalityEnum` exists with `formal`, `semi_formal`, `casual`
-- [ ] `lessons` table has nullable `formality` and `suggestedText` columns
-- [ ] `correction_items` table has nullable `culturalNoteVi` column
-- [ ] Domain `Lesson` interface includes `formality: Formality | null`
-- [ ] Domain `CorrectionItem` interface includes `culturalNoteVi: string | null`
-- [ ] `DocumentType` type alias exists in `ports.ts`
-- [ ] Migration file generated and applies successfully on fresh DB (`bun run db:migrate`)
-- [ ] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
-- [ ] Existing lesson pages render without errors (no regression)
+- [x] `textTypeEnum` in `enums.ts` includes `chat_message`, `ticket`, `code_review`, `meeting_notes` alongside existing values
+- [x] New `formalityEnum` exists with `formal`, `semi_formal`, `casual`
+- [x] `lessons` table has nullable `formality` and `suggestedText` columns
+- [x] `correction_items` table has nullable `culturalNoteVi` column
+- [x] Domain `Lesson` interface includes `formality: Formality | null`
+- [x] Domain `CorrectionItem` interface includes `culturalNoteVi: string | null`
+- [x] `DocumentType` type alias exists in `ports.ts`
+- [x] Migration file generated and applies successfully on fresh DB (`bun run db:migrate`)
+- [x] `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` all pass
+- [x] Existing lesson pages render without errors (no regression)
 
 ## Blocked by
 

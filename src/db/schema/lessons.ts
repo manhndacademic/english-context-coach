@@ -17,6 +17,7 @@ import {
   lessonFocusCategoryEnum,
   exerciseTypeEnum,
   errorTypeEnum,
+  formalityEnum,
 } from "./enums";
 
 export const sourceTexts = pgTable(
@@ -51,6 +52,8 @@ export const lessons = pgTable(
     version: integer("version").notNull(),
     title: text("title").notNull(),
     textType: textTypeEnum("text_type").notNull().default("unknown"),
+    formality: formalityEnum("formality"),
+    suggestedText: text("suggested_text"),
     inputMode: text("input_mode").notNull().default("understand_and_practice"),
     detectedLevel: levelEnum("detected_level"),
     summaryVi: text("summary_vi"),
@@ -111,6 +114,7 @@ export const correctionItems = pgTable(
     correctedPhrase: text("corrected_phrase").notNull(),
     explanationVi: text("explanation_vi").notNull(),
     literalTrapVi: text("literal_trap_vi"),
+    culturalNoteVi: text("cultural_note_vi"),
     exampleEn: text("example_en").notNull(),
     exampleVi: text("example_vi").notNull(),
     category: phraseCategoryEnum("category").notNull(),

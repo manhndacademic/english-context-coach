@@ -8,6 +8,16 @@ export const textTypeEnum = pgEnum("text_type", [
   "academic",
   "general",
   "unknown",
+  "chat_message",
+  "ticket",
+  "code_review",
+  "meeting_notes",
+]);
+
+export const formalityEnum = pgEnum("formality", [
+  "formal",
+  "semi_formal",
+  "casual",
 ]);
 
 export const levelEnum = pgEnum("detected_level", ["A2", "B1", "B2", "C1"]);

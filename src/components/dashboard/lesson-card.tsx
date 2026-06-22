@@ -10,6 +10,8 @@ import {
   BookOpen,
   Code,
   FileText,
+  Ticket,
+  ClipboardList,
 } from "lucide-react";
 
 interface LessonCardProps {
@@ -58,6 +60,7 @@ const translateStatus = (status: string) => {
 const getDocIcon = (type: string | null) => {
   switch (type) {
     case "work_message":
+    case "chat_message":
       return <MessageSquare size={16} className="text-muted" />;
     case "technical_doc":
       return <FileCode2 size={16} className="text-muted" />;
@@ -66,7 +69,12 @@ const getDocIcon = (type: string | null) => {
     case "academic":
       return <BookOpen size={16} className="text-muted" />;
     case "code":
+    case "code_review":
       return <Code size={16} className="text-muted" />;
+    case "ticket":
+      return <Ticket size={16} className="text-muted" />;
+    case "meeting_notes":
+      return <ClipboardList size={16} className="text-muted" />;
     default:
       return <FileText size={16} className="text-muted" />;
   }

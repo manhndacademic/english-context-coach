@@ -183,6 +183,13 @@
       "when": 1781947129861,
       "tag": "0025_mixed_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1782143591170,
+      "tag": "0026_glamorous_madame_web",
+      "breakpoints": true
     }
   ]
 }

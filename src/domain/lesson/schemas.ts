@@ -8,7 +8,13 @@ const textTypeSchema = z.enum([
   "academic",
   "general",
   "unknown",
+  "chat_message",
+  "ticket",
+  "code_review",
+  "meeting_notes",
 ]);
+
+export const formalitySchema = z.enum(["formal", "semi_formal", "casual"]);
 
 const inputModeSchema = z.enum([
   "understand_and_practice",
@@ -198,6 +204,7 @@ const correctionItemSchema = z.object({
   correctedPhrase: z.string().min(1),
   explanationVi: z.string().min(1),
   literalTrapVi: z.string().optional().nullable(),
+  culturalNoteVi: z.string().optional().nullable(),
   exampleEn: z.string().min(1),
   exampleVi: z.string().min(1),
   category: categorySchema,

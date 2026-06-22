@@ -27,6 +27,7 @@ export interface CorrectionItem {
   correctedPhrase: string;
   explanationVi: string;
   literalTrapVi: string | null;
+  culturalNoteVi: string | null;
   exampleEn: string;
   exampleVi: string;
   category: KeyPhraseCategory;
@@ -42,7 +43,16 @@ export type TextType =
   | "article"
   | "academic"
   | "general"
-  | "unknown";
+  | "unknown"
+  | "chat_message"
+  | "ticket"
+  | "code_review"
+  | "meeting_notes";
+
+export type DocumentType = TextType;
+
+export type Formality = "formal" | "semi_formal" | "casual";
+
 export type DetectedLevel = "A2" | "B1" | "B2" | "C1";
 
 export interface SourceText {
@@ -64,6 +74,8 @@ export interface Lesson {
   analysisStatus: GenerationStatus;
   exerciseStatus: GenerationStatus;
   textType: TextType | "unknown" | null;
+  formality: Formality | null;
+  suggestedText: string | null;
   inputMode: string;
   detectedLevel: DetectedLevel | null;
   summaryVi: string | null;
@@ -204,6 +216,8 @@ export interface LessonAggregate {
 export interface SaveAnalysisInput {
   title: string;
   textType: TextType;
+  formality?: Formality | null;
+  suggestedText?: string | null;
   inputMode: string;
   detectedLevel: DetectedLevel;
   summaryVi: string;
@@ -214,6 +228,7 @@ export interface SaveAnalysisInput {
     correctedPhrase: string;
     explanationVi: string;
     literalTrapVi?: string | null;
+    culturalNoteVi?: string | null;
     exampleEn: string;
     exampleVi: string;
     category: KeyPhraseCategory;

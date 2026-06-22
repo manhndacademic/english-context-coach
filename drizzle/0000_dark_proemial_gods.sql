@@ -4,7 +4,7 @@ CREATE TYPE "public"."exercise_type" AS ENUM('meaning_choice', 'cloze_phrase', '
 CREATE TYPE "public"."job_status" AS ENUM('queued', 'running', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."detected_level" AS ENUM('A2', 'B1', 'B2', 'C1');--> statement-breakpoint
 CREATE TYPE "public"."phrase_category" AS ENUM('idiom', 'phrasal_verb', 'technical_term', 'collocation', 'grammar_pattern', 'business_phrase', 'general_phrase');--> statement-breakpoint
-CREATE TYPE "public"."stage_status" AS ENUM('pending', 'running', 'succeeded', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."stage_status" AS ENUM('idle', 'pending', 'running', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."text_type" AS ENUM('work_message', 'technical_doc', 'email', 'article', 'academic', 'general', 'unknown');--> statement-breakpoint
 CREATE TABLE "accounts" (
 	"user_id" uuid NOT NULL,
