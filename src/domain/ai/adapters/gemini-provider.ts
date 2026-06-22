@@ -1,14 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { getLogger } from "@/lib/logger";
 import type { AiPurpose, AiRequestStatus } from "@/domain/types";
 import type {
   LLMProvider,
-  KeyResolver,
+  ApiKeyRepository,
   AiRequestRecorder,
   Prompt,
 } from "../ports";
-import { DrizzleKeyResolver } from "./key-resolver";
 import { DrizzleAiRequestRecorder } from "./ai-request-recorder";
 import { hashCanonicalPayload } from "@/lib/crypto";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
@@ -80,13 +79,13 @@ export function generationConfigForPurpose(purpose: AiPurpose) {
   }
 }
 
-export { parseApiKeys } from "./key-resolver";
+export { parseApiKeys } from "./api-rotation-pool";
 
 export class GeminiLLMProvider implements LLMProvider {
   private readonly apiRotationPool: ApiRotationPool;
 
   constructor(
-    readonly keyResolver: KeyResolver = new DrizzleKeyResolver(),
+    readonly keyRepo?: ApiKeyRepository,
     private readonly requestRecorder: AiRequestRecorder = new DrizzleAiRequestRecorder(),
     apiRotationPool?: ApiRotationPool,
     private readonly callRawOverride?: (options: {
@@ -98,7 +97,7 @@ export class GeminiLLMProvider implements LLMProvider {
       onThought?: (text: string) => Promise<void>;
     }) => Promise<{ text: string; inputTokens: number; outputTokens: number }>
   ) {
-    this.apiRotationPool = apiRotationPool ?? new ApiRotationPool(keyResolver);
+    this.apiRotationPool = apiRotationPool ?? new ApiRotationPool(keyRepo);
   }
 
   private async callGeminiRaw(options: {
@@ -125,29 +124,36 @@ export class GeminiLLMProvider implements LLMProvider {
       globalThinkingLevel
     );
 
+    const modelLower = options.model.toLowerCase();
+    const isGemini3 = modelLower.includes("gemini-3");
     const isThinkingModel =
-      options.model.toLowerCase().includes("gemini-2") ||
-      options.model.toLowerCase().includes("gemini-3") ||
-      options.model.toLowerCase().includes("-thinking");
+      modelLower.includes("gemini-2") ||
+      isGemini3 ||
+      modelLower.includes("-thinking");
 
     const ai = new GoogleGenAI({ apiKey: options.apiKey });
     const purposeConfig = generationConfigForPurpose(options.purpose);
     const config = {
       ...purposeConfig,
       responseMimeType: "application/json",
-      responseSchema: options.zodSchema
-        ? zodToGeminiSchema(options.zodSchema)
-        : undefined,
+      responseSchema:
+        options.zodSchema && !isGemini3
+          ? zodToGeminiSchema(options.zodSchema)
+          : undefined,
       thinkingConfig: options.onThought
         ? {
             includeThoughts: true,
             thinkingLevel,
           }
-        : isThinkingModel
+        : isGemini3
           ? {
-              thinkingBudget: 0,
+              thinkingLevel: ThinkingLevel.MINIMAL,
             }
-          : undefined,
+          : isThinkingModel
+            ? {
+                thinkingBudget: 0,
+              }
+            : undefined,
     };
 
     let text = "";

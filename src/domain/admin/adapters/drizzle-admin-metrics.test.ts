@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DrizzleAdminMetricsRepository } from "./drizzle-admin-metrics";
-import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
+import { getApiKeyRotationPool } from "@/domain/ai";
 
 function makeSchemaProxy(): any {
   const handler: ProxyHandler<object> = {
@@ -44,7 +44,7 @@ describe("DrizzleAdminMetricsRepository", () => {
       select: vi.fn(),
     };
     repository = new DrizzleAdminMetricsRepository(mockDbClient);
-    DrizzleKeyResolver.resetEnvKeysForTest();
+    getApiKeyRotationPool().clearCooldowns();
   });
 
   it("getOverallAiStats - returns parsed results", async () => {
@@ -113,11 +113,8 @@ describe("DrizzleAdminMetricsRepository", () => {
     process.env.GEMINI_API_KEYS = "key1,key2,key3";
 
     // Simulate key2 is rate-limited, key3 is invalid
-    await new DrizzleKeyResolver().markKeyRateLimited(
-      "env-key-1",
-      "rate limit"
-    );
-    await new DrizzleKeyResolver().markKeyInvalid("env-key-2", "invalid");
+    await getApiKeyRotationPool().markKeyRateLimited("env-key-1", "rate limit");
+    await getApiKeyRotationPool().markKeyInvalid("env-key-2", "invalid");
 
     // Database mock keys
     const mockRow = {

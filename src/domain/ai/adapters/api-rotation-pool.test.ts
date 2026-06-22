@@ -1,55 +1,104 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
-import type { KeyResolver } from "../ports";
+import type { ApiKeyRepository } from "../ports";
 
-class MockKeyResolver implements KeyResolver {
-  keys: { key: string; id: string; isUserKey: boolean }[] = [];
-  rateLimitedKeys = new Set<string>();
-  invalidKeys = new Set<string>();
-  restoredKeys = new Set<string>();
+vi.mock("@/lib/crypto", () => ({
+  decryptApiKey: (key: string) => key,
+  encryptApiKey: (key: string) => key,
+  sha256: (text: string) => text,
+  hashCanonicalPayload: (payload: any) => JSON.stringify(payload),
+}));
 
-  async resolveApiKeyWithExclusions(
-    _userId?: string,
-    excludedKeyIds?: Set<string>,
-    _model?: string
-  ) {
-    const active = this.keys.filter((k) => !excludedKeyIds?.has(k.id));
-    if (active.length === 0) {
-      throw new Error("No keys available");
+class MockApiKeyRepository implements ApiKeyRepository {
+  systemKeys: Array<{
+    id: string;
+    name: string;
+    encryptedKey: string;
+    status: string;
+    rateLimitedAt: Date | null;
+  }> = [];
+  userKeys = new Map<
+    string,
+    Array<{
+      id: string;
+      encryptedKey: string;
+      status: string;
+      rateLimitedAt: Date | null;
+    }>
+  >();
+  legacyUserKeys = new Map<string, string>();
+
+  updatedKeys: Array<{
+    keyId: string;
+    status: "active" | "rate_limited" | "invalid";
+    errorMessage: string | null;
+  }> = [];
+  savedUserKeys = new Map<string, string | null>();
+
+  async getSystemKeys() {
+    return this.systemKeys;
+  }
+
+  async getUserKeys(userId: string) {
+    return this.userKeys.get(userId) ?? [];
+  }
+
+  async getLegacyUserKey(userId: string) {
+    return this.legacyUserKeys.get(userId) ?? null;
+  }
+
+  async updateKeyStatus(
+    keyId: string,
+    status: "active" | "rate_limited" | "invalid",
+    errorMessage: string | null
+  ): Promise<void> {
+    this.updatedKeys.push({ keyId, status, errorMessage });
+
+    // Update in-memory collections to reflect state changes
+    const sysKey = this.systemKeys.find((k) => k.id === keyId);
+    if (sysKey) {
+      sysKey.status = status;
+      sysKey.rateLimitedAt = status === "rate_limited" ? new Date() : null;
     }
-    return active[0];
+
+    for (const [_, keys] of this.userKeys.entries()) {
+      const userKey = keys.find((k) => k.id === keyId);
+      if (userKey) {
+        userKey.status = status;
+        userKey.rateLimitedAt = status === "rate_limited" ? new Date() : null;
+      }
+    }
   }
 
-  async markKeyRateLimited(keyId: string, _errorMsg: string, _model?: string) {
-    this.rateLimitedKeys.add(keyId);
+  async saveUserApiKey(
+    userId: string,
+    encryptedApiKey: string | null
+  ): Promise<void> {
+    this.savedUserKeys.set(userId, encryptedApiKey);
   }
-
-  async markKeyInvalid(keyId: string, _errorMsg: string) {
-    this.invalidKeys.add(keyId);
-  }
-
-  async restoreKeyToActive(keyId: string) {
-    this.restoredKeys.add(keyId);
-  }
-
-  async saveUserApiKey(_userId: string, _encryptedApiKey: string | null) {}
 }
 
 describe("ApiRotationPool Rotation and Error Logic", () => {
-  let keyResolver: MockKeyResolver;
+  let keyRepo: MockApiKeyRepository;
   let rotationPool: ApiRotationPool;
 
   beforeEach(() => {
-    keyResolver = new MockKeyResolver();
+    keyRepo = new MockApiKeyRepository();
     rotationPool = new ApiRotationPool(
-      keyResolver,
+      keyRepo,
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
   });
 
   it("should return the result and resolved model on success", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
 
     const executeSpy = vi.fn().mockResolvedValue("parsed-data");
 
@@ -68,12 +117,28 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
       keyId: "key-1",
       isUserKey: false,
     });
-    expect(keyResolver.restoredKeys.has("key-1")).toBe(true);
+    expect(
+      keyRepo.updatedKeys.some(
+        (k) => k.keyId === "key-1" && k.status === "active"
+      )
+    ).toBe(true);
   });
 
   it("should mark key rate-limited and rotate to next key on rate-limit error", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
-    keyResolver.keys.push({ key: "secret-2", id: "key-2", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
+    keyRepo.systemKeys.push({
+      id: "key-2",
+      name: "Key 2",
+      encryptedKey: "secret-2",
+      status: "active",
+      rateLimitedAt: null,
+    });
 
     // First call throws 429 rate limit
     const err429: any = new Error("RESOURCE_EXHAUSTED");
@@ -91,15 +156,38 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
       execute: executeSpy,
     });
 
+    const firstTriedKeyId = executeSpy.mock.calls[0][0].keyId;
+    const otherKeyId = firstTriedKeyId === "key-1" ? "key-2" : "key-1";
+
     expect(result).toBe("success-data");
-    expect(keyResolver.rateLimitedKeys.has("key-1")).toBe(true);
-    expect(keyResolver.rateLimitedKeys.has("key-2")).toBe(false);
-    expect(keyResolver.restoredKeys.has("key-2")).toBe(true);
+    expect(
+      rotationPool.isKeyModelCooldown(firstTriedKeyId, "model-fast-1")
+    ).toBe(true);
+    expect(rotationPool.isKeyModelCooldown(otherKeyId, "model-fast-1")).toBe(
+      false
+    );
+    expect(
+      keyRepo.updatedKeys.some(
+        (k) => k.keyId === otherKeyId && k.status === "active"
+      )
+    ).toBe(true);
   });
 
   it("should mark key invalid and rotate to next key on invalid key error", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
-    keyResolver.keys.push({ key: "secret-2", id: "key-2", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
+    keyRepo.systemKeys.push({
+      id: "key-2",
+      name: "Key 2",
+      encryptedKey: "secret-2",
+      status: "active",
+      rateLimitedAt: null,
+    });
 
     const err400: any = new Error("API_KEY_INVALID");
     err400.status = 400;
@@ -116,14 +204,37 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
       execute: executeSpy,
     });
 
+    const firstTriedKeyId = executeSpy.mock.calls[0][0].keyId;
+    const otherKeyId = firstTriedKeyId === "key-1" ? "key-2" : "key-1";
+
     expect(result).toBe("success-data");
-    expect(keyResolver.invalidKeys.has("key-1")).toBe(true);
-    expect(keyResolver.invalidKeys.has("key-2")).toBe(false);
+    expect(
+      keyRepo.updatedKeys.some(
+        (k) => k.keyId === firstTriedKeyId && k.status === "invalid"
+      )
+    ).toBe(true);
+    expect(
+      keyRepo.updatedKeys.some(
+        (k) => k.keyId === otherKeyId && k.status === "invalid"
+      )
+    ).toBe(false);
   });
 
   it("should not mark key rate-limited or invalid on LlmValidationError, but still retry/rotate", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
-    keyResolver.keys.push({ key: "secret-2", id: "key-2", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
+    keyRepo.systemKeys.push({
+      id: "key-2",
+      name: "Key 2",
+      encryptedKey: "secret-2",
+      status: "active",
+      rateLimitedAt: null,
+    });
 
     const executeSpy = vi
       .fn()
@@ -138,12 +249,21 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
     });
 
     expect(result).toBe("success-data");
-    expect(keyResolver.rateLimitedKeys.size).toBe(0);
-    expect(keyResolver.invalidKeys.size).toBe(0);
+    expect(
+      keyRepo.updatedKeys.some(
+        (k) => k.status === "rate_limited" || k.status === "invalid"
+      )
+    ).toBe(false);
   });
 
   it("should rotate models when all keys are exhausted", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
 
     const err429: any = new Error("RESOURCE_EXHAUSTED");
     err429.status = 429;
@@ -162,13 +282,19 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
 
     expect(result).toBe("model-2-success");
     expect(resolvedModel).toBe("model-fast-2");
-    expect(keyResolver.rateLimitedKeys.has("key-1")).toBe(true);
+    expect(rotationPool.isKeyModelCooldown("key-1", "model-fast-1")).toBe(true);
   });
 
   it("should filter out non-Gemini models when hasSchema is true", async () => {
-    keyResolver.keys.push({ key: "secret-1", id: "key-1", isUserKey: false });
+    keyRepo.systemKeys.push({
+      id: "key-1",
+      name: "Key 1",
+      encryptedKey: "secret-1",
+      status: "active",
+      rateLimitedAt: null,
+    });
     const customPool = new ApiRotationPool(
-      keyResolver,
+      keyRepo,
       ["gemini-analysis-1", "gemma-analysis-2", "gemini-analysis-3"],
       ["gemma-fast-1", "gemini-fast-2"]
     );

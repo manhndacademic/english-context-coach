@@ -14,7 +14,6 @@ import {
   GeminiLLMProvider,
   parseApiKeys,
 } from "@/domain/ai/adapters/gemini-provider";
-import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Prompt } from "@/domain/ai/ports";
@@ -45,7 +44,9 @@ describe("AI Key Rotation & Error Handling", () => {
   let provider: GeminiLLMProvider;
 
   beforeEach(() => {
-    DrizzleKeyResolver.resetEnvKeysForTest();
+    if (provider) {
+      (provider as any).apiRotationPool.clearCooldowns();
+    }
   });
 
   beforeAll(async () => {
@@ -218,12 +219,12 @@ describe("AI Key Rotation & Error Handling", () => {
     }
   });
 
-  it("should save user custom API key using getKeyResolver()", async () => {
-    const { getKeyResolver } = await import("@/domain/ai");
-    const keyResolver = getKeyResolver();
+  it("should save user custom API key using getApiKeyRepository()", async () => {
+    const { getApiKeyRepository } = await import("@/domain/ai");
+    const keyRepo = getApiKeyRepository();
     const encryptedKey = encryptApiKey("my-new-secret-user-key");
 
-    await keyResolver.saveUserApiKey(testUser.id, encryptedKey);
+    await keyRepo.saveUserApiKey(testUser.id, encryptedKey);
 
     const [updatedUser] = await db
       .select({ customGeminiApiKey: schema.users.customGeminiApiKey })

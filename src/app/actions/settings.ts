@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  getKeyResolver,
+  getApiKeyRepository,
   getUserApiKeyRepository,
   getUsageRepository,
 } from "@/domain/ai";
@@ -32,7 +32,7 @@ export const saveUserApiKeyAction = validatedAction(
         encryptedKey = JSON.stringify(rawKeys.map((k) => encryptApiKey(k)));
       }
     }
-    await getKeyResolver().saveUserApiKey(user.id, encryptedKey);
+    await getApiKeyRepository().saveUserApiKey(user.id, encryptedKey);
     revalidatePath("/settings");
     return { success: true } as any;
   }

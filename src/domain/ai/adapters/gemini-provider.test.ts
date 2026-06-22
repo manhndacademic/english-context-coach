@@ -1,58 +1,114 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { z } from "zod";
-import type { KeyResolver, AiRequestRecorder, Prompt } from "../ports";
+import type { ApiKeyRepository, AiRequestRecorder, Prompt } from "../ports";
 import { GeminiLLMProvider } from "./gemini-provider";
 
-class MockKeyResolver implements KeyResolver {
-  keys: { key: string; id: string; isUserKey: boolean }[] = [];
-  rateLimited = new Set<string>();
-  keyModelCooldowns = new Map<string, number>();
-  invalid = new Set<string>();
+vi.mock("@/lib/crypto", () => ({
+  decryptApiKey: (key: string) => key,
+  encryptApiKey: (key: string) => key,
+  sha256: (text: string) => text,
+  hashCanonicalPayload: (payload: any) => JSON.stringify(payload),
+}));
 
-  ignoreRateLimitInResolution = false;
+class MockApiKeyRepository implements ApiKeyRepository {
+  systemKeys: Array<{
+    id: string;
+    name: string;
+    encryptedKey: string;
+    status: string;
+    rateLimitedAt: Date | null;
+  }> = [];
 
-  async resolveApiKeyWithExclusions(
-    _userId?: string,
-    excludedKeyIds?: Set<string>,
-    model?: string
+  userKeys = new Map<
+    string,
+    Array<{
+      id: string;
+      encryptedKey: string;
+      status: string;
+      rateLimitedAt: Date | null;
+    }>
+  >();
+
+  legacyUserKeys = new Map<string, string>();
+
+  updatedKeys: Array<{
+    keyId: string;
+    status: "active" | "rate_limited" | "invalid";
+    errorMessage: string | null;
+  }> = [];
+
+  async getSystemKeys() {
+    return this.systemKeys;
+  }
+
+  async getUserKeys(userId: string) {
+    return this.userKeys.get(userId) ?? [];
+  }
+
+  async getLegacyUserKey(userId: string) {
+    return this.legacyUserKeys.get(userId) ?? null;
+  }
+
+  async updateKeyStatus(
+    keyId: string,
+    status: "active" | "rate_limited" | "invalid",
+    errorMessage: string | null
   ) {
-    const now = Date.now();
-    const active = this.keys.filter((k) => {
-      if (excludedKeyIds && excludedKeyIds.has(k.id)) return false;
-      if (!this.ignoreRateLimitInResolution && this.rateLimited.has(k.id))
-        return false;
-      if (this.invalid.has(k.id)) return false;
-      if (model) {
-        const cooldownUntil =
-          this.keyModelCooldowns.get(`${k.id}:${model}`) ?? 0;
-        if (now < cooldownUntil) return false;
+    this.updatedKeys.push({ keyId, status, errorMessage });
+
+    const sysKey = this.systemKeys.find((k) => k.id === keyId);
+    if (sysKey) {
+      sysKey.status = status;
+      sysKey.rateLimitedAt = status === "rate_limited" ? new Date() : null;
+    }
+
+    for (const [_, ukeys] of this.userKeys.entries()) {
+      const ukey = ukeys.find((k) => k.id === keyId);
+      if (ukey) {
+        ukey.status = status;
+        ukey.rateLimitedAt = status === "rate_limited" ? new Date() : null;
       }
-      return true;
-    });
-    if (active.length === 0) {
-      throw new Error("No keys available");
     }
-    return active[0];
-  }
-
-  async markKeyRateLimited(keyId: string, _errorMsg: string, model?: string) {
-    if (model) {
-      this.keyModelCooldowns.set(`${keyId}:${model}`, Date.now() + 60 * 1000);
-    } else {
-      this.rateLimited.add(keyId);
-    }
-  }
-
-  async markKeyInvalid(keyId: string) {
-    this.invalid.add(keyId);
   }
 
   async restoreKeyToActive(keyId: string) {
-    this.rateLimited.delete(keyId);
-    this.invalid.delete(keyId);
+    await this.updateKeyStatus(keyId, "active", null);
   }
 
-  async saveUserApiKey() {}
+  async saveUserApiKey(userId: string, encryptedApiKey: string | null) {
+    if (encryptedApiKey) {
+      this.legacyUserKeys.set(userId, encryptedApiKey);
+    } else {
+      this.legacyUserKeys.delete(userId);
+    }
+  }
+
+  addKey(options: {
+    key: string;
+    id: string;
+    isUserKey: boolean;
+    userId?: string;
+  }) {
+    if (options.isUserKey) {
+      const userId = options.userId || "u-1";
+      const list = this.userKeys.get(userId) ?? [];
+      list.push({
+        id: options.id,
+        encryptedKey: options.key,
+        status: "active",
+        rateLimitedAt: null,
+      });
+      this.userKeys.set(userId, list);
+    } else {
+      this.systemKeys.push({
+        id: options.id,
+        name: `Key ${options.id}`,
+        encryptedKey: options.key,
+        status: "active",
+        rateLimitedAt: null,
+      });
+    }
+  }
 }
 
 class MockAiRequestRecorder implements AiRequestRecorder {
@@ -63,7 +119,7 @@ class MockAiRequestRecorder implements AiRequestRecorder {
 }
 
 describe("GeminiLLMProvider Resiliency", () => {
-  let keyResolver: MockKeyResolver;
+  let keyRepo: MockApiKeyRepository;
   let requestRecorder: MockAiRequestRecorder;
   let responses: { text?: string; error?: Error }[] = [];
   let calls: any[] = [];
@@ -84,7 +140,7 @@ describe("GeminiLLMProvider Resiliency", () => {
   };
 
   beforeEach(() => {
-    keyResolver = new MockKeyResolver();
+    keyRepo = new MockApiKeyRepository();
     requestRecorder = new MockAiRequestRecorder();
     responses = [];
     calls = [];
@@ -92,7 +148,7 @@ describe("GeminiLLMProvider Resiliency", () => {
 
   const getProvider = () => {
     return new GeminiLLMProvider(
-      keyResolver,
+      keyRepo,
       requestRecorder,
       undefined,
       async (callOpts) => {
@@ -110,7 +166,7 @@ describe("GeminiLLMProvider Resiliency", () => {
   };
 
   it("Test 1: Successful parse & return on first call", async () => {
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
     responses.push({
       text: JSON.stringify({ score: 90, feedbackVi: "Tốt" }),
     });
@@ -127,7 +183,7 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 2: Malformed JSON triggers repair prompt and succeeds", async () => {
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
     responses.push({
       text: "This is not JSON at all",
     });
@@ -148,8 +204,8 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 3: API key rate limit rotates keys", async () => {
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
-    keyResolver.keys.push({ key: "k-2", id: "key-2", isUserKey: false });
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
+    keyRepo.addKey({ key: "k-2", id: "key-2", isUserKey: false });
 
     // First key call fails with rate limit error
     const rateLimitErr = new Error("RESOURCE_EXHAUSTED");
@@ -166,25 +222,40 @@ describe("GeminiLLMProvider Resiliency", () => {
       prompt: testPrompt,
     });
 
+    const firstTriedApiKey = calls[0].apiKey;
+    const secondTriedApiKey = calls[1].apiKey;
+    const firstTriedKeyId = firstTriedApiKey === "k-1" ? "key-1" : "key-2";
+    const secondTriedKeyId = firstTriedApiKey === "k-1" ? "key-2" : "key-1";
+
     expect(result).toEqual({ score: 95, feedbackVi: "Tốt" });
     expect(calls.length).toBe(2);
-    expect(calls[0].apiKey).toBe("k-1");
-    expect(calls[1].apiKey).toBe("k-2");
+    expect(firstTriedApiKey).toBe(firstTriedApiKey);
+    expect(secondTriedApiKey).toBe(
+      secondTriedKeyId === "key-1" ? "k-1" : "k-2"
+    );
     expect(
-      keyResolver.keyModelCooldowns.has("key-1:gemini-3.1-flash-lite")
+      (provider as any).apiRotationPool.isKeyModelCooldown(
+        firstTriedKeyId,
+        "gemini-3.1-flash-lite"
+      )
     ).toBe(true);
+    expect(
+      (provider as any).apiRotationPool.isKeyModelCooldown(
+        secondTriedKeyId,
+        "gemini-3.1-flash-lite"
+      )
+    ).toBe(false);
   });
 
   it("Test 4: All keys exhausted for a model rotates model pool", async () => {
     const { ApiRotationPool } = await import("./api-rotation-pool");
     const customPool = new ApiRotationPool(
-      keyResolver,
+      keyRepo,
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
 
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
-    keyResolver.ignoreRateLimitInResolution = true;
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
 
     // k-1 fails on model-fast-1 with rate limit
     responses.push({ error: new Error("RESOURCE_EXHAUSTED") });
@@ -195,7 +266,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     });
 
     const provider = new GeminiLLMProvider(
-      keyResolver,
+      keyRepo,
       requestRecorder,
       customPool,
       async (callOpts) => {
@@ -226,7 +297,7 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 5: Metrics recorded with estimated costs", async () => {
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
     responses.push({
       text: JSON.stringify({ score: 90, feedbackVi: "Tốt" }),
     });
@@ -249,12 +320,12 @@ describe("GeminiLLMProvider Resiliency", () => {
   it("Test 6: Model rate limit allows using the same key on fallback model", async () => {
     const { ApiRotationPool } = await import("./api-rotation-pool");
     const customPool = new ApiRotationPool(
-      keyResolver,
+      keyRepo,
       ["model-analysis-1", "model-analysis-2"],
       ["model-fast-1", "model-fast-2"]
     );
 
-    keyResolver.keys.push({ key: "k-1", id: "key-1", isUserKey: false });
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
 
     // k-1 fails on model-fast-1 with rate limit
     responses.push({ error: new Error("RESOURCE_EXHAUSTED") });
@@ -265,7 +336,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     });
 
     const provider = new GeminiLLMProvider(
-      keyResolver,
+      keyRepo,
       requestRecorder,
       customPool,
       async (callOpts) => {
@@ -292,7 +363,7 @@ describe("GeminiLLMProvider Resiliency", () => {
     expect(calls[1].model).toBe("model-fast-2");
     expect(calls[0].apiKey).toBe("k-1");
     expect(calls[1].apiKey).toBe("k-1"); // Reuse key-1
-    expect(keyResolver.keyModelCooldowns.has("key-1:model-fast-1")).toBe(true);
-    expect(keyResolver.keyModelCooldowns.has("key-1:model-fast-2")).toBe(false);
+    expect(customPool.isKeyModelCooldown("key-1", "model-fast-1")).toBe(true);
+    expect(customPool.isKeyModelCooldown("key-1", "model-fast-2")).toBe(false);
   });
 });

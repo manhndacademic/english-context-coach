@@ -20,20 +20,30 @@ export interface LLMProvider {
   }): Promise<T>;
 }
 
-export interface KeyResolver {
-  resolveApiKeyWithExclusions(
-    userId?: string,
-    excludedKeyIds?: Set<string>,
-    model?: string
-  ): Promise<{ key: string; id?: string; isUserKey: boolean }>;
-
-  markKeyRateLimited(
+export interface ApiKeyRepository {
+  getSystemKeys(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      encryptedKey: string;
+      status: string;
+      rateLimitedAt: Date | null;
+    }>
+  >;
+  getUserKeys(userId: string): Promise<
+    Array<{
+      id: string;
+      encryptedKey: string;
+      status: string;
+      rateLimitedAt: Date | null;
+    }>
+  >;
+  getLegacyUserKey(userId: string): Promise<string | null>;
+  updateKeyStatus(
     keyId: string,
-    errorMsg: string,
-    model?: string
+    status: "active" | "rate_limited" | "invalid",
+    errorMessage: string | null
   ): Promise<void>;
-  markKeyInvalid(keyId: string, errorMsg: string): Promise<void>;
-  restoreKeyToActive(keyId: string): Promise<void>;
   saveUserApiKey(userId: string, encryptedApiKey: string | null): Promise<void>;
 }
 

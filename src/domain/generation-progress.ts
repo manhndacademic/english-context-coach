@@ -6,7 +6,7 @@ import type {
 } from "./lesson/ports";
 import type { TextProcessor } from "@/domain/text";
 
-const generationMilestoneCodes = [
+const _generationMilestoneCodes = [
   "queued",
   "claimed",
   "analysis_started",
@@ -17,7 +17,8 @@ const generationMilestoneCodes = [
   "failed",
 ] as const;
 
-export type GenerationMilestoneCode = (typeof generationMilestoneCodes)[number];
+export type GenerationMilestoneCode =
+  (typeof _generationMilestoneCodes)[number];
 export type GenerationStage = "analysis" | "exercises" | null;
 
 export type ProgressJobSummary = Pick<

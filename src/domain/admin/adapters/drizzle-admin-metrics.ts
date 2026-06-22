@@ -1,7 +1,7 @@
 import { sql, desc, and, eq, gt, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { computeActiveUserCount } from "@/lib/admin-metrics";
-import { DrizzleKeyResolver } from "@/domain/ai/adapters/key-resolver";
+import { getApiKeyRotationPool } from "@/domain/ai";
 import { AdminMetricsRepository } from "../ports";
 
 export class DrizzleAdminMetricsRepository implements AdminMetricsRepository {
@@ -81,7 +81,7 @@ export class DrizzleAdminMetricsRepository implements AdminMetricsRepository {
     const dbInvalid = result?.invalid ?? 0;
     const dbTotal = result?.total ?? 0;
 
-    const envKeysStats = DrizzleKeyResolver.getEnvKeysStatus();
+    const envKeysStats = getApiKeyRotationPool().getEnvKeysStatus();
 
     return {
       active: dbActive + envKeysStats.active,

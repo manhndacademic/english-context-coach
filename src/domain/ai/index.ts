@@ -1,5 +1,6 @@
 import { GeminiLLMProvider } from "./adapters/gemini-provider";
-import { DrizzleKeyResolver } from "./adapters/key-resolver";
+import { DrizzleApiKeyRepository } from "./adapters/api-key-repository";
+import { ApiRotationPool } from "./adapters/api-rotation-pool";
 import {
   DrizzleUserApiKeyRepository,
   type UserApiKeyRepository,
@@ -8,25 +9,37 @@ import {
   DrizzleUsageRepository,
   type UsageRepository,
 } from "./usage-repository";
-import type { LLMProvider, KeyResolver } from "./ports";
+import type { LLMProvider, ApiKeyRepository } from "./ports";
 
 let cachedProvider: LLMProvider | null = null;
-let cachedKeyResolver: KeyResolver | null = null;
+let cachedKeyRepository: ApiKeyRepository | null = null;
+let cachedPool: ApiRotationPool | null = null;
 let cachedUserApiKeyRepository: UserApiKeyRepository | null = null;
 let cachedUsageRepository: UsageRepository | null = null;
 
-export function getLLMProvider(): LLMProvider {
-  if (!cachedProvider) {
-    cachedProvider = new GeminiLLMProvider();
+export function getApiKeyRepository(): ApiKeyRepository {
+  if (!cachedKeyRepository) {
+    cachedKeyRepository = new DrizzleApiKeyRepository();
   }
-  return cachedProvider;
+  return cachedKeyRepository;
 }
 
-export function getKeyResolver(): KeyResolver {
-  if (!cachedKeyResolver) {
-    cachedKeyResolver = new DrizzleKeyResolver();
+export function getApiKeyRotationPool(): ApiRotationPool {
+  if (!cachedPool) {
+    cachedPool = new ApiRotationPool(getApiKeyRepository());
   }
-  return cachedKeyResolver;
+  return cachedPool;
+}
+
+export function getLLMProvider(): LLMProvider {
+  if (!cachedProvider) {
+    cachedProvider = new GeminiLLMProvider(
+      getApiKeyRepository(),
+      undefined,
+      getApiKeyRotationPool()
+    );
+  }
+  return cachedProvider;
 }
 
 export function getUserApiKeyRepository(): UserApiKeyRepository {
@@ -43,7 +56,7 @@ export function getUsageRepository(): UsageRepository {
   return cachedUsageRepository;
 }
 
-export type { LLMProvider, KeyResolver, Prompt } from "./ports";
+export type { LLMProvider, ApiKeyRepository, Prompt } from "./ports";
 export type { UserApiKeyRepository } from "./user-api-key-repository";
 export {
   DrizzleUserApiKeyRepository,
