@@ -1,6 +1,6 @@
 # Build design system primitives
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -30,17 +30,17 @@ All new components get unit tests. No existing pages are modified in this slice 
 
 ## Acceptance criteria
 
-- [ ] `Button` supports `asChild` prop and has `hover-shadow-accent` on default variant
-- [ ] `Badge` component with 5 color variants and 2 sizes
-- [ ] `SectionCard` compound component with Header/Body/Footer sub-components
-- [ ] `StatCard` component with value variants
-- [ ] `PageLayout` component wrapping AppHeader + main container
-- [ ] `PageHeader` component with back-link and actions slot
-- [ ] Off-palette dark-mode hex values have named token aliases in globals.css
-- [ ] `docs/design-system.md` written with token reference, scale, and Do/Don't rules
-- [ ] Unit tests for all new components
-- [ ] `bun run test` passes
-- [ ] `bun run build` passes
+- [x] `Button` supports `asChild` prop and has `hover-shadow-accent` on default variant
+- [x] `Badge` component with 5 color variants and 2 sizes
+- [x] `SectionCard` compound component with Header/Body/Footer sub-components
+- [x] `StatCard` component with value variants
+- [x] `PageLayout` component wrapping AppHeader + main container
+- [x] `PageHeader` component with back-link and actions slot
+- [x] Off-palette dark-mode hex values have named token aliases in globals.css
+- [x] `docs/design-system.md` written with token reference, scale, and Do/Don't rules
+- [x] Unit tests for all new components
+- [x] `bun run test` passes
+- [x] `bun run build` passes
 
 ## Blocked by
 
