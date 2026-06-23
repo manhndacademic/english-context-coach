@@ -10,7 +10,7 @@ import { encryptApiKey } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { requireUser } from "@/lib/auth/guards";
 import { z } from "zod";
-import { verifyGeminiApiKey } from "@/domain/ai/adapters/geminiUtils";
+import { verifyGeminiApiKey } from "@/domain/ai/infrastructure/llm/gemini-utils";
 import type { Timeframe } from "@/domain/types";
 
 const saveUserApiKeySchema = z.object({ apiKey: z.string().trim() });

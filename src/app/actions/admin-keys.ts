@@ -7,7 +7,7 @@ import { decryptApiKey, encryptApiKey } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { recordAdminAuditLog } from "@/domain/admin/audit";
 import { z } from "zod";
-import { verifyGeminiApiKey } from "@/domain/ai/adapters/geminiUtils";
+import { verifyGeminiApiKey } from "@/domain/ai/infrastructure/llm/gemini-utils";
 
 const addSystemApiKeySchema = z.object({
   name: z.string().trim().min(1, "Tên gợi nhớ là bắt buộc"),

@@ -1,36 +1,27 @@
-import { getSystemKeys } from "./adapters/api-key-repository/getSystemKeys";
-import { getUserKeys } from "./adapters/api-key-repository/getUserKeys";
-import { getLegacyUserKey } from "./adapters/api-key-repository/getLegacyUserKey";
-import { updateKeyStatus } from "./adapters/api-key-repository/updateKeyStatus";
-import { saveUserApiKey } from "./adapters/api-key-repository/saveUserApiKey";
-
-import { addUserApiKey } from "./user-api-key-repository/addUserApiKey";
-import { deleteUserApiKey } from "./user-api-key-repository/deleteUserApiKey";
-import { disableUserApiKey } from "./user-api-key-repository/disableUserApiKey";
-import { enableUserApiKey } from "./user-api-key-repository/enableUserApiKey";
-import { reverifyUserApiKey } from "./user-api-key-repository/reverifyUserApiKey";
-import { findUserApiKeyById } from "./user-api-key-repository/findUserApiKeyById";
-import { countUserKeys } from "./user-api-key-repository/countUserKeys";
-import { checkUserKeyDuplicate } from "./user-api-key-repository/checkUserKeyDuplicate";
-
-import { getUserUsageStats } from "./usage-repository/getUserUsageStats";
-
+import { type DbClient } from "@/db";
+import { DrizzleApiKeyRepository } from "./infrastructure/db/legacy-api-key-repository";
 import {
   createApiRotationPool,
   type ApiRotationPool,
-} from "./adapters/ApiRotationPool";
-import { createGeminiLlmProvider } from "./adapters/GeminiLlmProvider";
+} from "./infrastructure/llm/api-rotation-pool";
+import { createGeminiLlmProvider } from "./infrastructure/llm/gemini-llm-provider";
 
-import type { LlmProvider, ApiKeyRepository } from "./ports";
+import { DrizzleUserApiKeyRepository } from "./infrastructure/db/drizzle-user-api-key-repo";
+import { DrizzleUsageRepository } from "./infrastructure/db/drizzle-usage-repo";
 
-// Combined ApiKeyRepository object
-const apiKeyRepo: ApiKeyRepository = {
-  getSystemKeys,
-  getUserKeys,
-  getLegacyUserKey,
-  updateKeyStatus,
-  saveUserApiKey,
-};
+import { createAddUserApiKeyUseCase } from "./application/use-cases/add-user-api-key";
+import { createDeleteUserApiKeyUseCase } from "./application/use-cases/delete-user-api-key";
+import { createDisableUserApiKeyUseCase } from "./application/use-cases/disable-user-api-key";
+import { createEnableUserApiKeyUseCase } from "./application/use-cases/enable-user-api-key";
+import { createReverifyUserApiKeyUseCase } from "./application/use-cases/reverify-user-api-key";
+import { createGetUserUsageStatsUseCase } from "./application/use-cases/get-user-usage-stats";
+
+import type { ApiKeyRepository } from "./application/ports/api-key-repository";
+import type { LlmProvider } from "./application/ports/llm-provider";
+import type { AddUserApiKeyInput, UsageTimeframe } from "./domain/types";
+
+// Combined ApiKeyRepository object for rotation pool
+const apiKeyRepo = new DrizzleApiKeyRepository();
 
 export function getApiKeyRepository(): ApiKeyRepository {
   return apiKeyRepo;
@@ -66,50 +57,102 @@ export function getLLMProvider(): LlmProvider {
   return getLlmProvider();
 }
 
-// User API Key Repository functions wrapped into a backward-compatible interface object
-export interface UserApiKeyRepository {
-  add: typeof addUserApiKey;
-  delete: typeof deleteUserApiKey;
-  disable: typeof disableUserApiKey;
-  enable: typeof enableUserApiKey;
-  reverify: typeof reverifyUserApiKey;
-  findById: typeof findUserApiKeyById;
-  countForUser: typeof countUserKeys;
-  checkDuplicate: typeof checkUserKeyDuplicate;
-}
+// Instantiate Drizzle Adapters
+const drizzleUserApiKeyRepo = new DrizzleUserApiKeyRepository();
+const drizzleUsageRepo = new DrizzleUsageRepository();
 
-export function getUserApiKeyRepository(): UserApiKeyRepository {
+// Instantiate Use Cases
+const addUserApiKeyUC = createAddUserApiKeyUseCase(drizzleUserApiKeyRepo);
+const deleteUserApiKeyUC = createDeleteUserApiKeyUseCase(drizzleUserApiKeyRepo);
+const disableUserApiKeyUC = createDisableUserApiKeyUseCase(
+  drizzleUserApiKeyRepo
+);
+const enableUserApiKeyUC = createEnableUserApiKeyUseCase(drizzleUserApiKeyRepo);
+const reverifyUserApiKeyUC = createReverifyUserApiKeyUseCase(
+  drizzleUserApiKeyRepo
+);
+const getUserUsageStatsUC = createGetUserUsageStatsUseCase(drizzleUsageRepo);
+
+// Factory facade for backward-compatible User API Key Repository
+export function getUserApiKeyRepository() {
   return {
-    add: addUserApiKey,
-    delete: deleteUserApiKey,
-    disable: disableUserApiKey,
-    enable: enableUserApiKey,
-    reverify: reverifyUserApiKey,
-    findById: findUserApiKeyById,
-    countForUser: countUserKeys,
-    checkDuplicate: checkUserKeyDuplicate,
+    add: (userId: string, data: AddUserApiKeyInput, dbClient?: DbClient) =>
+      addUserApiKeyUC.execute(userId, data, dbClient),
+    delete: (userId: string, id: string, dbClient?: DbClient) =>
+      deleteUserApiKeyUC.execute(userId, id, dbClient),
+    disable: (userId: string, id: string, dbClient?: DbClient) =>
+      disableUserApiKeyUC.execute(userId, id, dbClient),
+    enable: (userId: string, id: string, dbClient?: DbClient) =>
+      enableUserApiKeyUC.execute(userId, id, dbClient),
+    reverify: (userId: string, id: string, dbClient?: DbClient) =>
+      reverifyUserApiKeyUC.execute(userId, id, dbClient),
+    findById: (userId: string, id: string, dbClient?: DbClient) =>
+      drizzleUserApiKeyRepo.findById(userId, id, dbClient),
+    countForUser: (userId: string, dbClient?: DbClient) =>
+      drizzleUserApiKeyRepo.countForUser(userId, dbClient),
+    checkDuplicate: (
+      userId: string,
+      fingerprint: string,
+      dbClient?: DbClient
+    ) => drizzleUserApiKeyRepo.checkDuplicate(userId, fingerprint, dbClient),
   };
 }
 
-// Usage Repository functions wrapped into a backward-compatible interface object
-export interface UsageRepository {
-  getUserUsageStats: typeof getUserUsageStats;
-}
-
-export function getUsageRepository(): UsageRepository {
+// Factory facade for backward-compatible Usage Repository
+export function getUsageRepository() {
   return {
-    getUserUsageStats,
+    getUserUsageStats: (
+      userId: string,
+      timeframe: UsageTimeframe,
+      dbClient?: DbClient
+    ) => getUserUsageStatsUC.execute(userId, timeframe, dbClient),
   };
 }
 
+// Standalone Use Cases Exports as functions
+export const addUserApiKeyUseCase = (
+  userId: string,
+  data: AddUserApiKeyInput,
+  dbClient?: DbClient
+) => addUserApiKeyUC.execute(userId, data, dbClient);
+
+export const deleteUserApiKeyUseCase = (
+  userId: string,
+  id: string,
+  dbClient?: DbClient
+) => deleteUserApiKeyUC.execute(userId, id, dbClient);
+
+export const disableUserApiKeyUseCase = (
+  userId: string,
+  id: string,
+  dbClient?: DbClient
+) => disableUserApiKeyUC.execute(userId, id, dbClient);
+
+export const enableUserApiKeyUseCase = (
+  userId: string,
+  id: string,
+  dbClient?: DbClient
+) => enableUserApiKeyUC.execute(userId, id, dbClient);
+
+export const reverifyUserApiKeyUseCase = (
+  userId: string,
+  id: string,
+  dbClient?: DbClient
+) => reverifyUserApiKeyUC.execute(userId, id, dbClient);
+
+export const getUserUsageStatsUseCase = (
+  userId: string,
+  timeframe: UsageTimeframe,
+  dbClient?: DbClient
+) => getUserUsageStatsUC.execute(userId, timeframe, dbClient);
+
+// Exports for types and ports
+export type { UsageStats, UsageTimeframe, UserApiKey } from "./domain/types";
+export { MAX_USER_KEYS } from "./application/use-cases/add-user-api-key";
+export type { ApiKeyRepository } from "./application/ports/api-key-repository";
 export type {
   LlmProvider,
   LLMProvider,
-  ApiKeyRepository,
-  Prompt,
-} from "./ports";
-export { MAX_USER_KEYS } from "./user-api-key-repository/constants";
-export type {
-  UsageStats,
-  UsageTimeframe,
-} from "./usage-repository/getUserUsageStats";
+} from "./application/ports/llm-provider";
+export type { Prompt } from "./application/ports/prompt";
+export type { AiRequestRecorder } from "./application/ports/ai-request-recorder";

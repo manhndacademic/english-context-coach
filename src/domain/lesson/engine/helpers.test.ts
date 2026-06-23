@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isTransientGenerationError } from "./helpers";
-import { AiError } from "@/domain/ai/adapters/geminiUtils";
+import { AiError } from "@/domain/ai/infrastructure/llm/gemini-utils";
 
 describe("isTransientGenerationError", () => {
   it("should classify standard network/rate-limit errors as transient", () => {
