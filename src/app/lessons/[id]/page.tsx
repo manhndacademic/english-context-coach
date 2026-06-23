@@ -44,8 +44,12 @@ export default async function LessonPage({
     }
   }
 
+  const plainMistakePatterns = practiceState.mistakePatterns.map((p) =>
+    p.toPlainObject()
+  );
+
   const patternsByKey = new Map<string, any>();
-  for (const pattern of practiceState.mistakePatterns) {
+  for (const pattern of plainMistakePatterns) {
     patternsByKey.set(`${pattern.conceptKey}:${pattern.errorType}`, pattern);
   }
 
@@ -83,7 +87,7 @@ export default async function LessonPage({
   const combinedLessonData = {
     ...lessonData,
     exercisePractices,
-    mistakePatterns: practiceState.mistakePatterns,
+    mistakePatterns: plainMistakePatterns,
     dueCount,
   };
 

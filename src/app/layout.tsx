@@ -24,7 +24,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" suppressHydrationWarning className={roboto.variable}>
-      <head>
+      <head />
+      <body>
         <Script
           id="theme-script"
           strategy="beforeInteractive"
@@ -45,8 +46,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body>
         {children}
         <Toaster />
       </body>

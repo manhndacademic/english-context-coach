@@ -159,7 +159,7 @@ export function exerciseCompletenessIssues(
   textProcessor: TextProcessor
 ) {
   const issues: string[] = [];
-  if (analysis.inputMode === "diff") {
+  if (analysis.inputMode === "diff" || analysis.inputMode === "write") {
     if (
       analysis.correctionItems &&
       analysis.correctionItems.length > 0 &&

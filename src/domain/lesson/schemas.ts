@@ -180,7 +180,7 @@ const exerciseSchema = z.discriminatedUnion("type", [
 ]);
 
 export const exercisesSchema = z.object({
-  exercises: z.array(exerciseSchema).min(0).max(10),
+  exercises: z.array(exerciseSchema).min(0).max(15),
 });
 
 export type AnalysisResult = z.infer<typeof analysisSchema>;
