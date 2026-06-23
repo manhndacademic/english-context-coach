@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JsonParserService } from "./json-parser-service";
+import { JsonParserService } from "./JsonParserService";
 
 describe("JsonParserService", () => {
   describe("extractJson", () => {

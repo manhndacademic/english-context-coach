@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
+import {
+  createApiRotationPool,
+  type ApiRotationPool,
+  LlmValidationError,
+} from "./ApiRotationPool";
 import type { ApiKeyRepository } from "../ports";
 import { ThinkingLevel } from "@google/genai";
 
@@ -85,11 +89,11 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
 
   beforeEach(() => {
     keyRepo = new MockApiKeyRepository();
-    rotationPool = new ApiRotationPool(
+    rotationPool = createApiRotationPool({
       keyRepo,
-      ["model-analysis-1", "model-analysis-2"],
-      ["model-fast-1", "model-fast-2"]
-    );
+      analysisModels: ["model-analysis-1", "model-analysis-2"],
+      fastModels: ["model-fast-1", "model-fast-2"],
+    });
   });
 
   it("should return the result and resolved model on success", async () => {
@@ -294,11 +298,15 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
       status: "active",
       rateLimitedAt: null,
     });
-    const customPool = new ApiRotationPool(
+    const customPool = createApiRotationPool({
       keyRepo,
-      ["gemini-analysis-1", "gemma-analysis-2", "gemini-analysis-3"],
-      ["gemma-fast-1", "gemini-fast-2"]
-    );
+      analysisModels: [
+        "gemini-analysis-1",
+        "gemma-analysis-2",
+        "gemini-analysis-3",
+      ],
+      fastModels: ["gemma-fast-1", "gemini-fast-2"],
+    });
 
     const executeSpy = vi.fn().mockResolvedValue("parsed-data");
 
@@ -325,11 +333,11 @@ describe("ApiRotationPool Unit Logic", () => {
   let pool: ApiRotationPool;
 
   beforeEach(() => {
-    pool = new ApiRotationPool(
-      undefined,
-      ["model-a", "model-b", "model-c"],
-      ["fast-a", "fast-b"]
-    );
+    pool = createApiRotationPool({
+      keyRepo: undefined,
+      analysisModels: ["model-a", "model-b", "model-c"],
+      fastModels: ["fast-a", "fast-b"],
+    });
   });
 
   afterEach(() => {
@@ -433,11 +441,11 @@ describe("ApiRotationPool Unit Logic", () => {
     });
 
     it("filters out non-Gemini models if hasSchema is true", () => {
-      const customPool = new ApiRotationPool(
-        undefined,
-        ["gemini-1.5-pro", "gemma-2b", "gemini-2.0-flash"],
-        ["gemma-7b", "gemini-1.5-flash"]
-      );
+      const customPool = createApiRotationPool({
+        keyRepo: undefined,
+        analysisModels: ["gemini-1.5-pro", "gemma-2b", "gemini-2.0-flash"],
+        fastModels: ["gemma-7b", "gemini-1.5-flash"],
+      });
       expect(customPool.getNextAvailable("analysis", undefined, true)).toBe(
         "gemini-1.5-pro"
       );
@@ -486,11 +494,15 @@ describe("ApiRotationPool Unit Logic", () => {
 
     let gemmaPool: ApiRotationPool;
     beforeEach(() => {
-      gemmaPool = new ApiRotationPool(
-        undefined,
-        ["gemma-4-31b-it", "gemma-4-26b-a4b-it", "gemini-3.1-flash-lite"],
-        ["gemini-3.1-flash-lite"]
-      );
+      gemmaPool = createApiRotationPool({
+        keyRepo: undefined,
+        analysisModels: [
+          "gemma-4-31b-it",
+          "gemma-4-26b-a4b-it",
+          "gemini-3.1-flash-lite",
+        ],
+        fastModels: ["gemini-3.1-flash-lite"],
+      });
     });
 
     it.each(GEMMA_MODELS)("maps LOW → MINIMAL for %s", (model) => {
@@ -541,7 +553,7 @@ describe("ApiRotationPool Unit Logic", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = "custom-model-1,custom-model-2";
       try {
-        const envPool = new ApiRotationPool();
+        const envPool = createApiRotationPool();
         expect(envPool.getModels("analysis")).toEqual([
           "custom-model-1",
           "custom-model-2",
@@ -555,7 +567,7 @@ describe("ApiRotationPool Unit Logic", () => {
       const originalEnv = process.env.GEMINI_FAST_MODELS;
       process.env.GEMINI_FAST_MODELS = "fast-custom-1";
       try {
-        const envPool = new ApiRotationPool();
+        const envPool = createApiRotationPool();
         expect(envPool.getModels("fast")).toEqual(["fast-custom-1"]);
       } finally {
         process.env.GEMINI_FAST_MODELS = originalEnv;
@@ -566,7 +578,7 @@ describe("ApiRotationPool Unit Logic", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = "";
       try {
-        const envPool = new ApiRotationPool();
+        const envPool = createApiRotationPool();
         expect(envPool.getModels("analysis")[0]).toBe("gemini-3.1-flash-lite");
       } finally {
         process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
@@ -577,7 +589,7 @@ describe("ApiRotationPool Unit Logic", () => {
       const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
       process.env.GEMINI_ANALYSIS_MODELS = " model-x , model-y ";
       try {
-        const envPool = new ApiRotationPool();
+        const envPool = createApiRotationPool();
         expect(envPool.getModels("analysis")).toEqual(["model-x", "model-y"]);
       } finally {
         process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
@@ -589,7 +601,11 @@ describe("ApiRotationPool Unit Logic", () => {
       process.env.GEMINI_COOLDOWN_MS = "15000";
       try {
         vi.useFakeTimers();
-        const testPool = new ApiRotationPool(undefined, ["model-a"], []);
+        const testPool = createApiRotationPool({
+          keyRepo: undefined,
+          analysisModels: ["model-a"],
+          fastModels: [],
+        });
         testPool.markRateLimited("model-a");
         expect(testPool.isAvailable("model-a")).toBe(false);
 

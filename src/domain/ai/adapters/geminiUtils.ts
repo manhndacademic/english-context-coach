@@ -1,5 +1,6 @@
 import { ThinkingLevel, GoogleGenAI } from "@google/genai";
 import { SCHEMA_VERSIONS } from "@/domain/constants";
+import { JsonParserService } from "./JsonParserService";
 
 export class AiError extends Error {
   constructor(
@@ -19,8 +20,6 @@ export function getGeminiThinkingLevel() {
   if (!geminiThinkingLevels.has(value)) return ThinkingLevel.MINIMAL;
   return ThinkingLevel[value as keyof typeof ThinkingLevel];
 }
-
-import { JsonParserService } from "./json-parser-service";
 
 export function extractJson(text: string): string {
   const extracted = JsonParserService.extractJson(text);

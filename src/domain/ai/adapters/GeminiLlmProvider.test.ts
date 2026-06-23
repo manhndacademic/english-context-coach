@@ -2,9 +2,9 @@ import { describe, expect, it, beforeEach, vi, afterEach } from "vitest";
 import { z } from "zod";
 import type { ApiKeyRepository, AiRequestRecorder, Prompt } from "../ports";
 import {
-  GeminiLLMProvider,
+  createGeminiLlmProvider,
   generationConfigForPurpose,
-} from "./gemini-provider";
+} from "./GeminiLlmProvider";
 
 vi.mock("@/lib/crypto", () => ({
   decryptApiKey: (key: string) => key,
@@ -138,7 +138,7 @@ class MockAiRequestRecorder implements AiRequestRecorder {
   }
 }
 
-describe("GeminiLLMProvider Resiliency", () => {
+describe("GeminiLlmProvider Resiliency", () => {
   let keyRepo: MockApiKeyRepository;
   let requestRecorder: MockAiRequestRecorder;
   let responses: { text?: string; error?: Error }[] = [];
@@ -167,11 +167,10 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   const getProvider = () => {
-    return new GeminiLLMProvider(
+    return createGeminiLlmProvider({
       keyRepo,
       requestRecorder,
-      undefined,
-      async (callOpts) => {
+      callRawOverride: async (callOpts) => {
         calls.push(callOpts);
         const resp = responses.shift();
         if (!resp) throw new Error("No mock response configured");
@@ -181,8 +180,8 @@ describe("GeminiLLMProvider Resiliency", () => {
           inputTokens: 10,
           outputTokens: 20,
         };
-      }
-    );
+      },
+    });
   };
 
   it("Test 1: Successful parse & return on first call", async () => {
@@ -268,12 +267,12 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 4: All keys exhausted for a model rotates model pool", async () => {
-    const { ApiRotationPool } = await import("./api-rotation-pool");
-    const customPool = new ApiRotationPool(
+    const { createApiRotationPool } = await import("./ApiRotationPool");
+    const customPool = createApiRotationPool({
       keyRepo,
-      ["model-analysis-1", "model-analysis-2"],
-      ["model-fast-1", "model-fast-2"]
-    );
+      analysisModels: ["model-analysis-1", "model-analysis-2"],
+      fastModels: ["model-fast-1", "model-fast-2"],
+    });
 
     keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
 
@@ -285,11 +284,11 @@ describe("GeminiLLMProvider Resiliency", () => {
       text: JSON.stringify({ score: 100, feedbackVi: "Tốt" }),
     });
 
-    const provider = new GeminiLLMProvider(
+    const provider = createGeminiLlmProvider({
       keyRepo,
       requestRecorder,
-      customPool,
-      async (callOpts) => {
+      apiRotationPool: customPool,
+      callRawOverride: async (callOpts) => {
         calls.push(callOpts);
         const resp = responses.shift();
         if (!resp) throw new Error("No mock response configured");
@@ -299,8 +298,8 @@ describe("GeminiLLMProvider Resiliency", () => {
           inputTokens: 10,
           outputTokens: 20,
         };
-      }
-    );
+      },
+    });
 
     const result = await provider.generateJson({
       userId: "u-1",
@@ -338,12 +337,12 @@ describe("GeminiLLMProvider Resiliency", () => {
   });
 
   it("Test 6: Model rate limit allows using the same key on fallback model", async () => {
-    const { ApiRotationPool } = await import("./api-rotation-pool");
-    const customPool = new ApiRotationPool(
+    const { createApiRotationPool } = await import("./ApiRotationPool");
+    const customPool = createApiRotationPool({
       keyRepo,
-      ["model-analysis-1", "model-analysis-2"],
-      ["model-fast-1", "model-fast-2"]
-    );
+      analysisModels: ["model-analysis-1", "model-analysis-2"],
+      fastModels: ["model-fast-1", "model-fast-2"],
+    });
 
     keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
 
@@ -355,11 +354,11 @@ describe("GeminiLLMProvider Resiliency", () => {
       text: JSON.stringify({ score: 100, feedbackVi: "Tốt" }),
     });
 
-    const provider = new GeminiLLMProvider(
+    const provider = createGeminiLlmProvider({
       keyRepo,
       requestRecorder,
-      customPool,
-      async (callOpts) => {
+      apiRotationPool: customPool,
+      callRawOverride: async (callOpts) => {
         calls.push(callOpts);
         const resp = responses.shift();
         if (!resp) throw new Error("No mock response configured");
@@ -369,8 +368,8 @@ describe("GeminiLLMProvider Resiliency", () => {
           inputTokens: 10,
           outputTokens: 20,
         };
-      }
-    );
+      },
+    });
 
     const result = await provider.generateJson({
       userId: "u-1",
@@ -389,7 +388,7 @@ describe("GeminiLLMProvider Resiliency", () => {
 
   it("Test 7: cleans responseJsonSchema before sending to Gemini API", async () => {
     keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
-    const provider = new GeminiLLMProvider(keyRepo, requestRecorder);
+    const provider = createGeminiLlmProvider({ keyRepo, requestRecorder });
 
     mockGenerateContent.mockClear();
     mockGenerateContent.mockResolvedValueOnce({

@@ -1,5 +1,7 @@
 import { z } from "zod";
-import type { AiPurpose, AiRequestStatus, AiModelKind } from "@/domain/types";
+import type { AiPurpose, AiModelKind } from "@/domain/types";
+import { type DbClient } from "@/db";
+import type { GenerateJsonOptions, RecordRequestOptions } from "./types";
 
 export interface Prompt<T> {
   purpose: AiPurpose;
@@ -11,17 +13,16 @@ export interface Prompt<T> {
   expectedShape?: Record<string, any>;
 }
 
-export interface LLMProvider {
-  generateJson<T>(options: {
-    userId?: string;
-    lessonId?: string;
-    prompt: Prompt<T>;
-    onThought?: (text: string) => Promise<void>;
-  }): Promise<T>;
+export type GenerateJsonFn = <T>(options: GenerateJsonOptions<T>) => Promise<T>;
+
+export interface LlmProvider {
+  generateJson: GenerateJsonFn;
 }
 
+export type LLMProvider = LlmProvider;
+
 export interface ApiKeyRepository {
-  getSystemKeys(): Promise<
+  getSystemKeys(dbClient?: DbClient): Promise<
     Array<{
       id: string;
       name: string;
@@ -30,7 +31,10 @@ export interface ApiKeyRepository {
       rateLimitedAt: Date | null;
     }>
   >;
-  getUserKeys(userId: string): Promise<
+  getUserKeys(
+    userId: string,
+    dbClient?: DbClient
+  ): Promise<
     Array<{
       id: string;
       encryptedKey: string;
@@ -38,31 +42,25 @@ export interface ApiKeyRepository {
       rateLimitedAt: Date | null;
     }>
   >;
-  getLegacyUserKey(userId: string): Promise<string | null>;
+  getLegacyUserKey(userId: string, dbClient?: DbClient): Promise<string | null>;
   updateKeyStatus(
     keyId: string,
     status: "active" | "rate_limited" | "invalid",
-    errorMessage: string | null
+    errorMessage: string | null,
+    dbClient?: DbClient
   ): Promise<void>;
-  saveUserApiKey(userId: string, encryptedApiKey: string | null): Promise<void>;
+  saveUserApiKey(
+    userId: string,
+    encryptedApiKey: string | null,
+    dbClient?: DbClient
+  ): Promise<void>;
 }
 
+export type RecordRequestFn = (
+  options: RecordRequestOptions,
+  dbClient?: DbClient
+) => Promise<void>;
+
 export interface AiRequestRecorder {
-  recordRequest(options: {
-    userId?: string;
-    lessonId?: string;
-    purpose: AiPurpose;
-    provider: string;
-    model: string;
-    promptVersion: string;
-    schemaVersion: string;
-    payloadHash: string;
-    status: AiRequestStatus;
-    latencyMs: number;
-    inputTokens: number | null;
-    outputTokens: number | null;
-    costMicros: number;
-    errorClass: string | null;
-    errorMessage: string | null;
-  }): Promise<void>;
+  recordRequest: RecordRequestFn;
 }

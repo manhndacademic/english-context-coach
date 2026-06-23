@@ -7,7 +7,7 @@ import {
   isInvalidKeyError,
   coerceJsonForSchema,
   getGeminiThinkingLevel,
-} from "./gemini-utils";
+} from "./geminiUtils";
 
 // Mock GoogleGenAI
 vi.mock("@google/genai", () => {

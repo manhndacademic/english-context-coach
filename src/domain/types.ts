@@ -68,3 +68,7 @@ export type AiModelKind = "analysis" | "fast";
 export type LessonViewMode = "standard" | "grammar";
 
 export type DiffViewMode = "unified" | "split";
+
+export type ActionResult<T = void> =
+  | (T extends void ? { success: true } : { success: true; data: T })
+  | { success: false; error: string };

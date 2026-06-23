@@ -1,3 +1,4 @@
+import { addDays, isAfter } from "date-fns";
 import type { MasteryState } from "./types";
 import type {
   KeyPhraseCategory,
@@ -22,15 +23,11 @@ export class MistakePattern {
   }
 
   public static nextDueDate(intervalDays: number, from = new Date()): Date {
-    const due = new Date(from);
-    due.setDate(due.getDate() + intervalDays);
-    return due;
+    return addDays(from, intervalDays);
   }
 
   public static resetDueAfterFailure(from = new Date()): Date {
-    const due = new Date(from);
-    due.setDate(due.getDate() + 1);
-    return due;
+    return addDays(from, 1);
   }
 
   public static masteryStateAfterReview(
@@ -313,7 +310,7 @@ export class MistakePattern {
     return (
       this._masteryState === "active" &&
       this._reviewPromptStatus === "succeeded" &&
-      this._dueAt.getTime() <= now.getTime()
+      !isAfter(this._dueAt, now)
     );
   }
 
@@ -346,13 +343,11 @@ export class MistakePattern {
       } else {
         this._intervalDays = Math.round(this._intervalDays * this._easeFactor);
       }
-      this._dueAt = new Date(now);
-      this._dueAt.setDate(this._dueAt.getDate() + this._intervalDays);
+      this._dueAt = addDays(now, this._intervalDays);
     } else {
       this._repetitions = 0;
       this._intervalDays = 0;
-      this._dueAt = new Date(now);
-      this._dueAt.setDate(this._dueAt.getDate() + 1); // due tomorrow
+      this._dueAt = addDays(now, 1); // due tomorrow
     }
 
     this._masteryState =
