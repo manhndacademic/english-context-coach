@@ -21,7 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
 import { GradingFeedback } from "@/components/grading-feedback";
-import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
+import {
+  getChoiceStyle,
+  getExercisePlaceholder,
+} from "@/domain/memory/exercise-view-presenter";
 import { translateCategory } from "@/lib/utils";
 
 const viDateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
@@ -276,14 +279,19 @@ export function ReviewCard({
         ) : (
           <div className="grid gap-2 text-left">
             <label htmlFor="answer" className="text-sm font-semibold text-text">
-              Bản dịch tự nhiên của bạn
+              {pattern.reviewType === "natural_translation"
+                ? "Bản dịch tự nhiên của bạn"
+                : "Câu trả lời của bạn"}
             </label>
             <textarea
               id="answer"
               disabled={isPending || state.isCorrect}
               name="answer"
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Viết câu dịch tiếng Việt tự nhiên của bạn ở đây..."
+              placeholder={getExercisePlaceholder(
+                pattern.reviewType || "",
+                false
+              )}
               required
               value={answer}
               className="w-full border border-border rounded-xl bg-background text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 min-h-27.5 resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
