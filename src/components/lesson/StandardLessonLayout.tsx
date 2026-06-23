@@ -9,6 +9,7 @@ import { SourceMeaningPanel } from "./SourceMeaningPanel";
 import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { generateExercisesAction } from "@/app/actions/source-texts";
+import { Button } from "@/components/ui/button";
 
 interface StandardLessonLayoutProps {
   user: {
@@ -143,31 +144,6 @@ export function StandardLessonLayout({
                 mode="standard"
               />
             )}
-
-            {hasSideColumn && currentPhase === "understand" && (
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentPhase("practice");
-                    setTimeout(() => {
-                      const element = document.getElementById(
-                        "exercise-panel-section"
-                      );
-                      if (element) {
-                        element.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
-                      }
-                    }, 50);
-                  }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-white bg-accent hover:bg-accent-hover hover:-translate-y-px active:translate-y-0 transition-all shadow-md cursor-pointer text-base"
-                >
-                  Đã hiểu ngữ cảnh, bắt đầu thực hành 🚀
-                </button>
-              </div>
-            )}
           </div>
 
           {hasSideColumn ? (
@@ -252,19 +228,19 @@ export function StandardLessonLayout({
                       <h3 className="text-base font-bold text-text mb-1">
                         Bài tập thực hành đang khóa
                       </h3>
-                      <p className="text-xs text-muted max-w-[240px] leading-relaxed mb-4">
-                        Đọc hiểu văn bản và cụm từ then chốt bên trái để mở khóa
-                        bài tập.
+                      <p className="text-xs text-muted max-w-[240px] leading-relaxed mb-5">
+                        Đọc hiểu văn bản và cụm từ then chốt ở bên trái. Khi sẵn
+                        sàng, hãy nhấn nút dưới đây để bắt đầu luyện tập.
                       </p>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           setCurrentPhase("practice");
                         }}
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md font-bold text-white bg-accent hover:bg-accent-hover transition-all text-xs cursor-pointer shadow-sm"
+                        className="animate-pulse-glow w-full font-bold"
                       >
-                        Mở khóa ngay
-                      </button>
+                        Nhấn để bắt đầu luyện tập
+                      </Button>
                     </div>
                   )}
               </div>

@@ -196,3 +196,7 @@
 .hover-shadow-accent:hover {
   box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
 }
+
+.animate-pulse-glow {
+  animation: nudge-pulse 2s infinite ease-in-out;
+}

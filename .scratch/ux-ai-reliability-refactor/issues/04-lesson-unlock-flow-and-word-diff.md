@@ -1,6 +1,6 @@
 # Fix Lesson page unlock flow and Word Diff rendering
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -20,15 +20,15 @@ Fix: Debug whether the issue is at the DB storage level or UI extraction level, 
 
 ## Acceptance criteria
 
-- [ ] No unlock button at the bottom of the left column in either layout
-- [ ] Lock overlay button is full-size primary style with pulse animation
-- [ ] Overlay includes microcopy explaining the action
-- [ ] Auto-unlock still works for lessons with previous attempts
-- [ ] Word Diff view renders formatted text, not raw JSON
-- [ ] Changes applied to both StandardLessonLayout and DiffLessonLayout
-- [ ] `bun run test` passes (layout tests updated)
-- [ ] `bun run build` passes
-- [ ] Manual test: open new lesson → unlock from overlay with 1 click, no scroll needed
+- [x] No unlock button at the bottom of the left column in either layout
+- [x] Lock overlay button is full-size primary style with pulse animation
+- [x] Overlay includes microcopy explaining the action
+- [x] Auto-unlock still works for lessons with previous attempts
+- [x] Word Diff view renders formatted text, not raw JSON
+- [x] Changes applied to both StandardLessonLayout and DiffLessonLayout
+- [x] `bun run test` passes (layout tests updated)
+- [x] `bun run build` passes
+- [x] Manual test: open new lesson → unlock from overlay with 1 click, no scroll needed
 
 ## Blocked by
 

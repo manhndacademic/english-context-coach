@@ -125,4 +125,112 @@ describe("DiffLessonLayout", () => {
 
     expect(html).toContain("Đồng ý sửa");
   });
+
+  it("handles ProseMirror JSON string in draftText.content and renders plain text in Word Diff", () => {
+    const jsonContent = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "I write to check status.",
+            },
+          ],
+        },
+      ],
+    });
+
+    const lessonDataWithJson = {
+      ...baseLessonData,
+      draftText: {
+        content: jsonContent,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <DiffLessonLayout
+        user={mockUser}
+        lessonData={lessonDataWithJson}
+        now={Date.now()}
+      />
+    );
+
+    expect(html).toContain("write");
+    expect(html).toContain("status.");
+    expect(html).not.toContain("&quot;type&quot;:&quot;doc&quot;");
+  });
+
+  it("handles plain text string in draftText.content and renders it directly in Word Diff", () => {
+    const plainContent = "I write to check status.";
+    const lessonDataWithPlain = {
+      ...baseLessonData,
+      draftText: {
+        content: plainContent,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <DiffLessonLayout
+        user={mockUser}
+        lessonData={lessonDataWithPlain}
+        now={Date.now()}
+      />
+    );
+
+    expect(html).toContain("write");
+    expect(html).toContain("status.");
+  });
+
+  it("initializes as locked when exercises succeeded but no attempts exist, showing custom overlay button", () => {
+    const lockedLessonData = {
+      ...baseLessonData,
+      lesson: {
+        ...baseLessonData.lesson,
+        exerciseStatus: "succeeded" as const,
+      },
+      exercisePractices: [],
+    };
+
+    const html = renderToStaticMarkup(
+      <DiffLessonLayout
+        user={mockUser}
+        lessonData={lockedLessonData}
+        now={Date.now()}
+      />
+    );
+
+    expect(html).not.toContain("Đã hiểu các điểm sửa lỗi, bắt đầu thực hành");
+    expect(html).toContain("Bài tập thực hành đang khóa");
+    expect(html).toContain("Nhấn để bắt đầu luyện tập");
+    expect(html).toContain("animate-pulse-glow");
+  });
+
+  it("auto-unlocks (starts in practice phase) when exercises succeeded and user has previous attempts", () => {
+    const unlockedLessonData = {
+      ...baseLessonData,
+      lesson: {
+        ...baseLessonData.lesson,
+        exerciseStatus: "succeeded" as const,
+      },
+      exercisePractices: [
+        {
+          id: "p-1",
+          attempts: [{ id: "attempt-1" }],
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <DiffLessonLayout
+        user={mockUser}
+        lessonData={unlockedLessonData}
+        now={Date.now()}
+      />
+    );
+
+    expect(html).not.toContain("Bài tập thực hành đang khóa");
+    expect(html).not.toContain("Nhấn để bắt đầu luyện tập");
+  });
 });
