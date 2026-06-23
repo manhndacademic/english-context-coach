@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
 import type { ApiKeyRepository } from "../ports";
+import { ThinkingLevel } from "@google/genai";
 
 vi.mock("@/lib/crypto", () => ({
   decryptApiKey: (key: string) => key,
@@ -316,6 +317,287 @@ describe("ApiRotationPool Rotation and Error Logic", () => {
       model: "gemini-fast-2",
       keyId: "key-1",
       isUserKey: false,
+    });
+  });
+});
+
+describe("ApiRotationPool Unit Logic", () => {
+  let pool: ApiRotationPool;
+
+  beforeEach(() => {
+    pool = new ApiRotationPool(
+      undefined,
+      ["model-a", "model-b", "model-c"],
+      ["fast-a", "fast-b"]
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe("getModels", () => {
+    it("returns analysis models", () => {
+      expect(pool.getModels("analysis")).toEqual([
+        "model-a",
+        "model-b",
+        "model-c",
+      ]);
+    });
+
+    it("returns fast models", () => {
+      expect(pool.getModels("fast")).toEqual(["fast-a", "fast-b"]);
+    });
+  });
+
+  describe("isAvailable", () => {
+    it("returns true for a fresh model", () => {
+      expect(pool.isAvailable("model-a")).toBe(true);
+    });
+
+    it("returns false for a rate-limited model", () => {
+      pool.markRateLimited("model-a");
+      expect(pool.isAvailable("model-a")).toBe(false);
+    });
+
+    it("returns true again after cooldown expires", () => {
+      vi.useFakeTimers();
+      pool.markRateLimited("model-a");
+      expect(pool.isAvailable("model-a")).toBe(false);
+
+      vi.advanceTimersByTime(30_001);
+      expect(pool.isAvailable("model-a")).toBe(true);
+    });
+  });
+
+  describe("markRateLimited / clearCooldown", () => {
+    it("marks model as unavailable", () => {
+      pool.markRateLimited("model-b");
+      expect(pool.isAvailable("model-b")).toBe(false);
+    });
+
+    it("clearCooldown restores availability", () => {
+      pool.markRateLimited("model-b");
+      pool.clearCooldown("model-b");
+      expect(pool.isAvailable("model-b")).toBe(true);
+    });
+
+    it("clearCooldown is idempotent on a model that was never limited", () => {
+      expect(() => pool.clearCooldown("model-a")).not.toThrow();
+      expect(pool.isAvailable("model-a")).toBe(true);
+    });
+  });
+
+  describe("getNextAvailable", () => {
+    it("returns the first model in the pool when all are available", () => {
+      expect(pool.getNextAvailable("analysis")).toBe("model-a");
+    });
+
+    it("skips rate-limited model and returns the next one", () => {
+      pool.markRateLimited("model-a");
+      expect(pool.getNextAvailable("analysis")).toBe("model-b");
+    });
+
+    it("skips explicitly excluded models", () => {
+      const excluded = new Set(["model-a"]);
+      expect(pool.getNextAvailable("analysis", excluded)).toBe("model-b");
+    });
+
+    it("skips both rate-limited and excluded models", () => {
+      pool.markRateLimited("model-a");
+      const excluded = new Set(["model-b"]);
+      expect(pool.getNextAvailable("analysis", excluded)).toBe("model-c");
+    });
+
+    it("returns best-effort first non-excluded when all models are cooling down", () => {
+      pool.markRateLimited("model-a");
+      pool.markRateLimited("model-b");
+      pool.markRateLimited("model-c");
+      const result = pool.getNextAvailable("analysis");
+      expect(["model-a", "model-b", "model-c"]).toContain(result);
+    });
+
+    it("returns first model even when all are excluded (last resort)", () => {
+      const excluded = new Set(["model-a", "model-b", "model-c"]);
+      const result = pool.getNextAvailable("analysis", excluded);
+      expect(result).toBe("model-a");
+    });
+
+    it("respects cooldown recovery after 30 seconds", () => {
+      vi.useFakeTimers();
+      pool.markRateLimited("model-a");
+      expect(pool.getNextAvailable("analysis")).toBe("model-b");
+
+      vi.advanceTimersByTime(30_001);
+      expect(pool.getNextAvailable("analysis")).toBe("model-a");
+    });
+
+    it("filters out non-Gemini models if hasSchema is true", () => {
+      const customPool = new ApiRotationPool(
+        undefined,
+        ["gemini-1.5-pro", "gemma-2b", "gemini-2.0-flash"],
+        ["gemma-7b", "gemini-1.5-flash"]
+      );
+      expect(customPool.getNextAvailable("analysis", undefined, true)).toBe(
+        "gemini-1.5-pro"
+      );
+      expect(
+        customPool.getNextAvailable(
+          "analysis",
+          new Set(["gemini-1.5-pro"]),
+          true
+        )
+      ).toBe("gemini-2.0-flash");
+      expect(customPool.getNextAvailable("fast", undefined, true)).toBe(
+        "gemini-1.5-flash"
+      );
+    });
+  });
+
+  describe("getCooldowns", () => {
+    it("returns empty array when no models are cooling down", () => {
+      expect(pool.getCooldowns()).toEqual([]);
+    });
+
+    it("returns active cooldowns", () => {
+      pool.markRateLimited("model-a");
+      pool.markRateLimited("model-c");
+      const cooldowns = pool.getCooldowns();
+      expect(cooldowns.map((c) => c.model)).toEqual(
+        expect.arrayContaining(["model-a", "model-c"])
+      );
+    });
+
+    it("does not include expired cooldowns", () => {
+      vi.useFakeTimers();
+      pool.markRateLimited("model-a");
+      vi.advanceTimersByTime(30_001);
+      expect(pool.getCooldowns()).toEqual([]);
+    });
+  });
+
+  describe("getThinkingLevel (Gemma compatibility)", () => {
+    const GEMMA_MODELS = ["gemma-4-31b-it", "gemma-4-26b-a4b-it"];
+    const NON_GEMMA_MODELS = [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3-flash-preview",
+    ];
+
+    let gemmaPool: ApiRotationPool;
+    beforeEach(() => {
+      gemmaPool = new ApiRotationPool(
+        undefined,
+        ["gemma-4-31b-it", "gemma-4-26b-a4b-it", "gemini-3.1-flash-lite"],
+        ["gemini-3.1-flash-lite"]
+      );
+    });
+
+    it.each(GEMMA_MODELS)("maps LOW → MINIMAL for %s", (model) => {
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(
+        ThinkingLevel.MINIMAL
+      );
+    });
+
+    it.each(GEMMA_MODELS)("maps MEDIUM → MINIMAL for %s", (model) => {
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(
+        ThinkingLevel.MINIMAL
+      );
+    });
+
+    it.each(GEMMA_MODELS)("preserves MINIMAL for %s", (model) => {
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(
+        ThinkingLevel.MINIMAL
+      );
+    });
+
+    it.each(GEMMA_MODELS)("preserves HIGH for %s", (model) => {
+      expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(
+        ThinkingLevel.HIGH
+      );
+    });
+
+    it.each(NON_GEMMA_MODELS)(
+      "passes through any level unchanged for non-Gemma %s",
+      (model) => {
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.LOW)).toBe(
+          ThinkingLevel.LOW
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MEDIUM)).toBe(
+          ThinkingLevel.MEDIUM
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.HIGH)).toBe(
+          ThinkingLevel.HIGH
+        );
+        expect(gemmaPool.getThinkingLevel(model, ThinkingLevel.MINIMAL)).toBe(
+          ThinkingLevel.MINIMAL
+        );
+      }
+    );
+  });
+
+  describe("env var override", () => {
+    it("uses GEMINI_ANALYSIS_MODELS env var when set", () => {
+      const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
+      process.env.GEMINI_ANALYSIS_MODELS = "custom-model-1,custom-model-2";
+      try {
+        const envPool = new ApiRotationPool();
+        expect(envPool.getModels("analysis")).toEqual([
+          "custom-model-1",
+          "custom-model-2",
+        ]);
+      } finally {
+        process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
+      }
+    });
+
+    it("uses GEMINI_FAST_MODELS env var when set", () => {
+      const originalEnv = process.env.GEMINI_FAST_MODELS;
+      process.env.GEMINI_FAST_MODELS = "fast-custom-1";
+      try {
+        const envPool = new ApiRotationPool();
+        expect(envPool.getModels("fast")).toEqual(["fast-custom-1"]);
+      } finally {
+        process.env.GEMINI_FAST_MODELS = originalEnv;
+      }
+    });
+
+    it("falls back to defaults when env var is empty string", () => {
+      const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
+      process.env.GEMINI_ANALYSIS_MODELS = "";
+      try {
+        const envPool = new ApiRotationPool();
+        expect(envPool.getModels("analysis")[0]).toBe("gemini-3.1-flash-lite");
+      } finally {
+        process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
+      }
+    });
+
+    it("trims whitespace from model names in env var", () => {
+      const originalEnv = process.env.GEMINI_ANALYSIS_MODELS;
+      process.env.GEMINI_ANALYSIS_MODELS = " model-x , model-y ";
+      try {
+        const envPool = new ApiRotationPool();
+        expect(envPool.getModels("analysis")).toEqual(["model-x", "model-y"]);
+      } finally {
+        process.env.GEMINI_ANALYSIS_MODELS = originalEnv;
+      }
+    });
+
+    it("respects GEMINI_COOLDOWN_MS env var when set", () => {
+      const originalCooldown = process.env.GEMINI_COOLDOWN_MS;
+      process.env.GEMINI_COOLDOWN_MS = "15000";
+      try {
+        vi.useFakeTimers();
+        const testPool = new ApiRotationPool(undefined, ["model-a"], []);
+        testPool.markRateLimited("model-a");
+        expect(testPool.isAvailable("model-a")).toBe(false);
+
+        vi.advanceTimersByTime(15001);
+        expect(testPool.isAvailable("model-a")).toBe(true);
+      } finally {
+        process.env.GEMINI_COOLDOWN_MS = originalCooldown;
+      }
     });
   });
 });

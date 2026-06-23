@@ -1,7 +1,10 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, vi, afterEach } from "vitest";
 import { z } from "zod";
 import type { ApiKeyRepository, AiRequestRecorder, Prompt } from "../ports";
-import { GeminiLLMProvider } from "./gemini-provider";
+import {
+  GeminiLLMProvider,
+  generationConfigForPurpose,
+} from "./gemini-provider";
 
 vi.mock("@/lib/crypto", () => ({
   decryptApiKey: (key: string) => key,
@@ -404,5 +407,56 @@ describe("GeminiLLMProvider Resiliency", () => {
 
     expect(schema.$schema).toBeUndefined();
     expect(schema.additionalProperties).toBeUndefined();
+  });
+});
+
+describe("Gemini Purpose Generation Config Limits", () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    // Restore original env
+    process.env = { ...originalEnv };
+  });
+
+  it("should use default max output tokens when no env vars are defined", () => {
+    delete process.env.GEMINI_MAX_OUTPUT_TOKENS_ANALYSIS;
+    delete process.env.GEMINI_MAX_OUTPUT_TOKENS_EXERCISE;
+    delete process.env.GEMINI_MAX_OUTPUT_TOKENS_GRADING;
+    delete process.env.GEMINI_MAX_OUTPUT_TOKENS_REPAIR;
+
+    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(16384);
+    expect(
+      generationConfigForPurpose("exercise_generation").maxOutputTokens
+    ).toBe(8192);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(16384);
+  });
+
+  it("should use parsed env values when valid env vars are defined", () => {
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_ANALYSIS = "5000";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_EXERCISE = "3000";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_GRADING = "1000";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_REPAIR = "1500";
+
+    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(5000);
+    expect(
+      generationConfigForPurpose("exercise_generation").maxOutputTokens
+    ).toBe(3000);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(1000);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(1500);
+  });
+
+  it("should fall back to defaults when env vars are non-numeric or invalid", () => {
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_ANALYSIS = "abc";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_EXERCISE = "-100";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_GRADING = "0";
+    process.env.GEMINI_MAX_OUTPUT_TOKENS_REPAIR = "";
+
+    expect(generationConfigForPurpose("analysis").maxOutputTokens).toBe(16384);
+    expect(
+      generationConfigForPurpose("exercise_generation").maxOutputTokens
+    ).toBe(8192);
+    expect(generationConfigForPurpose("grading").maxOutputTokens).toBe(4096);
+    expect(generationConfigForPurpose("repair").maxOutputTokens).toBe(16384);
   });
 });
