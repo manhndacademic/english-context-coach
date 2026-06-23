@@ -7,6 +7,8 @@ import { ExercisePanel } from "./ExercisePanel";
 import {
   generateExercisesAction,
   changeLessonContextAction,
+  updateCorrectionPhraseAction,
+  toggleCorrectionRejectAction,
 } from "@/app/actions/source-texts";
 import { diffWords } from "@/domain/lesson/diff-engine";
 import { RepeatedMistakeBanner } from "./RepeatedMistakeBanner";
@@ -81,6 +83,7 @@ interface DiffLessonLayoutProps {
     exercisePractices: any[];
     mistakePatterns?: any[];
     progress: any;
+    dueCount?: number;
   };
   now: number;
 }
@@ -92,13 +95,13 @@ export function DiffLessonLayout({
 }: DiffLessonLayoutProps) {
   const {
     lesson,
-    sourceText,
     draftText,
     correctionItems = [],
     exercises = [],
     exercisePractices = [],
     mistakePatterns = [],
     progress,
+    dueCount,
   } = lessonData;
 
   const [currentPhase, setCurrentPhase] = useState<"understand" | "practice">(
@@ -110,11 +113,23 @@ export function DiffLessonLayout({
     }
   );
 
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(() => {
+    return new Set(
+      correctionItems
+        .filter((item) => item.isRejected)
+        .map((item) => item.id || "")
+    );
+  });
   const [showDocTypeChips, setShowDocTypeChips] = useState(false);
   const [showFormalityChips, setShowFormalityChips] = useState(false);
 
-  const toggleReject = (id: string) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const toggleReject = async (id: string) => {
+    const nextRejected = !rejectedIds.has(id);
     setRejectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -124,6 +139,75 @@ export function DiffLessonLayout({
       }
       return next;
     });
+
+    try {
+      const result = await toggleCorrectionRejectAction({
+        lessonId: lesson.id,
+        correctionItemId: id,
+        isRejected: nextRejected,
+      });
+      if (result && result.error) {
+        setRejectedIds((prev) => {
+          const next = new Set(prev);
+          if (nextRejected) {
+            next.delete(id);
+          } else {
+            next.add(id);
+          }
+          return next;
+        });
+        alert("Không thể lưu trạng thái lỗi: " + result.error);
+      }
+    } catch (err: any) {
+      setRejectedIds((prev) => {
+        const next = new Set(prev);
+        if (nextRejected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+      alert("Đã xảy ra lỗi: " + err.message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+    setValidationError(null);
+  };
+
+  const handleSaveEdit = async (item: any) => {
+    const trimmed = editValue.trim();
+    if (!trimmed) {
+      setValidationError("Cụm từ sửa không được để trống.");
+      return;
+    }
+    if (trimmed === item.draftPhrase) {
+      setValidationError("Cụm từ sửa mới không được trùng với cụm từ nháp cũ.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const result = await updateCorrectionPhraseAction({
+        lessonId: lesson.id,
+        correctionItemId: item.id,
+        newPhrase: trimmed,
+      });
+
+      if (result && result.error) {
+        setValidationError(result.error);
+      } else {
+        setEditingId(null);
+        window.location.reload();
+      }
+    } catch (err: any) {
+      setValidationError(err.message || "Đã xảy ra lỗi.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUpdateDocType = async (newType: string) => {
@@ -163,10 +247,31 @@ export function DiffLessonLayout({
   };
 
   const draftContent = draftText?.content || "";
-  const correctedContent = sourceText?.content || "";
+  const correctedContent = useMemo(() => {
+    let text = draftContent;
+    let currentIndex = 0;
+    const sorted = [...correctionItems].sort(
+      (a, b) => a.orderIndex - b.orderIndex
+    );
+    for (const item of sorted) {
+      const isRejected = rejectedIds.has(item.id || "");
+      const replacement = isRejected ? item.draftPhrase : item.correctedPhrase;
+      const index = text.indexOf(item.draftPhrase, currentIndex);
+      if (index !== -1) {
+        text =
+          text.substring(0, index) +
+          replacement +
+          text.substring(index + item.draftPhrase.length);
+        currentIndex = index + replacement.length;
+      }
+    }
+    return text;
+  }, [draftContent, correctionItems, rejectedIds]);
 
   // Calculate deterministic word-level differences
-  const diffs = diffWords(draftContent, correctedContent);
+  const diffs = useMemo(() => {
+    return diffWords(draftContent, correctedContent);
+  }, [draftContent, correctedContent]);
 
   const matchedRepeatedMistakes = useMemo(() => {
     return correctionItems
@@ -414,15 +519,76 @@ export function DiffLessonLayout({
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap bg-surface-strong/50 border border-border/40 rounded-md p-3">
-                      <span className="text-red-600 line-through font-serif text-base font-semibold">
-                        {item.draftPhrase}
-                      </span>
-                      <span className="text-muted font-serif">➔</span>
-                      <span className="text-green-600 font-serif text-lg font-bold">
-                        {item.correctedPhrase}
-                      </span>
-                    </div>
+                    {editingId === item.id ? (
+                      <div className="flex flex-col gap-2 bg-surface-strong/50 border border-border/40 rounded-md p-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-red-600 line-through font-serif text-base font-semibold">
+                            {item.draftPhrase}
+                          </span>
+                          <span className="text-muted font-serif">➔</span>
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => {
+                              setEditValue(e.target.value);
+                              setValidationError(null);
+                            }}
+                            className="flex-1 bg-surface border border-border rounded px-2.5 py-1 text-base font-bold text-green-600 focus:outline-none focus:border-green-600"
+                            disabled={isSaving}
+                            autoFocus
+                          />
+                        </div>
+                        {validationError && (
+                          <span className="text-xs text-red-500 font-semibold">
+                            {validationError}
+                          </span>
+                        )}
+                        <div className="flex gap-2 justify-end mt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="px-2.5 py-1 bg-muted/10 border border-muted/20 hover:bg-muted/20 text-muted rounded text-xs font-semibold cursor-pointer"
+                            disabled={isSaving}
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(item)}
+                            className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold cursor-pointer inline-flex items-center gap-1"
+                            disabled={isSaving}
+                          >
+                            {isSaving ? "Đang lưu..." : "Lưu"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3 bg-surface-strong/50 border border-border/40 rounded-md p-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-red-600 line-through font-serif text-base font-semibold">
+                            {item.draftPhrase}
+                          </span>
+                          <span className="text-muted font-serif">➔</span>
+                          <span className="text-green-600 font-serif text-lg font-bold">
+                            {item.correctedPhrase}
+                          </span>
+                        </div>
+                        {!isRejected && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(item.id);
+                              setEditValue(item.correctedPhrase);
+                              setValidationError(null);
+                            }}
+                            className="p-1 text-muted hover:text-text rounded hover:bg-surface-strong transition-all cursor-pointer text-xs"
+                            title="Sửa cụm từ"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid gap-3 text-sm">
                       <div className="text-text leading-relaxed">
@@ -498,6 +664,7 @@ export function DiffLessonLayout({
                   lesson={lesson}
                   practices={exercisePractices}
                   correctionItems={correctionItems}
+                  dueCount={dueCount}
                 />
 
                 {/* Case 1: Exercises not generated yet (Idle) */}

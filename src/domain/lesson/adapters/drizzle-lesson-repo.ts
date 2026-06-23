@@ -397,10 +397,11 @@ export class DrizzleLessonRepository implements LessonRepository {
     if (!lesson) {
       throw new Error("Lesson not found.");
     }
-    const isDiff = lesson.inputMode === "diff";
+    const isDiffOrWrite =
+      lesson.inputMode === "diff" || lesson.inputMode === "write";
     if (
       !lesson.summaryVi ||
-      (!isDiff &&
+      (!isDiffOrWrite &&
         (!lesson.naturalTranslationVi || !lesson.contextExplanationVi)) ||
       !lesson.detectedLevel
     ) {
@@ -426,7 +427,12 @@ export class DrizzleLessonRepository implements LessonRepository {
         this.dbClient
           .select()
           .from(schema.correctionItems)
-          .where(eq(schema.correctionItems.lessonId, lessonId))
+          .where(
+            and(
+              eq(schema.correctionItems.lessonId, lessonId),
+              eq(schema.correctionItems.isRejected, false)
+            )
+          )
           .orderBy(asc(schema.correctionItems.orderIndex)),
       ]);
 
@@ -1150,5 +1156,106 @@ export class DrizzleLessonRepository implements LessonRepository {
 
       return { lesson, job };
     })) as { lesson: Lesson; job: GenerationJob };
+  }
+
+  async updateCorrectionPhrase(
+    userId: string,
+    lessonId: string,
+    correctionItemId: string,
+    newPhrase: string
+  ): Promise<{ ok: boolean; message?: string }> {
+    const [lesson] = await this.dbClient
+      .select()
+      .from(schema.lessons)
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
+      .limit(1);
+
+    if (!lesson) {
+      return {
+        ok: false,
+        message: "Bài học không tồn tại hoặc bạn không có quyền chỉnh sửa.",
+      };
+    }
+
+    const [correctionItem] = await this.dbClient
+      .select()
+      .from(schema.correctionItems)
+      .where(
+        and(
+          eq(schema.correctionItems.id, correctionItemId),
+          eq(schema.correctionItems.lessonId, lessonId)
+        )
+      )
+      .limit(1);
+
+    if (!correctionItem) {
+      return {
+        ok: false,
+        message: "Không tìm thấy lỗi sửa.",
+      };
+    }
+
+    if (newPhrase.trim() === correctionItem.draftPhrase.trim()) {
+      return {
+        ok: false,
+        message: "Cụm từ sửa mới không được trùng với cụm từ nháp cũ.",
+      };
+    }
+
+    await this.dbClient
+      .update(schema.correctionItems)
+      .set({ correctedPhrase: newPhrase })
+      .where(eq(schema.correctionItems.id, correctionItemId));
+
+    return { ok: true };
+  }
+
+  async toggleCorrectionReject(
+    userId: string,
+    lessonId: string,
+    correctionItemId: string,
+    isRejected: boolean
+  ): Promise<{ ok: boolean; message?: string }> {
+    const [lesson] = await this.dbClient
+      .select()
+      .from(schema.lessons)
+      .where(
+        and(eq(schema.lessons.id, lessonId), eq(schema.lessons.userId, userId))
+      )
+      .limit(1);
+
+    if (!lesson) {
+      return {
+        ok: false,
+        message: "Bài học không tồn tại hoặc bạn không có quyền chỉnh sửa.",
+      };
+    }
+
+    const [correctionItem] = await this.dbClient
+      .select()
+      .from(schema.correctionItems)
+      .where(
+        and(
+          eq(schema.correctionItems.id, correctionItemId),
+          eq(schema.correctionItems.lessonId, lessonId)
+        )
+      )
+      .limit(1);
+
+    if (!correctionItem) {
+      return {
+        ok: false,
+        message: "Không tìm thấy lỗi sửa.",
+      };
+    }
+
+    await this.dbClient
+      .update(schema.correctionItems)
+      .set({ isRejected })
+      .where(eq(schema.correctionItems.id, correctionItemId));
+
+    return { ok: true };
   }
 }

@@ -42,6 +42,7 @@ interface StandardLessonLayoutProps {
     exercisePractices: any[];
     mistakePatterns: any[];
     progress: any;
+    dueCount?: number;
   };
   now: number;
 }
@@ -61,6 +62,7 @@ export function StandardLessonLayout({
     exercisePractices,
     mistakePatterns,
     progress,
+    dueCount,
   } = lessonData;
 
   const [currentPhase, setCurrentPhase] = useState<"understand" | "practice">(
@@ -183,7 +185,11 @@ export function StandardLessonLayout({
               ) : null}
 
               <div className="relative" id="exercise-panel-section">
-                <ExercisePanel lesson={lesson} practices={exercisePractices} />
+                <ExercisePanel
+                  lesson={lesson}
+                  practices={exercisePractices}
+                  dueCount={dueCount}
+                />
 
                 {/* Case 1: Exercises not generated yet (Idle) */}
                 {lesson.exerciseStatus === "idle" && (

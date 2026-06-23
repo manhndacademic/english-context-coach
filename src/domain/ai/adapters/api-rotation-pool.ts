@@ -10,16 +10,12 @@ const logger = getLogger("d.m.ai.ApiRotationPool", "ai-provider");
 
 const DEFAULT_ANALYSIS_MODELS = [
   "gemini-3.1-flash-lite",
-  "gemma-4-31b-it",
-  "gemma-4-26b-a4b-it",
   "gemini-3-flash-preview",
   "gemini-3.5-flash",
 ];
 
 const DEFAULT_FAST_MODELS = [
   "gemini-3.1-flash-lite",
-  "gemma-4-31b-it",
-  "gemma-4-26b-a4b-it",
   "gemini-3-flash-preview",
   "gemini-3.5-flash",
 ];
@@ -349,14 +345,6 @@ export class ApiRotationPool {
 
         return result;
       } catch (err: any) {
-        console.log(
-          "CAUGHT ERROR IN POOL:",
-          err.message,
-          "status:",
-          err.status,
-          "code:",
-          err.code
-        );
         if (err instanceof LlmValidationError) {
           logger.warn(
             `[ApiRotationPool] Gemini API call succeeded but validation failed on key ID ${

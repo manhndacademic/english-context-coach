@@ -22,6 +22,7 @@ interface CompletionSummaryProps {
   practices?: PracticeLike[];
   onRetry: () => void;
   correctionItems?: any[];
+  dueCount?: number;
 }
 
 const DEFAULT_PRACTICES: PracticeLike[] = [];
@@ -32,6 +33,7 @@ export function CompletionSummary({
   practices = DEFAULT_PRACTICES,
   onRetry,
   correctionItems = DEFAULT_CORRECTION_ITEMS,
+  dueCount,
 }: CompletionSummaryProps) {
   const {
     total,
@@ -242,19 +244,20 @@ export function CompletionSummary({
 
       {/* CTA buttons */}
       <div className="flex flex-col sm:flex-row gap-2.5">
-        {repeatedErrors > 0 ? (
+        {dueCount !== undefined && dueCount > 0 ? (
           <Link
             href="/review"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold no-underline flex-[2] transition-all hover:-translate-y-px bg-danger text-white shadow-[0_2px_8px_rgba(220,38,38,0.25)] hover:bg-danger-hover text-center cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold no-underline flex-[2] transition-all hover:-translate-y-px bg-amber-600 hover:bg-amber-700 text-white shadow-[0_2px_8px_rgba(217,119,6,0.25)] text-center cursor-pointer"
           >
-            <RefreshCw size={14} /> Ôn tập lỗi lặp lại ngay
+            <RefreshCw size={14} /> Ôn tập {dueCount} corrections cũ (
+            {dueCount * 2} phút)
           </Link>
         ) : (
           <Link
             href="/dashboard"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold no-underline flex-[2] transition-all hover:-translate-y-px bg-accent text-white shadow-[0_2px_8px_rgba(5,150,105,0.25)] hover:bg-accent-hover text-center cursor-pointer"
           >
-            Học bài mới <ArrowRight size={14} />
+            Quay về dashboard <ArrowRight size={14} />
           </Link>
         )}
         <button

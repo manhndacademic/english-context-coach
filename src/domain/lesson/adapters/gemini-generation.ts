@@ -195,7 +195,7 @@ export class GeminiGenerationEngine implements GenerationEngine {
     const activeUserId = userId ?? this.userId;
     const activeLessonId = lessonId ?? this.lessonId;
     const prompt =
-      analysis.inputMode === "diff"
+      analysis.inputMode === "diff" || analysis.inputMode === "write"
         ? new DiffExercisesPrompt(analysis, activeMistakePatterns)
         : new ExercisesPrompt(analysis as any, activeMistakePatterns);
 

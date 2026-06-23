@@ -8,6 +8,7 @@ interface ExercisePanelProps {
   };
   practices: any[];
   correctionItems?: any[];
+  dueCount?: number;
 }
 
 const DEFAULT_CORRECTION_ITEMS: any[] = [];
@@ -16,6 +17,7 @@ export function ExercisePanel({
   lesson,
   practices,
   correctionItems = DEFAULT_CORRECTION_ITEMS,
+  dueCount,
 }: ExercisePanelProps) {
   if (
     lesson.exerciseStatus === "pending" ||
@@ -63,6 +65,7 @@ export function ExercisePanel({
             key={lesson.id}
             practices={practices}
             correctionItems={correctionItems}
+            dueCount={dueCount}
           />
         ) : (
           <p className="text-muted text-sm leading-relaxed m-0">

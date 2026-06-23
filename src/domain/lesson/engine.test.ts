@@ -57,6 +57,24 @@ class MockLessonRepository implements LessonRepository {
     return null;
   }
 
+  async updateCorrectionPhrase(
+    _userId: string,
+    _lessonId: string,
+    _correctionItemId: string,
+    _newPhrase: string
+  ): Promise<{ ok: boolean; message?: string }> {
+    return { ok: true };
+  }
+
+  async toggleCorrectionReject(
+    _userId: string,
+    _lessonId: string,
+    _correctionItemId: string,
+    _isRejected: boolean
+  ): Promise<{ ok: boolean; message?: string }> {
+    return { ok: true };
+  }
+
   async createSourceTextAndLessonAndJob(
     userId: string,
     content: string,

@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod";
 import { getLogger } from "@/lib/logger";
 import type { AiPurpose, AiRequestStatus } from "@/domain/types";
@@ -11,12 +12,7 @@ import type {
 import { DrizzleAiRequestRecorder } from "./ai-request-recorder";
 import { hashCanonicalPayload } from "@/lib/crypto";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
-import {
-  getGeminiThinkingLevel,
-  zodToGeminiSchema,
-  AiError,
-  estimateCost,
-} from "./gemini-utils";
+import { getGeminiThinkingLevel, AiError, estimateCost } from "./gemini-utils";
 import { JsonParserService } from "./json-parser-service";
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
@@ -133,13 +129,17 @@ export class GeminiLLMProvider implements LLMProvider {
 
     const ai = new GoogleGenAI({ apiKey: options.apiKey });
     const purposeConfig = generationConfigForPurpose(options.purpose);
+
+    const timeoutMs =
+      parseInt(process.env.GEMINI_TIMEOUT_MS ?? "", 10) || 60_000;
+    const controller = new AbortController();
+
     const config = {
       ...purposeConfig,
       responseMimeType: "application/json",
-      responseSchema:
-        options.zodSchema && !isGemini3
-          ? zodToGeminiSchema(options.zodSchema)
-          : undefined,
+      responseJsonSchema: options.zodSchema
+        ? zodToJsonSchema(options.zodSchema)
+        : undefined,
       thinkingConfig: options.onThought
         ? {
             includeThoughts: true,
@@ -154,6 +154,7 @@ export class GeminiLLMProvider implements LLMProvider {
                 thinkingBudget: 0,
               }
             : undefined,
+      abortSignal: controller.signal,
     };
 
     let text = "";
@@ -164,52 +165,68 @@ export class GeminiLLMProvider implements LLMProvider {
       `[AI Provider] Calling Gemini API (model: ${options.model}, purpose: ${options.purpose})...`
     );
     const callStartTime = Date.now();
+    const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (options.onThought) {
-      const response = await ai.models.generateContentStream({
-        model: options.model,
-        contents: options.prompt,
-        config,
-      });
+    try {
+      if (options.onThought) {
+        const response = await ai.models.generateContentStream({
+          model: options.model,
+          contents: options.prompt,
+          config,
+        });
 
-      for await (const chunk of response) {
-        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-          if (!part.text) continue;
-          if (part.thought) {
-            await options.onThought(part.text);
-          } else {
-            text += part.text;
+        for await (const chunk of response) {
+          for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+            if (!part.text) continue;
+            if (part.thought) {
+              await options.onThought(part.text);
+            } else {
+              text += part.text;
+            }
+          }
+          if (chunk.usageMetadata) {
+            inputTokens = chunk.usageMetadata.promptTokenCount ?? 0;
+            outputTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
           }
         }
-        if (chunk.usageMetadata) {
-          inputTokens = chunk.usageMetadata.promptTokenCount ?? 0;
-          outputTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
-        }
-      }
-    } else {
-      const result = await ai.models.generateContent({
-        model: options.model,
-        contents: options.prompt,
-        config,
-      });
-
-      const parts = result.candidates?.[0]?.content?.parts ?? [];
-      if (parts.length > 0) {
-        let partsText = "";
-        for (const part of parts) {
-          if (!part.thought && part.text) {
-            partsText += part.text;
-          }
-        }
-        text = partsText;
       } else {
-        text = result.text ?? "";
-      }
+        const result = await ai.models.generateContent({
+          model: options.model,
+          contents: options.prompt,
+          config,
+        });
 
-      if (result.usageMetadata) {
-        inputTokens = result.usageMetadata.promptTokenCount ?? 0;
-        outputTokens = result.usageMetadata.candidatesTokenCount ?? 0;
+        const parts = result.candidates?.[0]?.content?.parts ?? [];
+        if (parts.length > 0) {
+          let partsText = "";
+          for (const part of parts) {
+            if (!part.thought && part.text) {
+              partsText += part.text;
+            }
+          }
+          text = partsText;
+        } else {
+          text = result.text ?? "";
+        }
+
+        if (result.usageMetadata) {
+          inputTokens = result.usageMetadata.promptTokenCount ?? 0;
+          outputTokens = result.usageMetadata.candidatesTokenCount ?? 0;
+        }
       }
+    } catch (err: any) {
+      if (
+        err.name === "AbortError" ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        throw new AiError(
+          `Gemini API request timed out after ${timeoutMs}ms`,
+          "timeout"
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutHandle);
     }
 
     logger.info(

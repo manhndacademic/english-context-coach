@@ -189,3 +189,65 @@ export const changeLessonContextAction = validatedAction(
     return result;
   }
 );
+
+const updateCorrectionPhraseSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+  correctionItemId: z
+    .string()
+    .uuid("ID cụm từ sửa không hợp lệ (Correction Item ID must be a UUID)"),
+  newPhrase: z
+    .string()
+    .trim()
+    .min(
+      1,
+      "Cụm từ sửa không được để trống (Corrected phrase cannot be empty)"
+    ),
+});
+
+export const updateCorrectionPhraseAction = validatedAction(
+  updateCorrectionPhraseSchema,
+  async (data, user) => {
+    const result = await getLessonRepository().updateCorrectionPhrase(
+      user.id,
+      data.lessonId,
+      data.correctionItemId,
+      data.newPhrase
+    );
+    if (!result.ok) {
+      return { error: result.message || "Không thể cập nhật cụm từ sửa." };
+    }
+    revalidatePath(`/lessons/${data.lessonId}`);
+    return { ok: true };
+  }
+);
+
+const toggleCorrectionRejectSchema = z.object({
+  lessonId: z
+    .string()
+    .uuid("ID bài học không hợp lệ (Lesson ID must be a UUID)"),
+  correctionItemId: z
+    .string()
+    .uuid("ID cụm từ sửa không hợp lệ (Correction Item ID must be a UUID)"),
+  isRejected: z.boolean(),
+});
+
+export const toggleCorrectionRejectAction = validatedAction(
+  toggleCorrectionRejectSchema,
+  async (data, user) => {
+    const result = await getLessonRepository().toggleCorrectionReject(
+      user.id,
+      data.lessonId,
+      data.correctionItemId,
+      data.isRejected
+    );
+    if (!result.ok) {
+      return {
+        error: result.message || "Không thể cập nhật trạng thái lỗi sửa.",
+      };
+    }
+    revalidatePath(`/lessons/${data.lessonId}`);
+    return { ok: true };
+  }
+);

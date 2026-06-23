@@ -33,6 +33,7 @@ export interface CorrectionItem {
   category: KeyPhraseCategory;
   errorType: UserErrorType;
   orderIndex: number;
+  isRejected: boolean;
   createdAt: Date;
 }
 
@@ -358,6 +359,20 @@ export interface LessonContentRepository {
     lessonId: string,
     userId: string
   ): Promise<LessonAggregate | null>;
+
+  updateCorrectionPhrase(
+    userId: string,
+    lessonId: string,
+    correctionItemId: string,
+    newPhrase: string
+  ): Promise<{ ok: boolean; message?: string }>;
+
+  toggleCorrectionReject(
+    userId: string,
+    lessonId: string,
+    correctionItemId: string,
+    isRejected: boolean
+  ): Promise<{ ok: boolean; message?: string }>;
 }
 
 /** Manages GenerationJob queue: claiming, status updates, capacity checks. */

@@ -5,6 +5,9 @@ const log = getLogger("d.l.engine.LessonGenerationEngine");
 export function isTransientGenerationError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
+    (error instanceof Error && error.name === "AbortError") ||
+    message.includes("AbortError") ||
+    message.includes("The operation was aborted") ||
     message.includes("ECONNRESET") ||
     message.includes("socket connection was closed") ||
     message.includes('"code":429') ||

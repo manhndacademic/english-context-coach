@@ -120,6 +120,7 @@ export const correctionItems = pgTable(
     category: phraseCategoryEnum("category").notNull(),
     errorType: errorTypeEnum("error_type").notNull(),
     orderIndex: integer("order_index").notNull().default(0),
+    isRejected: boolean("is_rejected").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({

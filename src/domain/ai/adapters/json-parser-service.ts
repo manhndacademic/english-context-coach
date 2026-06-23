@@ -6,6 +6,21 @@ export class JsonParserService {
    * Runs the self-healing pipeline before calling JSON.parse.
    */
   static parse<T>(rawText: string, schemaVersion: string): T {
+    // Fast path: try JSON.parse directly first (structured output usually returns valid JSON)
+    try {
+      const fastParsed = JSON.parse(rawText);
+      const shortVersion = schemaVersion.split(
+        "-"
+      )[0] as keyof typeof SCHEMA_VERSIONS;
+      const coerced = JsonParserService.coerceJsonForSchema(
+        fastParsed,
+        shortVersion
+      );
+      return coerced as T;
+    } catch {
+      // Fall through to repair pipeline
+    }
+    // Fallback: repair pipeline
     const extracted = JsonParserService.extractJson(rawText);
     const repaired = JsonParserService.repairJson(extracted);
     const parsedObj = JSON.parse(repaired);

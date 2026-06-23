@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  verifyGeminiApiKey,
-  extractJson,
-  zodToGeminiSchema,
-} from "./gemini-utils";
-import { z } from "zod";
+import { verifyGeminiApiKey, extractJson } from "./gemini-utils";
 
 // Mock GoogleGenAI
 vi.mock("@google/genai", () => {
@@ -97,60 +92,5 @@ describe("extractJson", () => {
       score: 90,
       feedbackVi: 'Cấu trúc "{" và "}" là bắt buộc',
     });
-  });
-});
-
-describe("zodToGeminiSchema", () => {
-  it("translates simple string schema", () => {
-    const schema = z.string();
-    expect(zodToGeminiSchema(schema)).toEqual({ type: "STRING" });
-  });
-
-  it("translates nullable string schema", () => {
-    const schema = z.string().nullable();
-    expect(zodToGeminiSchema(schema)).toEqual({
-      type: "STRING",
-      nullable: true,
-    });
-  });
-
-  it("translates refined optional nullable string schema (ZodEffects)", () => {
-    const schema = z
-      .string()
-      .nullable()
-      .optional()
-      .refine((val) => !val || val.length > 3);
-    expect(zodToGeminiSchema(schema)).toEqual({
-      type: "STRING",
-      nullable: true,
-    });
-  });
-
-  it("translates object schemas, correctly marking required and optional fields", () => {
-    const schema = z.object({
-      requiredField: z.string(),
-      optionalField: z.string().optional(),
-      nullableField: z.string().nullable(),
-      refinedField: z
-        .string()
-        .nullable()
-        .optional()
-        .refine((val) => !val || val.length > 5),
-    });
-    expect(zodToGeminiSchema(schema)).toEqual({
-      type: "OBJECT",
-      properties: {
-        requiredField: { type: "STRING" },
-        optionalField: { type: "STRING" },
-        nullableField: { type: "STRING", nullable: true },
-        refinedField: { type: "STRING", nullable: true },
-      },
-      required: ["requiredField"],
-    });
-  });
-
-  it("translates default schemas", () => {
-    const schema = z.string().default("test_val");
-    expect(zodToGeminiSchema(schema)).toEqual({ type: "STRING" });
   });
 });

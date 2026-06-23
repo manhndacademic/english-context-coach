@@ -4,7 +4,10 @@ import { AlertCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { AppHeader } from "@/components/app-header";
 import { getLessonRepository } from "@/domain/lesson";
-import { getPracticeHistoryRepository } from "@/domain/memory";
+import {
+  getPracticeHistoryRepository,
+  getLearnerMemoryEngine,
+} from "@/domain/memory";
 import { classifyInputMode } from "./lesson-view-model";
 import { StandardLessonLayout } from "@/components/lesson/StandardLessonLayout";
 import { DiffLessonLayout } from "@/components/lesson/DiffLessonLayout";
@@ -18,9 +21,12 @@ export default async function LessonPage({
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
-  const [lessonData, practiceState] = await Promise.all([
+  const [lessonData, practiceState, dueCount] = await Promise.all([
     getLessonRepository().getLessonAggregate(id, user.id),
     getPracticeHistoryRepository().getLessonPracticeState(id, user.id),
+    getLearnerMemoryEngine()
+      .getDashboardMetrics(user.id, new Date())
+      .then((m) => m.dueCount),
   ]);
   if (!lessonData) notFound();
 
@@ -78,6 +84,7 @@ export default async function LessonPage({
     ...lessonData,
     exercisePractices,
     mistakePatterns: practiceState.mistakePatterns,
+    dueCount,
   };
 
   const { lesson } = lessonData;

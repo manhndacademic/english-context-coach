@@ -1,0 +1,1 @@
+ALTER TABLE "correction_items" ADD COLUMN "is_rejected" boolean DEFAULT false NOT NULL;

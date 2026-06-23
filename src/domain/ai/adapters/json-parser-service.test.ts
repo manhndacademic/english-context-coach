@@ -181,6 +181,15 @@ describe("JsonParserService", () => {
   });
 
   describe("parse", () => {
+    it("should use fast path for valid JSON", () => {
+      const raw = JSON.stringify({ title: "Test", detectedLevel: "B1" });
+      const result = JsonParserService.parse<{
+        title: string;
+        detectedLevel: string;
+      }>(raw, "analysis");
+      expect(result).toEqual({ title: "Test", detectedLevel: "B1" });
+    });
+
     it("should parse and repair complex malformed JSON", () => {
       const malformed = `
         \`\`\`json

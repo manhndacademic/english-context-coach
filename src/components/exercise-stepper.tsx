@@ -66,9 +66,11 @@ const DEFAULT_CORRECTION_ITEMS: any[] = [];
 export function ExerciseStepper({
   practices,
   correctionItems = DEFAULT_CORRECTION_ITEMS,
+  dueCount,
 }: {
   practices: ExercisePracticeData[];
   correctionItems?: any[];
+  dueCount?: number;
 }) {
   const items = useMemo(() => {
     return practices.map((p) => new ExercisePractice(p));
@@ -123,6 +125,7 @@ export function ExerciseStepper({
         practices={practices}
         onRetry={handleRetry}
         correctionItems={correctionItems}
+        dueCount={dueCount}
       />
     );
   }

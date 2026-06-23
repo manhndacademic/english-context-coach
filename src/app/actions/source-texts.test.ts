@@ -2,8 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   createSourceTextAction,
   changeLessonContextAction,
+  updateCorrectionPhraseAction,
+  toggleCorrectionRejectAction,
 } from "./source-texts";
-import { getLessonGenerationEngine } from "@/domain/lesson";
+import {
+  getLessonGenerationEngine,
+  getLessonRepository,
+} from "@/domain/lesson";
 import { requireUser } from "@/lib/auth/guards";
 
 // Mock next/navigation
@@ -26,6 +31,10 @@ vi.mock("@/lib/auth/guards", () => ({
 }));
 
 // Mock domain engine
+const mockRepo = {
+  updateCorrectionPhrase: vi.fn(),
+  toggleCorrectionReject: vi.fn(),
+};
 vi.mock("@/domain/lesson", () => {
   const mockEngine = {
     queue: vi.fn(),
@@ -36,7 +45,7 @@ vi.mock("@/domain/lesson", () => {
   };
   return {
     getLessonGenerationEngine: () => mockEngine,
-    getLessonRepository: vi.fn(),
+    getLessonRepository: () => mockRepo,
   };
 });
 
@@ -146,6 +155,78 @@ describe("Source Texts Actions", () => {
 
       expect((result as any).error).toBeDefined();
       expect(getLessonGenerationEngine().changeContext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateCorrectionPhraseAction", () => {
+    it("successfully calls repository updateCorrectionPhrase and revalidates path", async () => {
+      const repository = getLessonRepository();
+      vi.mocked(repository.updateCorrectionPhrase).mockResolvedValue({
+        ok: true,
+      });
+
+      const result = await updateCorrectionPhraseAction(null, {
+        lessonId: "12345678-1234-1234-1234-1234567890ab",
+        correctionItemId: "87654321-4321-4321-4321-210987654321",
+        newPhrase: "improved phrase",
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(repository.updateCorrectionPhrase).toHaveBeenCalledWith(
+        mockUser.id,
+        "12345678-1234-1234-1234-1234567890ab",
+        "87654321-4321-4321-4321-210987654321",
+        "improved phrase"
+      );
+    });
+
+    it("fails validation when parameters are invalid", async () => {
+      const result = await updateCorrectionPhraseAction(null, {
+        lessonId: "invalid-uuid",
+        correctionItemId: "87654321-4321-4321-4321-210987654321",
+        newPhrase: "",
+      });
+
+      expect((result as any).error).toBeDefined();
+      expect(
+        getLessonRepository().updateCorrectionPhrase
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("toggleCorrectionRejectAction", () => {
+    it("successfully calls repository toggleCorrectionReject and revalidates path", async () => {
+      const repository = getLessonRepository();
+      vi.mocked(repository.toggleCorrectionReject).mockResolvedValue({
+        ok: true,
+      });
+
+      const result = await toggleCorrectionRejectAction(null, {
+        lessonId: "12345678-1234-1234-1234-1234567890ab",
+        correctionItemId: "87654321-4321-4321-4321-210987654321",
+        isRejected: true,
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(repository.toggleCorrectionReject).toHaveBeenCalledWith(
+        mockUser.id,
+        "12345678-1234-1234-1234-1234567890ab",
+        "87654321-4321-4321-4321-210987654321",
+        true
+      );
+    });
+
+    it("fails validation when parameters are invalid", async () => {
+      const result = await toggleCorrectionRejectAction(null, {
+        lessonId: "invalid-uuid",
+        correctionItemId: "87654321-4321-4321-4321-210987654321",
+        isRejected: true,
+      });
+
+      expect((result as any).error).toBeDefined();
+      expect(
+        getLessonRepository().toggleCorrectionReject
+      ).not.toHaveBeenCalled();
     });
   });
 });
