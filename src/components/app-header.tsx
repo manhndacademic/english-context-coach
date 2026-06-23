@@ -114,12 +114,6 @@ export function AppHeader({
               Ôn tập
             </Link>
             <Link
-              href="/phrase-practice"
-              className="border-0 bg-transparent text-muted text-xs sm:text-sm font-semibold p-1.5 px-2.5 sm:p-2 sm:px-3 rounded-md transition-all hover:text-text hover:bg-surface-strong cursor-pointer"
-            >
-              Luyện cụm từ
-            </Link>
-            <Link
               href="/history"
               className="border-0 bg-transparent text-muted text-xs sm:text-sm font-semibold p-1.5 px-2.5 sm:p-2 sm:px-3 rounded-md transition-all hover:text-text hover:bg-surface-strong cursor-pointer"
             >

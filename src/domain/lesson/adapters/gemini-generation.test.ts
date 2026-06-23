@@ -66,4 +66,49 @@ describe("GeminiGenerationEngine - generateWritingCoachAnalysis", () => {
       "Trong email trang trọng, check the status lịch sự hơn."
     );
   });
+
+  it("should fall back to generateAnalysis if suggestedText is identical to draftText", async () => {
+    const mockResponse = {
+      title: "Lesson Title",
+      documentType: "email",
+      formality: "formal",
+      suggestedText: "I am writing to check the status.",
+      detectedLevel: "B2",
+      summaryVi: "Tóm tắt",
+      naturalTranslationVi: "Dịch tự nhiên",
+      contextExplanationVi: "Giải thích ngữ cảnh",
+      toneAnalysisVi: "Phân tích giọng điệu",
+      corrections: [],
+    };
+
+    const mockAnalysisResponse = {
+      title: "Clean Text Lesson",
+      textType: "email",
+      inputMode: "understand_and_practice",
+      detectedLevel: "B2",
+      summaryVi: "Tóm tắt sạch",
+      naturalTranslationVi: "Dịch tự nhiên sạch",
+      contextExplanationVi: "Giải thích sạch",
+      sentenceBreakdowns: [],
+      keyPhrases: [],
+      lessonFocuses: [],
+    };
+
+    const mockLlm = {
+      generateJson: vi
+        .fn()
+        .mockResolvedValueOnce(mockResponse)
+        .mockResolvedValueOnce(mockAnalysisResponse),
+      generateText: vi.fn(),
+    } as unknown as LLMProvider;
+
+    const engine = new GeminiGenerationEngine(mockLlm, "user-1", "lesson-1");
+    const result = await engine.generateWritingCoachAnalysis(
+      "I am writing to check the status."
+    );
+
+    expect(mockLlm.generateJson).toHaveBeenCalledTimes(2);
+    expect(result.title).toBe("Clean Text Lesson");
+    expect(result.inputMode).toBe("understand_and_practice");
+  });
 });

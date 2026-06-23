@@ -2,11 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import {
   createSourceTextAction,
   type SourceTextActionState,
 } from "@/app/actions/source-texts";
+import { generateAiTemplateAction } from "@/app/actions/ai-template";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Sparkles, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const RichTextEditor = dynamic(
@@ -19,68 +21,21 @@ const RichTextEditor = dynamic(
   }
 );
 
-function getPlainTextFromJSONClient(node: any): string {
-  if (!node) return "";
-  if (node.type === "text") {
-    return node.text || "";
-  }
-  if (node.content && Array.isArray(node.content)) {
-    const isBlockContainer =
-      node.type === "doc" ||
-      node.type === "bulletList" ||
-      node.type === "orderedList";
-    return node.content
-      .map(getPlainTextFromJSONClient)
-      .join(isBlockContainer ? "\n" : "");
-  }
-  return "";
-}
-
-function getPlainTextLength(value: string): number {
-  if (!value) return 0;
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object" && parsed.type === "doc") {
-      return getPlainTextFromJSONClient(parsed).trim().length;
-    }
-  } catch {
-    // Ignore JSON parse error, treat content as plain text
-  }
-  return value.trim().length;
-}
-
-const TEMPLATES = [
-  {
-    label: "💬 Câu tiếng Anh mẫu (Hiểu nghĩa & ngữ cảnh)",
-    draft:
-      "Could you take a look at the PR when you get a chance? We need to push back the release date if there are any blocker bugs.",
-    corrected: "",
-  },
-  {
-    label: "📝 Bản nháp & Bản sửa mẫu (Học từ sửa lỗi)",
-    draft:
-      "Yesterday I go to office and my manager say we must make a plan for draw up new feature.",
-    corrected:
-      "Yesterday I went to the office and my manager said we must make a plan to draw up the new feature.",
-  },
-];
-
 export function SourceTextForm() {
   const [state, action, pending] = useActionState<
     SourceTextActionState,
     FormData
   >(createSourceTextAction, {});
 
+  const [activeTab, setActiveTab] = useState<"write" | "read">("write");
+
+  // State for Write Tab (Mistakes flow)
   const [draftValue, setDraftValue] = useState("");
-  const [correctedValue, setCorrectedValue] = useState("");
-  const [showCorrected, setShowCorrected] = useState(false);
 
-  const showStep2 = draftValue.trim().length > 0 && showCorrected;
-  const isDiffMode = showStep2 && correctedValue.trim().length > 0;
+  // State for Read Tab (Standard text flow)
+  const [standardValue, setStandardValue] = useState("");
 
-  const mainLength = getPlainTextLength(
-    isDiffMode ? correctedValue : draftValue
-  );
+  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
 
   const handlePasteDraft = async () => {
     try {
@@ -95,16 +50,37 @@ export function SourceTextForm() {
     }
   };
 
-  const handlePasteCorrected = async () => {
+  const handlePasteStandard = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        setCorrectedValue(text);
+        setStandardValue(text);
       }
     } catch {
       toast.error(
         "Không thể tự động đọc clipboard. Bạn vui lòng dán thủ công bằng tổ hợp phím Ctrl+V / Cmd+V."
       );
+    }
+  };
+
+  const handleGenerateTemplate = async () => {
+    setIsGeneratingTemplate(true);
+    try {
+      const result = await generateAiTemplateAction({ type: activeTab });
+      if (result && "error" in result && result.error) {
+        toast.error("Không thể sinh mẫu: " + result.error);
+      } else if (result && result.success && result.text) {
+        if (activeTab === "write") {
+          setDraftValue(result.text);
+        } else {
+          setStandardValue(result.text);
+        }
+        toast.success("Đã sinh mẫu tiếng Anh bằng AI!");
+      }
+    } catch (err: any) {
+      toast.error("Đã xảy ra lỗi: " + err.message);
+    } finally {
+      setIsGeneratingTemplate(false);
     }
   };
 
@@ -114,127 +90,129 @@ export function SourceTextForm() {
       <input
         type="hidden"
         name="content"
-        value={isDiffMode ? correctedValue : draftValue}
+        value={activeTab === "read" ? standardValue : draftValue}
       />
       <input
         type="hidden"
         name="draftContent"
-        value={isDiffMode ? draftValue : ""}
+        value={activeTab === "read" ? "" : draftValue}
       />
       <input
         type="hidden"
         name="inputMode"
-        value={isDiffMode ? "diff" : "write"}
+        value={activeTab === "read" ? "understand_and_practice" : "write"}
       />
 
-      {/* Step 1: Original / Draft Text */}
-      <div className="grid gap-2 text-left text-sm font-semibold text-text">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <span>1. Nhập văn bản tiếng Anh của bạn (Bản gốc / Bản nháp)</span>
-          <button
-            type="button"
-            onClick={handlePasteDraft}
-            className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
-          >
-            📋 Dán từ Clipboard
-          </button>
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as "write" | "read")}
+        className="w-full"
+      >
+        <div className="flex justify-center sm:justify-start mb-2">
+          <TabsList>
+            <TabsTrigger value="write">
+              ✍️ Sửa bài viết của tôi (Luyện viết)
+            </TabsTrigger>
+            <TabsTrigger value="read">
+              📖 Đọc hiểu tài liệu (Luyện đọc)
+            </TabsTrigger>
+          </TabsList>
         </div>
-        <RichTextEditor
-          value={draftValue}
-          onChange={setDraftValue}
-          placeholder="Dán câu hoặc đoạn văn bản tiếng Anh của bạn viết, hoặc đoạn văn bạn muốn hiểu nghĩa..."
-        />
 
-        {/* Quick Templates */}
-        {!showStep2 && (
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="text-xs text-muted font-normal">
-              Thử mẫu nhanh:
-            </span>
-            {TEMPLATES.map((tmpl) => (
-              <button
-                key={tmpl.label}
-                type="button"
-                onClick={() => {
-                  setDraftValue(tmpl.draft);
-                  setCorrectedValue(tmpl.corrected);
-                  setShowCorrected(!!tmpl.corrected);
-                }}
-                className="text-xs bg-surface border border-border text-text hover:bg-surface-strong px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm select-none"
-              >
-                {tmpl.label}
-              </button>
-            ))}
+        {/* Tab 1: Write & Improve (Learn from mistakes) */}
+        <TabsContent value="write" className="grid gap-4.5 outline-none">
+          <div className="grid gap-2 text-left text-sm font-semibold text-text">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span>Nhập văn bản tiếng Anh bạn tự viết (Bản nháp)</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateTemplate}
+                  disabled={isGeneratingTemplate}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold bg-accent/5 hover:bg-accent/10 text-accent border border-accent/20 px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none disabled:opacity-50"
+                >
+                  {isGeneratingTemplate ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={13} />
+                  )}
+                  <span>✨ Gợi ý mẫu bằng AI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePasteDraft}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
+                >
+                  📋 Dán từ Clipboard
+                </button>
+              </div>
+            </div>
+            <RichTextEditor
+              value={draftValue}
+              onChange={setDraftValue}
+              placeholder="Dán câu hoặc bài nháp tiếng Anh của bạn tại đây để AI chữa lỗi diễn đạt..."
+            />
           </div>
-        )}
+        </TabsContent>
 
-        {draftValue.trim().length > 0 && (
-          <div className="flex justify-start mt-3">
-            <button
-              type="button"
-              onClick={() => setShowCorrected(!showCorrected)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:text-accent-hover transition-all cursor-pointer select-none bg-accent/5 px-2.5 py-1.5 rounded border border-accent/20 hover:bg-accent/10"
-            >
-              {showCorrected
-                ? "✨ Bỏ bản đã sửa (Chế độ tự động cải thiện)"
-                : "✨ Tôi đã có bản sửa (Chế độ so sánh đối chiếu)"}
-            </button>
+        {/* Tab 2: Read & Understand (Learn from standard text) */}
+        <TabsContent value="read" className="grid gap-4.5 outline-none">
+          <div className="grid gap-2 text-left text-sm font-semibold text-text">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span>
+                Nhập văn bản tiếng Anh chuẩn bạn cần đọc hiểu (email, tài liệu,
+                chat...)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateTemplate}
+                  disabled={isGeneratingTemplate}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold bg-accent/5 hover:bg-accent/10 text-accent border border-accent/20 px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none disabled:opacity-50"
+                >
+                  {isGeneratingTemplate ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={13} />
+                  )}
+                  <span>✨ Gợi ý mẫu bằng AI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePasteStandard}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
+                >
+                  📋 Dán từ Clipboard
+                </button>
+              </div>
+            </div>
+            <RichTextEditor
+              value={standardValue}
+              onChange={setStandardValue}
+              placeholder="Dán email từ khách hàng, tài liệu công nghệ, tin nhắn của đồng nghiệp bản xứ..."
+            />
           </div>
-        )}
-      </div>
-
-      {/* Step 2: Optional Corrected Text */}
-      {showStep2 && (
-        <div className="grid gap-2 text-left text-sm font-semibold text-text border-t border-border/60 pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-accent font-bold">
-              ✨ Bạn có bản đã sửa (Corrected Version) của văn bản trên? (Tùy
-              chọn)
-            </span>
-            <button
-              type="button"
-              onClick={handlePasteCorrected}
-              className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface-strong hover:bg-border text-text border border-border px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm select-none"
-            >
-              📋 Dán từ Clipboard
-            </button>
-          </div>
-          <p className="text-xs text-muted font-normal -mt-1">
-            Dán bản đã được sửa bởi AI (ChatGPT, Claude...) hoặc đồng nghiệp để
-            học từ các điểm khác biệt. Nếu không dán, app sẽ chạy chế độ
-            dịch/hiểu thông thường.
-          </p>
-          <RichTextEditor
-            value={correctedValue}
-            onChange={setCorrectedValue}
-            placeholder="Dán bản tiếng Anh đã được sửa tại đây (Ví dụ: 'Yesterday I went to the office...')"
-          />
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
 
       {/* Submit Section */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-2 border-t border-border pt-4">
         <button
           className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
           disabled={
             pending ||
-            draftValue.trim().length === 0 ||
-            mainLength > SOURCE_TEXT_MAX_LENGTH
+            isGeneratingTemplate ||
+            (activeTab === "write" && draftValue.trim().length === 0) ||
+            (activeTab === "read" && standardValue.trim().length === 0)
           }
           type="submit"
         >
           {pending
             ? "Đang xếp hàng xử lý..."
-            : isDiffMode
-              ? "So sánh lỗi sai & bắt đầu học"
-              : "Phân tích & cải thiện"}
+            : activeTab === "read"
+              ? "Dịch nghĩa & giải thích ngữ cảnh"
+              : "Phân tích & sửa bài viết"}
         </button>
-        <span
-          className={`text-xs ${mainLength > SOURCE_TEXT_MAX_LENGTH ? "text-danger font-bold" : "text-muted"}`}
-        >
-          {mainLength.toLocaleString()} /{" "}
-          {SOURCE_TEXT_MAX_LENGTH.toLocaleString()} ký tự
-        </span>
       </div>
 
       {state.error ? (

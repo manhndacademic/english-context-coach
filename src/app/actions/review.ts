@@ -79,7 +79,6 @@ export const retryPhrasePracticePromptGenerationAction = validatedAction(
     await notifyJobQueued();
 
     revalidatePath("/dashboard");
-    revalidatePath("/phrase-practice");
   }
 );
 

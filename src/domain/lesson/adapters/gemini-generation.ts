@@ -138,23 +138,14 @@ export class GeminiGenerationEngine implements GenerationEngine {
     const rawPairs = extractDiffPairs(diffs);
 
     if (rawPairs.length === 0) {
-      return {
-        title: result.title || "Bài học sửa lỗi",
-        textType: result.documentType as any,
-        formality: result.formality as any,
-        suggestedText: result.suggestedText,
-        inputMode: "write",
-        detectedLevel: result.detectedLevel as any,
-        summaryVi:
-          "Không phát hiện thấy lỗi sai nào trong văn bản nháp của bạn.",
-        naturalTranslationVi: result.naturalTranslationVi,
-        contextExplanationVi:
-          result.toneAnalysisVi || result.contextExplanationVi,
-        keyPhrases: [],
-        sentenceBreakdowns: [],
-        lessonFocuses: [],
-        correctionItems: [],
-      };
+      return this.generateAnalysis(
+        draftText,
+        onThought,
+        "understand_and_practice",
+        [],
+        activeUserId,
+        activeLessonId
+      );
     }
 
     return {

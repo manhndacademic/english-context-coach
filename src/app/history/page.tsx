@@ -313,7 +313,7 @@ function LearnedMistakesPanel({
 
                         {item.reviewPromptStatus === "succeeded" ? (
                           <Link
-                            href={`/phrase-practice?practiceId=${item.id}`}
+                            href={`/review?patternId=${item.id}`}
                             className="inline-flex items-center gap-1 text-[10px] font-extrabold text-accent-strong no-underline hover:underline bg-accent-light px-2 py-1 rounded"
                           >
                             Luyện tập cụm từ <ArrowRight size={10} />

@@ -1,4 +1,3 @@
-import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import type { TextProcessor } from "@/domain/text";
 import type {
   LessonGenerationResult,
@@ -49,14 +48,6 @@ export async function queue(
       ok: false,
       error: "VALIDATION_FAILED",
       message: "Paste some English text first.",
-    };
-  }
-
-  if (normalized.length > SOURCE_TEXT_MAX_LENGTH) {
-    return {
-      ok: false,
-      error: "VALIDATION_FAILED",
-      message: `Source text must be ${SOURCE_TEXT_MAX_LENGTH.toLocaleString()} characters or less.`,
     };
   }
 
