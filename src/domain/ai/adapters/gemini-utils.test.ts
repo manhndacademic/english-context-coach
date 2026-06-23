@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { verifyGeminiApiKey, extractJson } from "./gemini-utils";
+import {
+  verifyGeminiApiKey,
+  extractJson,
+  inlineRefs,
+  cleanSchemaForGemini,
+  isInvalidKeyError,
+} from "./gemini-utils";
 
 // Mock GoogleGenAI
 vi.mock("@google/genai", () => {
@@ -92,5 +98,96 @@ describe("extractJson", () => {
       score: 90,
       feedbackVi: 'Cấu trúc "{" và "}" là bắt buộc',
     });
+  });
+});
+
+describe("inlineRefs", () => {
+  it("resolves and inlines relative internal $ref paths", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        detectedLevel: {
+          type: "string",
+          enum: ["A2", "B1", "B2"],
+        },
+        difficulty: {
+          $ref: "#/properties/detectedLevel",
+        },
+      },
+    };
+
+    const resolved = inlineRefs(schema);
+    expect(resolved.properties.difficulty).toEqual({
+      type: "string",
+      enum: ["A2", "B1", "B2"],
+    });
+  });
+});
+
+describe("cleanSchemaForGemini", () => {
+  it("removes forbidden fields and converts const to enum", () => {
+    const schema = {
+      $schema: "http://json-schema.org/draft-07/schema#",
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          minLength: 1,
+          maxLength: 80,
+        },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              kind: {
+                type: "string",
+                const: "grammar",
+              },
+            },
+          },
+          minItems: 1,
+          maxItems: 5,
+        },
+      },
+      additionalProperties: false,
+    };
+
+    const cleaned = cleanSchemaForGemini(schema);
+    expect(cleaned).toEqual({
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+        },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              kind: {
+                type: "string",
+                enum: ["grammar"],
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+});
+
+describe("isInvalidKeyError", () => {
+  it("returns true for actual invalid key errors", () => {
+    const err = { message: "API key not valid", status: 400 };
+    expect(isInvalidKeyError(err)).toBe(true);
+  });
+
+  it("returns false for request parameter invalid argument errors", () => {
+    const err1 = {
+      message: "Request contains an invalid argument.",
+      status: 400,
+    };
+    expect(isInvalidKeyError(err1)).toBe(false);
   });
 });

@@ -10,6 +10,23 @@ vi.mock("@/lib/crypto", () => ({
   hashCanonicalPayload: (payload: any) => JSON.stringify(payload),
 }));
 
+export const mockGenerateContent = vi.fn();
+
+vi.mock("@google/genai", () => {
+  return {
+    GoogleGenAI: vi.fn().mockImplementation(() => {
+      return {
+        models: {
+          generateContent: mockGenerateContent,
+        },
+      };
+    }),
+    ThinkingLevel: {
+      MINIMAL: "MINIMAL",
+    },
+  };
+});
+
 class MockApiKeyRepository implements ApiKeyRepository {
   systemKeys: Array<{
     id: string;
@@ -365,5 +382,27 @@ describe("GeminiLLMProvider Resiliency", () => {
     expect(calls[1].apiKey).toBe("k-1"); // Reuse key-1
     expect(customPool.isKeyModelCooldown("key-1", "model-fast-1")).toBe(true);
     expect(customPool.isKeyModelCooldown("key-1", "model-fast-2")).toBe(false);
+  });
+
+  it("Test 7: cleans responseJsonSchema before sending to Gemini API", async () => {
+    keyRepo.addKey({ key: "k-1", id: "key-1", isUserKey: false });
+    const provider = new GeminiLLMProvider(keyRepo, requestRecorder);
+
+    mockGenerateContent.mockClear();
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ score: 95, feedbackVi: "Tốt" }),
+    });
+
+    await provider.generateJson({
+      userId: "u-1",
+      prompt: testPrompt,
+    });
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const callArgs = mockGenerateContent.mock.calls[0][0];
+    const schema = callArgs.config.responseJsonSchema;
+
+    expect(schema.$schema).toBeUndefined();
+    expect(schema.additionalProperties).toBeUndefined();
   });
 });

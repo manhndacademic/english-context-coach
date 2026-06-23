@@ -12,7 +12,13 @@ import type {
 import { DrizzleAiRequestRecorder } from "./ai-request-recorder";
 import { hashCanonicalPayload } from "@/lib/crypto";
 import { ApiRotationPool, LlmValidationError } from "./api-rotation-pool";
-import { getGeminiThinkingLevel, AiError, estimateCost } from "./gemini-utils";
+import {
+  getGeminiThinkingLevel,
+  AiError,
+  estimateCost,
+  inlineRefs,
+  cleanSchemaForGemini,
+} from "./gemini-utils";
 import { JsonParserService } from "./json-parser-service";
 
 const logger = getLogger("d.m.ai.GeminiLLMProvider", "ai-provider");
@@ -138,7 +144,7 @@ export class GeminiLLMProvider implements LLMProvider {
       ...purposeConfig,
       responseMimeType: "application/json",
       responseJsonSchema: options.zodSchema
-        ? zodToJsonSchema(options.zodSchema)
+        ? cleanSchemaForGemini(inlineRefs(zodToJsonSchema(options.zodSchema)))
         : undefined,
       thinkingConfig: options.onThought
         ? {

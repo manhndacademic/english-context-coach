@@ -64,6 +64,12 @@ export function isRateLimitError(err: any): boolean {
 
 export function isInvalidKeyError(err: any): boolean {
   const msg = String(err.message || "").toUpperCase();
+  if (
+    msg.includes("REQUEST CONTAINS AN INVALID ARGUMENT") ||
+    msg.includes("REQUEST CONTAINS")
+  ) {
+    return false;
+  }
   const status = err.status || err.statusCode;
   return (
     status === 400 ||
@@ -100,4 +106,68 @@ export async function verifyGeminiApiKey(
     }
     return `Lỗi xác thực Gemini: ${msg}`;
   }
+}
+
+export function inlineRefs(schema: any, root: any = schema): any {
+  if (schema === null || typeof schema !== "object") {
+    return schema;
+  }
+
+  if (Array.isArray(schema)) {
+    return schema.map((item) => inlineRefs(item, root));
+  }
+
+  if (
+    schema.$ref &&
+    typeof schema.$ref === "string" &&
+    schema.$ref.startsWith("#/")
+  ) {
+    const parts = schema.$ref.substring(2).split("/");
+    let target = root;
+    for (const part of parts) {
+      if (target && typeof target === "object" && part in target) {
+        target = target[part];
+      } else {
+        target = undefined;
+        break;
+      }
+    }
+    if (target !== undefined) {
+      return inlineRefs(target, root);
+    }
+  }
+
+  const resolved: any = {};
+  for (const key of Object.keys(schema)) {
+    if (key === "$ref") continue;
+    resolved[key] = inlineRefs(schema[key], root);
+  }
+  return resolved;
+}
+
+export function cleanSchemaForGemini(schema: any): any {
+  if (schema === null || typeof schema !== "object") {
+    return schema;
+  }
+
+  const cleaned: any = Array.isArray(schema) ? [] : {};
+  for (const key of Object.keys(schema)) {
+    if (
+      key === "$schema" ||
+      key === "minLength" ||
+      key === "maxLength" ||
+      key === "minItems" ||
+      key === "maxItems" ||
+      key === "additionalProperties"
+    ) {
+      continue;
+    }
+    const value = schema[key];
+    if (key === "const") {
+      cleaned["enum"] = [value];
+      continue;
+    }
+    cleaned[key] = cleanSchemaForGemini(value);
+  }
+  return cleaned;
 }
