@@ -1,11 +1,42 @@
-import type { LlmProvider } from "../../application/ports/llm-provider";
-import * as requestRecorderModule from "../logging/record-ai-request";
-import { createApiRotationPool } from "./api-rotation-pool";
-import { createGenerateJsonUseCase } from "../../application/use-cases/generate-json";
+import { z } from "zod";
+import type { AiPurpose } from "@/domain/types";
+import type { ApiKeyRepository } from "../../application/ports/api-key-repository";
+import type { AiRequestRecorder } from "../../application/ports/ai-request-recorder";
 import type {
-  GeminiLlmProviderOptions,
+  LlmProvider,
   GenerateJsonOptions,
-} from "../../domain/types";
+} from "../../application/ports/llm-provider";
+import * as requestRecorderModule from "../logging/record-ai-request";
+import { createApiRotationPool, ApiRotationPool } from "./api-rotation-pool";
+import { createGenerateJsonUseCase } from "../../application/use-cases/generate-json";
+
+export interface CallRawOptions {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  purpose: AiPurpose;
+  zodSchema?: z.ZodTypeAny;
+  onThought?: (text: string) => Promise<void>;
+}
+
+export interface CallRawResult {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export type CallRawOverrideFn = (
+  options: CallRawOptions
+) => Promise<CallRawResult>;
+
+export interface GeminiLlmProviderOptions {
+  keyRepo?: ApiKeyRepository;
+  requestRecorder?: AiRequestRecorder;
+  apiRotationPool?: ApiRotationPool;
+  callRawOverride?: CallRawOverrideFn;
+}
+
+export type GeminiLLMProviderOptions = GeminiLlmProviderOptions;
 
 export { generationConfigForPurpose } from "./helpers/gemini-config";
 export { parseApiKeys } from "./api-rotation-pool";

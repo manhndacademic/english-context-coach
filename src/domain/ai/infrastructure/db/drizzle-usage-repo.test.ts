@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { DrizzleUsageRepository } from "./drizzle-usage-repo";
+import { DrizzleUsageRepository } from "./drizzle-usage-repository";
 
 function makeSchemaProxy(): any {
   const cache = new Map<string | symbol, any>();

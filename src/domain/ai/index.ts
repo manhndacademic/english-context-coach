@@ -6,8 +6,8 @@ import {
 } from "./infrastructure/llm/api-rotation-pool";
 import { createGeminiLlmProvider } from "./infrastructure/llm/gemini-llm-provider";
 
-import { DrizzleUserApiKeyRepository } from "./infrastructure/db/drizzle-user-api-key-repo";
-import { DrizzleUsageRepository } from "./infrastructure/db/drizzle-usage-repo";
+import { DrizzleUserApiKeyRepository } from "./infrastructure/db/drizzle-user-api-key-repository";
+import { DrizzleUsageRepository } from "./infrastructure/db/drizzle-usage-repository";
 
 import { createAddUserApiKeyUseCase } from "./application/use-cases/add-user-api-key";
 import { createDeleteUserApiKeyUseCase } from "./application/use-cases/delete-user-api-key";

@@ -2,7 +2,7 @@ import { ThinkingLevel } from "@google/genai";
 import { addMilliseconds, addMinutes, isAfter, isBefore } from "date-fns";
 import { getLogger } from "@/lib/logger";
 import { isRateLimitError, isInvalidKeyError, AiError } from "./gemini-utils";
-import type { AiModelKind } from "@/domain/types";
+import type { AiModelKind, AiPurpose } from "@/domain/types";
 import {
   LlmValidationError,
   type ModelCooldown,
@@ -15,12 +15,42 @@ import {
 } from "./helpers/api-pool-types";
 import { resolveApiKey } from "./helpers/api-key-resolver/resolve-api-key";
 import { DrizzleApiKeyRepository } from "../db/legacy-api-key-repository";
-import type {
-  ApiRotationPoolOptions,
-  RotationOptions,
-  RotationResult,
-  ModelRotationOptions,
-} from "../../domain/types";
+
+export interface ApiRotationPoolOptions {
+  keyRepo?: any;
+  analysisModels?: string[];
+  fastModels?: string[];
+}
+
+export interface RotationExecutionContext {
+  key: string;
+  model: string;
+  keyId?: string;
+  isUserKey: boolean;
+}
+
+export type RotationExecuteFn<T> = (
+  context: RotationExecutionContext
+) => Promise<T>;
+
+export interface RotationOptions<T> {
+  userId?: string;
+  modelKind: AiModelKind;
+  purpose: AiPurpose;
+  hasSchema?: boolean;
+  execute: RotationExecuteFn<T>;
+}
+
+export interface RotationResult<T> {
+  result: T;
+  resolvedModel: string;
+}
+
+export interface ModelRotationOptions<T> {
+  userId?: string;
+  purpose: AiPurpose;
+  execute: RotationExecuteFn<T>;
+}
 
 const apiKeyRepo = new DrizzleApiKeyRepository();
 

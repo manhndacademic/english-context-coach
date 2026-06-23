@@ -2,7 +2,7 @@ import { getLogger } from "@/lib/logger";
 import { LlmValidationError } from "./api-pool-types";
 import { JsonParserService } from "../json-parser-service";
 import type { Prompt } from "../../../application/ports/prompt";
-import type { CallRawOptions, CallRawResult } from "../../../domain/types";
+import type { CallRawOptions, CallRawResult } from "../gemini-llm-provider";
 
 const logger = getLogger("d.m.ai.GeminiRepair", "ai-provider");
 

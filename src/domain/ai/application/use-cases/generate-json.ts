@@ -1,9 +1,9 @@
 import type { AiRequestStatus } from "@/domain/types";
+import type { GenerateJsonOptions } from "../ports/llm-provider";
 import type {
-  GenerateJsonOptions,
   CallRawOptions,
   CallRawResult,
-} from "../../domain/types";
+} from "../../infrastructure/llm/gemini-llm-provider";
 import type { Prompt } from "../ports/prompt";
 import type { AiRequestRecorder } from "../ports/ai-request-recorder";
 import type { ApiRotationPool } from "../../infrastructure/llm/api-rotation-pool";

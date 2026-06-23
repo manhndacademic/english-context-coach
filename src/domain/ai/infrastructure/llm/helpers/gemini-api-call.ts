@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getLogger } from "@/lib/logger";
 import { AiError, inlineRefs, cleanSchemaForGemini } from "../gemini-utils";
 import { generationConfigForPurpose } from "./gemini-config";
-import type { CallRawOptions, CallRawResult } from "../../../domain/types";
+import type { CallRawOptions, CallRawResult } from "../gemini-llm-provider";
 
 const logger = getLogger("d.m.ai.geminiApiCall", "ai-provider");
 
