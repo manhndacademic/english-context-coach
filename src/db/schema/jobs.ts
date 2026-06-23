@@ -9,7 +9,8 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
-import { sourceTexts, lessons } from "./lessons";
+import { lessons } from "./lessons";
+import { sourceTexts } from "./source-texts";
 import { jobStatusEnum, generationMilestoneCodeEnum } from "./enums";
 
 export const generationJobs = pgTable(
@@ -34,16 +35,10 @@ export const generationJobs = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    userStatusIdx: index("generation_jobs_user_status_idx").on(
-      table.userId,
-      table.status
-    ),
-    statusIdx: index("generation_jobs_status_idx").on(
-      table.status,
-      table.createdAt
-    ),
-  })
+  (table) => [
+    index("generation_jobs_user_status_idx").on(table.userId, table.status),
+    index("generation_jobs_status_idx").on(table.status, table.createdAt),
+  ]
 );
 
 export const generationMilestones = pgTable(
@@ -60,16 +55,18 @@ export const generationMilestones = pgTable(
     stage: text("stage"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    lessonJobIdx: index("generation_milestones_lesson_job_idx").on(
+  (table) => [
+    index("generation_milestones_lesson_job_idx").on(
       table.lessonId,
       table.generationJobId,
       table.id
     ),
-    jobCodeStageUnique: uniqueIndex(
-      "generation_milestones_job_code_stage_unique"
-    ).on(table.generationJobId, table.code, table.stage),
-  })
+    uniqueIndex("generation_milestones_job_code_stage_unique").on(
+      table.generationJobId,
+      table.code,
+      table.stage
+    ),
+  ]
 );
 
 export const generationThoughts = pgTable(
@@ -86,13 +83,13 @@ export const generationThoughts = pgTable(
     text: text("text").notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    lessonJobIdx: index("generation_thoughts_lesson_job_idx").on(
+  (table) => [
+    index("generation_thoughts_lesson_job_idx").on(
       table.lessonId,
       table.generationJobId,
       table.id
     ),
-  })
+  ]
 );
 
 export type GenerationJob = typeof generationJobs.$inferSelect;

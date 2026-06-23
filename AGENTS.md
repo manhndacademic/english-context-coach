@@ -181,6 +181,47 @@ To ensure high-quality code at all times, every coding agent **MUST** run the fo
 
 ---
 
+## 11. Drizzle ORM Schema Guidelines (Deprecated Object API)
+
+Drizzle ORM has deprecated the object-based syntax for the third argument of `pgTable` (the constraints/indexes callback).
+
+> [!WARNING]
+> The third parameter of `pgTable` is changing and will only accept an array of indexes/constraints instead of an object. Do not wrap the array items inside a key-value object.
+
+- **Incorrect / Deprecated**:
+
+  ```typescript
+  export const users = pgTable(
+    "users",
+    {
+      id: integer(),
+    },
+    (t) => ({
+      idx: index("custom_name").on(t.id),
+    })
+  );
+
+  // Also INCORRECT (causes AST parsing failure in drizzle-kit):
+  (t) => [
+    {
+      idx: index("custom_name").on(t.id),
+    },
+  ];
+  ```
+
+- **Correct / New API**:
+  ```typescript
+  export const users = pgTable(
+    "users",
+    {
+      id: integer(),
+    },
+    (t) => [index("custom_name").on(t.id)]
+  );
+  ```
+
+---
+
 ## Agent skills
 
 ### Issue tracker

@@ -11,7 +11,7 @@ import {
   real,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
-import { keyPhrases } from "./lessons";
+import { keyPhrases } from "./key-phrases";
 import {
   phraseCategoryEnum,
   errorTypeEnum,
@@ -65,18 +65,18 @@ export const mistakePatterns = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    aggregateUnique: uniqueIndex("mistake_patterns_aggregate_unique").on(
+  (table) => [
+    uniqueIndex("mistake_patterns_aggregate_unique").on(
       table.userId,
       table.conceptKey,
       table.errorType
     ),
-    dueIdx: index("mistake_patterns_due_idx").on(
+    index("mistake_patterns_due_idx").on(
       table.userId,
       table.masteryState,
       table.dueAt
     ),
-  })
+  ]
 );
 
 export const phrasePractices = pgTable(
@@ -127,18 +127,18 @@ export const phrasePractices = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    aggregateUnique: uniqueIndex("phrase_practices_aggregate_unique").on(
+  (table) => [
+    uniqueIndex("phrase_practices_aggregate_unique").on(
       table.userId,
       table.conceptKey,
       table.senseKey
     ),
-    dueIdx: index("phrase_practices_due_idx").on(
+    index("phrase_practices_due_idx").on(
       table.userId,
       table.masteryState,
       table.dueAt
     ),
-  })
+  ]
 );
 
 export const reviewAttempts = pgTable(
@@ -157,10 +157,10 @@ export const reviewAttempts = pgTable(
     feedbackVi: text("feedback_vi").notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    userIdx: index("review_attempts_user_idx").on(table.userId),
-    patternIdx: index("review_attempts_pattern_idx").on(table.mistakePatternId),
-  })
+  (table) => [
+    index("review_attempts_user_idx").on(table.userId),
+    index("review_attempts_pattern_idx").on(table.mistakePatternId),
+  ]
 );
 
 export type ReviewAttempt = typeof reviewAttempts.$inferSelect;
@@ -181,12 +181,10 @@ export const phrasePracticeAttempts = pgTable(
     feedbackVi: text("feedback_vi").notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    userIdx: index("phrase_practice_attempts_user_idx").on(table.userId),
-    practiceIdx: index("phrase_practice_attempts_practice_idx").on(
-      table.phrasePracticeId
-    ),
-  })
+  (table) => [
+    index("phrase_practice_attempts_user_idx").on(table.userId),
+    index("phrase_practice_attempts_practice_idx").on(table.phrasePracticeId),
+  ]
 );
 
 export type PhrasePracticeAttempt = typeof phrasePracticeAttempts.$inferSelect;

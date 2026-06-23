@@ -30,15 +30,11 @@ export const userAiApiKeys = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    {
-      userStatusIdx: index("user_ai_api_keys_user_status_idx").on(
-        table.userId,
-        table.status
-      ),
-      userFingerprintUnique: uniqueIndex(
-        "user_ai_api_keys_user_fingerprint_unique"
-      ).on(table.userId, table.keyFingerprint),
-    },
+    index("user_ai_api_keys_user_status_idx").on(table.userId, table.status),
+    uniqueIndex("user_ai_api_keys_user_fingerprint_unique").on(
+      table.userId,
+      table.keyFingerprint
+    ),
   ]
 );
 
@@ -67,10 +63,10 @@ export const aiRequests = pgTable(
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    userIdx: index("ai_requests_user_idx").on(table.userId),
-    lessonIdx: index("ai_requests_lesson_idx").on(table.lessonId),
-  })
+  (table) => [
+    index("ai_requests_user_idx").on(table.userId),
+    index("ai_requests_lesson_idx").on(table.lessonId),
+  ]
 );
 
 export const aiApiKeys = pgTable(
@@ -86,9 +82,7 @@ export const aiApiKeys = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    statusIdx: index("ai_api_keys_status_idx").on(table.status),
-  })
+  (table) => [index("ai_api_keys_status_idx").on(table.status)]
 );
 
 export type UserAiApiKey = typeof userAiApiKeys.$inferSelect;

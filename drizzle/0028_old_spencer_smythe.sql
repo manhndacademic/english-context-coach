@@ -1,0 +1,3 @@
+ALTER TABLE "accounts" ADD CONSTRAINT "accounts_provider_provider_account_id_pk" PRIMARY KEY("provider","provider_account_id");--> statement-breakpoint
+CREATE INDEX "user_ai_api_keys_user_status_idx" ON "user_ai_api_keys" USING btree ("user_id","status");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_ai_api_keys_user_fingerprint_unique" ON "user_ai_api_keys" USING btree ("user_id","key_fingerprint");

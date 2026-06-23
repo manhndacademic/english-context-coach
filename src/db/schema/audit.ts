@@ -25,16 +25,16 @@ export const emailDigestLogs = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => ({
-    userDateUnique: uniqueIndex("email_digest_logs_user_date_unique").on(
+  (table) => [
+    uniqueIndex("email_digest_logs_user_date_unique").on(
       table.userId,
       table.digestDate
     ),
-    dateStatusIdx: index("email_digest_logs_date_status_idx").on(
+    index("email_digest_logs_date_status_idx").on(
       table.digestDate,
       table.status
     ),
-  })
+  ]
 );
 
 export const adminAuditLogs = pgTable("admin_audit_logs", {
