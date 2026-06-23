@@ -322,7 +322,7 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
 - focus_question: Open-ended question about text meaning/tone/structure. Targets a lessonFocus. No choices. AI-graded.
 - trap_choice: Choose natural translation avoiding literal traps. "choices" array must have 1 natural (correct) + 2-3 literal traps (wrong). Graded locally.
 - phrase_production: Write English sentence containing key phrase. No choices. AI-graded.
-- dialogue_completion: Complete B's response in A/B dialogue using key phrase. "promptEn" shows dialogue with B's placeholder. No choices. AI-graded.
+- dialogue_completion: Complete B's response in A/B dialogue using key phrase. "promptEn" must show the dialogue with B's placeholder. ALWAYS separate speakers with a newline (e.g., "A: ...\nB: [Write your reply using 'X']"). No choices. AI-graded.
 - register_shift: Rewrite dry/awkward English sentence using key phrase naturally. No choices. AI-graded.
 - trap_detect: Identify/explain translation trap. Requires "choices" array (3-4 items) for explanation. Graded locally.`,
       `Wording constraints for promptVi:

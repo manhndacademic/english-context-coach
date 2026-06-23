@@ -49,6 +49,20 @@ describe("renderRichText", () => {
       'It isn&#x27;t a problem to use <code class="font-mono text-[0.9em] bg-accent/8 border border-accent/18 text-accent-strong rounded-[4px] px-[5px] py-[1px] font-semibold [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">ROOTED IN</code> here.'
     );
   });
+
+  it("should format inline speaker dialogue labels onto newlines", () => {
+    const node = renderRichText("A: Have you finished? B: Yes, I have.");
+    const html = renderToStaticMarkup(<>{node}</>);
+    expect(html).toBe(
+      "<span>A: Have you finished?</span><br/><span>B: Yes, I have.</span>"
+    );
+  });
+
+  it("should split single string containing newlines with br tags", () => {
+    const node = renderRichText("First line\nSecond line");
+    const html = renderToStaticMarkup(<>{node}</>);
+    expect(html).toBe("<span>First line</span><br/><span>Second line</span>");
+  });
 });
 
 describe("findHighlightRanges", () => {

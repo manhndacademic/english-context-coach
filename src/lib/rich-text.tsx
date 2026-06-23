@@ -8,6 +8,10 @@ import type { KeyPhrase } from "@/domain/lesson";
 export function renderRichText(text: string | null | undefined): ReactNode {
   if (!text) return null;
 
+  // Automatically format dialogue lines if they are inline (e.g. "A: ... B: ...")
+  // We replace spaces before speaker labels (single uppercase letter followed by colon and space) with a newline
+  const processedText = text.replace(/\s+([A-Z]:\s)/g, "\n$1");
+
   // Split by:
   // 1. Markdown backticks: `code`
   // 2. Markdown bold: **bold**
@@ -16,8 +20,22 @@ export function renderRichText(text: string | null | undefined): ReactNode {
   const regex =
     /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|(?<=^|\s)'[\p{L}\s\-_/]{2,}'(?=\s|$|[.,!?;:]))/gu;
 
-  const parts = text.split(regex);
-  if (parts.length === 1) return text;
+  const parts = processedText.split(regex);
+  if (parts.length === 1) {
+    const part = parts[0];
+    if (typeof part === "string" && part.includes("\n")) {
+      const lines = part.split("\n");
+      const nodes: ReactNode[] = [];
+      lines.forEach((line, i) => {
+        if (i > 0) {
+          nodes.push(<br key={`line-br-${i}`} />);
+        }
+        nodes.push(<span key={`line-text-${i}`}>{line}</span>);
+      });
+      return nodes;
+    }
+    return part;
+  }
 
   return parts.map((part, index) => {
     const key = `${part}-${index}`;
@@ -46,6 +64,17 @@ export function renderRichText(text: string | null | undefined): ReactNode {
           {part.slice(1, -1)}
         </code>
       );
+    }
+    if (typeof part === "string" && part.includes("\n")) {
+      const lines = part.split("\n");
+      const nodes: ReactNode[] = [];
+      lines.forEach((line, i) => {
+        if (i > 0) {
+          nodes.push(<br key={`${key}-br-${i}`} />);
+        }
+        nodes.push(<span key={`${key}-line-${i}`}>{line}</span>);
+      });
+      return nodes;
     }
     return part;
   });
