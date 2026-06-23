@@ -314,7 +314,7 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
     }
 
     const promptSections = [
-      `Create ${minCount}-${maxCount} practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. Strict JSON only.`,
+      `Create ${minCount}-${maxCount} practice exercises for Vietnamese learners using the validated key phrases and lesson focuses. You MUST include at least one exercise of type 'focus_question'. Strict JSON only.`,
       `Exercise types:
 - meaning_choice: Multiple-choice on phrase meaning. Requires "choices" array (3-4 items). Graded locally.
 - cloze_phrase: Fill in the blank. "promptEn" must contain "____" (4 underscores) for the missing phrase. Graded locally.
@@ -334,7 +334,7 @@ export class ExercisesPrompt implements Prompt<ExercisesResult> {
 - register_shift: "Viết lại câu dưới đây tự nhiên hơn bằng cách sử dụng cụm \`X\`."
 - natural_translation: "Dịch câu sau sang tiếng Việt tự nhiên."
 - Do not reveal the answer or hint at the correct response in promptVi.`,
-      "Include at least one focus_question. Ensure every key phrase has 1-2 associated exercises (mix passive and active types).",
+      "CRITICAL REQUIREMENT: You MUST include at least one exercise of type 'focus_question' in the 'exercises' array. This exercise must target one of the lessonFocuses provided in the analysis data. Ensure every key phrase has 1-2 associated exercises (mix passive and active types).",
       "Wrap English phrases/terms in markdown backticks (e.g. `unlike`) ONLY when referencing them inside Vietnamese prompts or instructions (promptVi). Do NOT wrap key phrases, vocabulary words, or any words in single quotes ('...') or backticks (`...`) inside generated English sentences (promptEn), dialogue texts, correct answers, or acceptable answers.",
       "JSON shape:",
       JSON.stringify(exercisesJsonShape),
