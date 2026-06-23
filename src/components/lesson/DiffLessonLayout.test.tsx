@@ -114,18 +114,6 @@ describe("DiffLessonLayout", () => {
     );
   });
 
-  it("renders Accept/Reject toggle button on correction card with default state 'Đồng ý sửa'", () => {
-    const html = renderToStaticMarkup(
-      <DiffLessonLayout
-        user={mockUser}
-        lessonData={baseLessonData}
-        now={Date.now()}
-      />
-    );
-
-    expect(html).toContain("Đồng ý sửa");
-  });
-
   it("handles ProseMirror JSON string in draftText.content and renders plain text in Word Diff", () => {
     const jsonContent = JSON.stringify({
       type: "doc",

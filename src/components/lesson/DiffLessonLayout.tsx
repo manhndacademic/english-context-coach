@@ -7,7 +7,6 @@ import { ExercisePanel } from "./ExercisePanel";
 import {
   generateExercisesAction,
   changeLessonContextAction,
-  toggleCorrectionRejectAction,
 } from "@/app/actions/source-texts";
 import { diffWords } from "@/domain/lesson/diff-engine";
 import { getPlainTextFromJSON } from "@/domain/text/processor";
@@ -84,63 +83,11 @@ export function DiffLessonLayout({
     }
   );
 
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(() => {
-    return new Set(
-      correctionItems
-        .filter((item) => item.isRejected)
-        .map((item) => item.id || "")
-    );
-  });
-
   const [pendingAction, setPendingAction] = useState<{
     type: "docType" | "formality";
     value: string;
   } | null>(null);
   const [isPendingActionLoading, setIsPendingActionLoading] = useState(false);
-
-  const toggleReject = async (id: string) => {
-    const nextRejected = !rejectedIds.has(id);
-    setRejectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-
-    try {
-      const result = await toggleCorrectionRejectAction({
-        lessonId: lesson.id,
-        correctionItemId: id,
-        isRejected: nextRejected,
-      });
-      if (result && result.error) {
-        setRejectedIds((prev) => {
-          const next = new Set(prev);
-          if (nextRejected) {
-            next.delete(id);
-          } else {
-            next.add(id);
-          }
-          return next;
-        });
-        toast.error("Không thể lưu trạng thái lỗi: " + result.error);
-      }
-    } catch (err: any) {
-      setRejectedIds((prev) => {
-        const next = new Set(prev);
-        if (nextRejected) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-        return next;
-      });
-      toast.error("Đã xảy ra lỗi: " + err.message);
-    }
-  };
 
   const handleUpdateDocType = (newType: string) => {
     setPendingAction({ type: "docType", value: newType });
@@ -211,8 +158,7 @@ export function DiffLessonLayout({
       (a, b) => a.orderIndex - b.orderIndex
     );
     for (const item of sorted) {
-      const isRejected = rejectedIds.has(item.id || "");
-      const replacement = isRejected ? item.draftPhrase : item.correctedPhrase;
+      const replacement = item.correctedPhrase;
       const index = text.indexOf(item.draftPhrase, currentIndex);
       if (index !== -1) {
         text =
@@ -223,7 +169,7 @@ export function DiffLessonLayout({
       }
     }
     return text;
-  }, [draftContent, correctionItems, rejectedIds]);
+  }, [draftContent, correctionItems]);
 
   const diffs = useMemo(() => {
     return diffWords(draftContent, correctedContent);
@@ -334,16 +280,7 @@ export function DiffLessonLayout({
               </h3>
               {correctionItems.map((item, index) => {
                 const itemKey = item.id || index.toString();
-                const isRejected = rejectedIds.has(itemKey);
-                return (
-                  <CorrectionCard
-                    key={itemKey}
-                    item={item}
-                    lessonId={lesson.id}
-                    isRejected={isRejected}
-                    onToggleReject={toggleReject}
-                  />
-                );
+                return <CorrectionCard key={itemKey} item={item} />;
               })}
             </section>
           </div>
