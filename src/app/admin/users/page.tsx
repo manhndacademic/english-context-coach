@@ -220,7 +220,7 @@ function UserTable({ usersList }: { usersList: any[] }) {
               const isAdmin = u.role === "admin";
               return (
                 <tr key={u.id} className="hover:bg-background/40">
-                  <td className="py-3 pr-4 truncate max-w-[240px]">
+                  <td className="py-3 pr-4 truncate max-w-60">
                     <div className="font-semibold text-text">
                       {u.name || "Chưa cập nhật tên"}
                     </div>

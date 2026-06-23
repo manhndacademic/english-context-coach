@@ -60,7 +60,7 @@ export function CompletionSummary({
       className={cn(
         "rounded-lg border p-6 flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300",
         isPerfect
-          ? "bg-gradient-to-br from-success-light to-success-light/40 border-success/30"
+          ? "bg-linear-to-br from-success-light to-success-light/40 border-success/30"
           : "bg-surface border-border"
       )}
     >

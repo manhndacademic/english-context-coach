@@ -10,7 +10,7 @@ export default async function RegisterPage() {
 
   return (
     <main className="grid place-items-center min-h-screen bg-background p-6">
-      <section className="w-full max-w-[460px] grid gap-[18px] text-center">
+      <section className="w-full max-w-115 grid gap-4.5 text-center">
         <Link
           href="/"
           className="border-0 bg-transparent text-muted text-sm font-semibold p-2 px-3 rounded-sm transition-all hover:text-text inline-flex items-center gap-1 self-start pl-0"

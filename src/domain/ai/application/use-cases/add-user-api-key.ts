@@ -1,8 +1,8 @@
 import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
+import type { ApiKeyVerifier } from "../ports/api-key-verifier";
 import type { AddUserApiKeyInput } from "../../domain/types";
 import type { ActionResult } from "@/domain/types";
 import { encryptApiKey, sha256 } from "@/lib/crypto";
-import { verifyGeminiApiKey } from "../../infrastructure/llm/gemini-utils";
 
 export const MAX_USER_KEYS = 10;
 
@@ -11,7 +11,10 @@ export interface AddUserApiKeyUseCase {
 }
 
 export class AddUserApiKeyService implements AddUserApiKeyUseCase {
-  constructor(private readonly repo: UserApiKeyRepository) {}
+  constructor(
+    private readonly repo: UserApiKeyRepository,
+    private readonly verifier: ApiKeyVerifier
+  ) {}
 
   async execute(
     userId: string,
@@ -31,7 +34,7 @@ export class AddUserApiKeyService implements AddUserApiKeyUseCase {
       return { success: false, error: "Key này đã tồn tại." };
     }
 
-    const verifyError = await verifyGeminiApiKey(data.apiKey);
+    const verifyError = await this.verifier.verify(data.apiKey);
     if (verifyError) {
       return {
         success: false,

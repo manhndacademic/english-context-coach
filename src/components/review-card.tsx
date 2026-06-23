@@ -192,7 +192,7 @@ export function ReviewCard({
             : renderRichText(promptVi)}
         </p>
 
-        <blockquote className="font-serif text-lg sm:text-xl font-bold text-accent-strong bg-gradient-to-br from-surface to-surface-strong border border-border border-l-4 border-l-accent p-5 rounded-r-xl my-1 leading-relaxed italic shadow-inner">
+        <blockquote className="font-serif text-lg sm:text-xl font-bold text-accent-strong bg-linear-to-br from-surface to-surface-strong border border-border border-l-4 border-l-accent p-5 rounded-r-xl my-1 leading-relaxed italic shadow-inner">
           {isRecent
             ? renderRichText(pattern.draftPhrase || "")
             : renderRichText(promptEn)}
@@ -286,7 +286,7 @@ export function ReviewCard({
               placeholder="Viết câu dịch tiếng Việt tự nhiên của bạn ở đây..."
               required
               value={answer}
-              className="w-full border border-border rounded-xl bg-background text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 min-h-[110px] resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+              className="w-full border border-border rounded-xl bg-background text-text px-4 py-3 outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent-light/40 mt-1 min-h-27.5 resize-vertical leading-relaxed disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
             />
           </div>
         )}

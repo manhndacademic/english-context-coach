@@ -135,7 +135,7 @@ export default async function AdminAuditLogsPage({
                       <td className="py-3 pl-4 text-right">
                         {log.metadata &&
                         Object.keys(log.metadata).length > 0 ? (
-                          <pre className="inline-block text-[10px] bg-background/60 text-muted p-1 px-2 rounded max-w-[200px] truncate overflow-x-auto text-left font-mono">
+                          <pre className="inline-block text-[10px] bg-background/60 text-muted p-1 px-2 rounded max-w-50 truncate overflow-x-auto text-left font-mono">
                             {JSON.stringify(log.metadata)}
                           </pre>
                         ) : (

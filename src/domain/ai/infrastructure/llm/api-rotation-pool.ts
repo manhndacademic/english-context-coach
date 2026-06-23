@@ -52,8 +52,6 @@ export interface ModelRotationOptions<T> {
   execute: RotationExecuteFn<T>;
 }
 
-const apiKeyRepo = new DrizzleApiKeyRepository();
-
 const logger = getLogger("d.m.ai.ApiRotationPool", "ai-provider");
 
 export {
@@ -200,7 +198,7 @@ export function getEnvKeysStatusSummary(options: {
 }
 
 export function createApiRotationPool(options: ApiRotationPoolOptions = {}) {
-  const repo = options.keyRepo ?? apiKeyRepo;
+  const repo = options.keyRepo ?? new DrizzleApiKeyRepository();
   const analysisModels =
     options.analysisModels ??
     parseModelList(process.env.GEMINI_ANALYSIS_MODELS, DEFAULT_ANALYSIS_MODELS);
@@ -561,10 +559,8 @@ export function createApiRotationPool(options: ApiRotationPoolOptions = {}) {
     isKeyModelCooldown,
     getEnvKeysStatus,
     executeWithRotation,
-    executeWithModelRotation,
     markKeyRateLimited,
     markKeyInvalid,
-    restoreKeyToActive,
   };
 }
 export type ApiRotationPool = ReturnType<typeof createApiRotationPool>;

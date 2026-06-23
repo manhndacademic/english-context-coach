@@ -5,6 +5,7 @@ import { DisableUserApiKeyService } from "./disable-user-api-key";
 import { EnableUserApiKeyService } from "./enable-user-api-key";
 import { ReverifyUserApiKeyService } from "./reverify-user-api-key";
 import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
+import type { ApiKeyVerifier } from "../ports/api-key-verifier";
 
 vi.mock("@/lib/crypto", () => ({
   encryptApiKey: (key: string) => `enc_${key}`,
@@ -12,13 +13,9 @@ vi.mock("@/lib/crypto", () => ({
   sha256: (str: string) => `hash_${str}`,
 }));
 
-const mockVerifyGeminiApiKey = vi.fn();
-vi.mock("../../infrastructure/llm/gemini-utils", () => ({
-  verifyGeminiApiKey: (key: string) => mockVerifyGeminiApiKey(key),
-}));
-
 describe("User API Key Use Cases", () => {
   let mockRepo: UserApiKeyRepository;
+  let fakeVerifier: ApiKeyVerifier;
   let addUserApiKeyUC: AddUserApiKeyService;
   let deleteUserApiKeyUC: DeleteUserApiKeyService;
   let disableUserApiKeyUC: DisableUserApiKeyService;
@@ -26,7 +23,6 @@ describe("User API Key Use Cases", () => {
   let reverifyUserApiKeyUC: ReverifyUserApiKeyService;
 
   beforeEach(() => {
-    mockVerifyGeminiApiKey.mockReset();
     mockRepo = {
       add: vi.fn(),
       delete: vi.fn(),
@@ -36,11 +32,16 @@ describe("User API Key Use Cases", () => {
       checkDuplicate: vi.fn(),
     };
 
-    addUserApiKeyUC = new AddUserApiKeyService(mockRepo);
+    fakeVerifier = { verify: vi.fn() };
+
+    addUserApiKeyUC = new AddUserApiKeyService(mockRepo, fakeVerifier);
     deleteUserApiKeyUC = new DeleteUserApiKeyService(mockRepo);
     disableUserApiKeyUC = new DisableUserApiKeyService(mockRepo);
-    enableUserApiKeyUC = new EnableUserApiKeyService(mockRepo);
-    reverifyUserApiKeyUC = new ReverifyUserApiKeyService(mockRepo);
+    enableUserApiKeyUC = new EnableUserApiKeyService(mockRepo, fakeVerifier);
+    reverifyUserApiKeyUC = new ReverifyUserApiKeyService(
+      mockRepo,
+      fakeVerifier
+    );
   });
 
   describe("addUserApiKey", () => {
@@ -75,7 +76,7 @@ describe("User API Key Use Cases", () => {
     it("fails if API key verification fails", async () => {
       vi.mocked(mockRepo.countForUser).mockResolvedValue(0);
       vi.mocked(mockRepo.checkDuplicate).mockResolvedValue(false);
-      mockVerifyGeminiApiKey.mockResolvedValueOnce("Invalid Key Error");
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce("Invalid Key Error");
 
       const result = await addUserApiKeyUC.execute("user-1", {
         name: "Key 1",
@@ -91,7 +92,7 @@ describe("User API Key Use Cases", () => {
     it("inserts new key if validation succeeds", async () => {
       vi.mocked(mockRepo.countForUser).mockResolvedValue(0);
       vi.mocked(mockRepo.checkDuplicate).mockResolvedValue(false);
-      mockVerifyGeminiApiKey.mockResolvedValueOnce(null);
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(null);
 
       const result = await addUserApiKeyUC.execute("user-1", {
         name: "Key 1",
@@ -105,6 +106,19 @@ describe("User API Key Use Cases", () => {
         "enc_valid-key",
         "hash_gemini:valid-key"
       );
+    });
+
+    it("passes the raw (unencrypted) key to the verifier", async () => {
+      vi.mocked(mockRepo.countForUser).mockResolvedValue(0);
+      vi.mocked(mockRepo.checkDuplicate).mockResolvedValue(false);
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(null);
+
+      await addUserApiKeyUC.execute("user-1", {
+        name: "Key 1",
+        apiKey: "raw-key-value",
+        provider: "gemini",
+      });
+      expect(fakeVerifier.verify).toHaveBeenCalledWith("raw-key-value");
     });
   });
 
@@ -195,7 +209,7 @@ describe("User API Key Use Cases", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      mockVerifyGeminiApiKey.mockResolvedValueOnce(null);
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(null);
 
       const result = await enableUserApiKeyUC.execute("user-1", "uk-1");
       expect(result.success).toBe(true);
@@ -219,7 +233,9 @@ describe("User API Key Use Cases", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      mockVerifyGeminiApiKey.mockResolvedValueOnce("Failed verification");
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(
+        "Failed verification"
+      );
 
       const result = await enableUserApiKeyUC.execute("user-1", "uk-1");
       expect(result.success).toBe(false);
@@ -231,6 +247,26 @@ describe("User API Key Use Cases", () => {
       if (result.success === false) {
         expect(result.error).toContain("Không thể kích hoạt");
       }
+    });
+
+    it("passes the decrypted key to the verifier", async () => {
+      vi.mocked(mockRepo.findById).mockResolvedValue({
+        id: "uk-1",
+        userId: "user-1",
+        provider: "gemini",
+        name: "Key 1",
+        encryptedKey: "enc_my-secret-key",
+        keyFingerprint: "hash_key",
+        status: "disabled",
+        rateLimitedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(null);
+
+      await enableUserApiKeyUC.execute("user-1", "uk-1");
+      // decryptApiKey strips "enc_" prefix per the mock
+      expect(fakeVerifier.verify).toHaveBeenCalledWith("my-secret-key");
     });
   });
 
@@ -257,7 +293,9 @@ describe("User API Key Use Cases", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      mockVerifyGeminiApiKey.mockResolvedValueOnce("Failed verification");
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(
+        "Failed verification"
+      );
 
       const result = await reverifyUserApiKeyUC.execute("user-1", "uk-1");
       expect(result.success).toBe(false);
@@ -270,6 +308,25 @@ describe("User API Key Use Cases", () => {
         expect(result.error).not.toContain("Không thể kích hoạt");
         expect(result.error).toContain("Xác thực API Key thất bại");
       }
+    });
+
+    it("passes the decrypted key to the verifier", async () => {
+      vi.mocked(mockRepo.findById).mockResolvedValue({
+        id: "uk-1",
+        userId: "user-1",
+        provider: "gemini",
+        name: "Key 1",
+        encryptedKey: "enc_stored-key",
+        keyFingerprint: "hash_key",
+        status: "active",
+        rateLimitedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      vi.mocked(fakeVerifier.verify).mockResolvedValueOnce(null);
+
+      await reverifyUserApiKeyUC.execute("user-1", "uk-1");
+      expect(fakeVerifier.verify).toHaveBeenCalledWith("stored-key");
     });
   });
 });

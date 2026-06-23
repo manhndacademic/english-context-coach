@@ -10,7 +10,7 @@ import { SectionCard } from "@/components/ui/section-card";
 export function ProductDemoSection() {
   return (
     <section className="mb-20 grid gap-8">
-      <div className="text-center max-w-[680px] mx-auto">
+      <div className="text-center max-w-170 mx-auto">
         <Badge variant="default" size="sm" className="mb-3">
           Demo bài học
         </Badge>

@@ -88,7 +88,7 @@ export default async function AdminKeysPage() {
                     </td>
                     <td className="py-3 px-4">{getStatusBadge(key.status)}</td>
                     <td
-                      className="py-3 px-4 text-xs text-danger max-w-[240px] truncate"
+                      className="py-3 px-4 text-xs text-danger max-w-60 truncate"
                       title={key.errorMessage ?? ""}
                     >
                       {key.errorMessage || "—"}

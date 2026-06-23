@@ -149,7 +149,7 @@ Replaces the 6 repeated stat divs in `history/page.tsx` and the similar pattern 
 
 Create `/src/components/ui/page-layout.tsx`:
 
-- `PageContainer`: `<main className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">` — the single canonical container for all authenticated pages.
+- `PageContainer`: `<main className="max-w-275 mx-auto px-4 sm:px-6 pt-6 pb-10 flex flex-col gap-6">` — the single canonical container for all authenticated pages.
 - `PageLayout`: wraps `<AppHeader>` + `<PageContainer>`, eliminating the copy-pasted `AppHeader` props across 5 pages.
 
 ```tsx
@@ -274,7 +274,7 @@ The landing page has its own layout (no `PageLayout`). Only migrate the shared p
 
 ### Dependency order
 
-```
+```text
 globals.css (P0 fix + tokens)
   → Button (asChild + hover shadow)
   → Badge

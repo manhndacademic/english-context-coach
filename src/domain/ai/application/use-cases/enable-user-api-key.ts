@@ -1,14 +1,17 @@
 import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
+import type { ApiKeyVerifier } from "../ports/api-key-verifier";
 import type { ActionResult } from "@/domain/types";
 import { decryptApiKey } from "@/lib/crypto";
-import { verifyGeminiApiKey } from "../../infrastructure/llm/gemini-utils";
 
 export interface EnableUserApiKeyUseCase {
   execute(userId: string, id: string): Promise<ActionResult>;
 }
 
 export class EnableUserApiKeyService implements EnableUserApiKeyUseCase {
-  constructor(private readonly repo: UserApiKeyRepository) {}
+  constructor(
+    private readonly repo: UserApiKeyRepository,
+    private readonly verifier: ApiKeyVerifier
+  ) {}
 
   async execute(userId: string, id: string): Promise<ActionResult> {
     const keyRow = await this.repo.findById(userId, id);
@@ -20,7 +23,7 @@ export class EnableUserApiKeyService implements EnableUserApiKeyUseCase {
     }
 
     const rawKey = decryptApiKey(keyRow.encryptedKey);
-    const verifyError = await verifyGeminiApiKey(rawKey);
+    const verifyError = await this.verifier.verify(rawKey);
 
     const status = verifyError ? "invalid" : "active";
     await this.repo.updateStatus(id, status, verifyError);
