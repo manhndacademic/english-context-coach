@@ -32,6 +32,7 @@ interface GradingFeedbackProps {
   nextReviewDate?: string | null;
   masteryState?: string | null;
   score?: number;
+  shouldConfetti?: boolean;
 }
 
 export function GradingFeedback({
@@ -49,6 +50,7 @@ export function GradingFeedback({
   nextReviewDate,
   masteryState,
   score,
+  shouldConfetti = true,
 }: GradingFeedbackProps) {
   const isReview = type === "review";
 
@@ -56,7 +58,7 @@ export function GradingFeedback({
     let t1: NodeJS.Timeout | undefined;
     let t2: NodeJS.Timeout | undefined;
 
-    if (isCorrect && score !== undefined && score >= 70) {
+    if (shouldConfetti && isCorrect && score !== undefined && score >= 70) {
       let particleCount = 50;
       if (score >= 95) {
         particleCount = 130;
@@ -114,7 +116,7 @@ export function GradingFeedback({
       if (t1) clearTimeout(t1);
       if (t2) clearTimeout(t2);
     };
-  }, [isCorrect, score]);
+  }, [isCorrect, score, shouldConfetti]);
 
   const outerClassName = isReview
     ? `animate-slide-in-up grid gap-2 border-t border-border pt-4 mt-2 rounded-xl p-5 border ${

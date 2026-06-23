@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import {
   AlertCircle,
@@ -45,6 +45,21 @@ export function ExerciseCard({
     latest && !latest.isCorrect ? latest.answer : ""
   );
   const [isPracticingAgain, setIsPracticingAgain] = useState(false);
+
+  const lastAttemptIdRef = useRef<string | null>(null);
+
+  // Initialize on mount
+  if (lastAttemptIdRef.current === null && latest) {
+    lastAttemptIdRef.current = latest.id;
+  }
+
+  const isNewCorrectAttempt =
+    latest && latest.isCorrect && latest.id !== lastAttemptIdRef.current;
+
+  // Always update to current latest attempt id
+  if (latest && latest.id !== lastAttemptIdRef.current) {
+    lastAttemptIdRef.current = latest.id;
+  }
 
   const isInputDisabled =
     (solved && !isPracticingAgain) ||
@@ -334,6 +349,7 @@ export function ExerciseCard({
             isRepeated={isRepeated}
             showSuggestion={showSuggestion}
             score={latest.score ?? undefined}
+            shouldConfetti={isNewCorrectAttempt ?? false}
           />
           {!latest.isCorrect && !isPracticingAgain && (
             <div className="flex flex-wrap items-center gap-3 mt-2">

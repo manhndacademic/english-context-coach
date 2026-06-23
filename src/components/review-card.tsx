@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useMemo } from "react";
+import { useActionState, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -56,6 +56,12 @@ export function ReviewCard({
     ReviewResultState,
     FormData
   >(submitUnifiedReviewAttemptAction, {});
+
+  const hasFiredRef = useRef(false);
+  const shouldConfetti = (state.isCorrect ?? false) && !hasFiredRef.current;
+  if (shouldConfetti) {
+    hasFiredRef.current = true;
+  }
 
   const isRecent = pattern.isRecent ?? false;
 
@@ -352,6 +358,7 @@ export function ReviewCard({
           masteryState={state.masteryState}
           isSubjectiveType={!isChoiceType && !isRecent}
           score={state.score ?? undefined}
+          shouldConfetti={shouldConfetti}
         />
       ) : null}
     </article>
