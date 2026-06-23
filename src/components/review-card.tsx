@@ -18,6 +18,7 @@ import {
 import type { MistakePatternPlain } from "@/domain/memory/mistake-pattern";
 import { renderRichText } from "@/lib/rich-text";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { getReviewDisclosureState } from "@/components/review-disclosure";
 import { GradingFeedback } from "@/components/grading-feedback";
 import { getChoiceStyle } from "@/domain/memory/exercise-view-presenter";
@@ -97,12 +98,16 @@ export function ReviewCard({
       {/* Header tags and stats */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-surface-strong border border-border text-muted">
+          <Badge variant="default" size="sm" className="text-[10px]">
             {translateCategory(pattern.category)}
-          </span>
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent-light text-accent border border-accent/10">
+          </Badge>
+          <Badge
+            variant="accent"
+            size="sm"
+            className="text-[10px] border border-accent/10"
+          >
             {pattern.errorType?.replaceAll("_", " ") ?? ""}
-          </span>
+          </Badge>
         </div>
 
         <div className="flex items-center gap-3">
@@ -316,7 +321,7 @@ export function ReviewCard({
           </Button>
         ) : (
           <Button
-            className="w-full h-11 rounded-lg font-semibold text-sm bg-accent hover:bg-accent-hover text-white transition-all shadow-[0_4px_12px_rgba(5,150,105,0.15)] hover:-translate-y-px"
+            className="w-full h-11 rounded-lg font-semibold text-sm hover:-translate-y-px"
             onClick={onComplete}
             type="button"
           >

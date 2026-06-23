@@ -10,6 +10,7 @@ import { SentenceBreakdownPanel } from "./SentenceBreakdownPanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { generateExercisesAction } from "@/app/actions/source-texts";
 import { Button } from "@/components/ui/button";
+import { LessonPhaseGuard } from "./LessonPhaseGuard";
 
 interface StandardLessonLayoutProps {
   user: {
@@ -160,7 +161,12 @@ export function StandardLessonLayout({
                 </section>
               ) : null}
 
-              <div className="relative" id="exercise-panel-section">
+              <LessonPhaseGuard
+                exerciseStatus={lesson.exerciseStatus}
+                currentPhase={currentPhase}
+                onUnlock={() => setCurrentPhase("practice")}
+                lockDescription="Đọc hiểu văn bản và cụm từ then chốt ở bên trái. Khi sẵn sàng, hãy nhấn nút dưới đây để bắt đầu luyện tập."
+              >
                 <ExercisePanel
                   lesson={lesson}
                   practices={exercisePractices}
@@ -195,55 +201,13 @@ export function StandardLessonLayout({
                     </p>
                     <form action={handleGenerateExercises} className="w-full">
                       <input type="hidden" name="lessonId" value={lesson.id} />
-                      <button
-                        type="submit"
-                        className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-bold text-white bg-accent hover:bg-accent-hover hover:-translate-y-px active:translate-y-0 transition-all shadow-md cursor-pointer text-sm"
-                      >
+                      <Button type="submit" className="w-full font-bold">
                         Bắt đầu thực hành 🚀
-                      </button>
+                      </Button>
                     </form>
                   </div>
                 )}
-
-                {/* Case 2: Exercises completed, but user is still in 'understand' phase */}
-                {lesson.exerciseStatus === "succeeded" &&
-                  currentPhase === "understand" && (
-                    <div className="absolute inset-0 bg-surface/85 backdrop-blur-[2px] rounded-lg flex flex-col items-center justify-center p-6 text-center select-none z-10 pointer-events-auto border border-dashed border-border/80">
-                      <div className="bg-accent-light p-3 rounded-full mb-3 text-accent border border-accent/15">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2.5}
-                          stroke="currentColor"
-                          className="w-6 h-6"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                          />
-                        </svg>
-                      </div>
-                      <h3 className="text-base font-bold text-text mb-1">
-                        Bài tập thực hành đang khóa
-                      </h3>
-                      <p className="text-xs text-muted max-w-[240px] leading-relaxed mb-5">
-                        Đọc hiểu văn bản và cụm từ then chốt ở bên trái. Khi sẵn
-                        sàng, hãy nhấn nút dưới đây để bắt đầu luyện tập.
-                      </p>
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setCurrentPhase("practice");
-                        }}
-                        className="animate-pulse-glow w-full font-bold"
-                      >
-                        Nhấn để bắt đầu luyện tập
-                      </Button>
-                    </div>
-                  )}
-              </div>
+              </LessonPhaseGuard>
             </div>
           ) : null}
         </div>

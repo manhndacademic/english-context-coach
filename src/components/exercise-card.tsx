@@ -13,6 +13,8 @@ import { submitAttemptAction } from "@/app/actions/attempts";
 import { ExercisePractice } from "@/domain/memory/exercise-practice";
 import { renderRichText } from "@/lib/rich-text";
 import { GradingFeedback } from "@/components/grading-feedback";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   getExerciseStatusView,
   getExerciseTypeLabel,
@@ -151,9 +153,9 @@ export function ExerciseCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold leading-none">
+          <Badge variant="default" size="sm">
             {typeLabel}
-          </span>
+          </Badge>
           <span
             className={`inline-flex items-center gap-1 w-fit rounded-full px-2.5 py-1 text-xs font-extrabold border leading-none ${statusClassName}`}
           >
@@ -183,12 +185,20 @@ export function ExerciseCard({
         >
           <span>Luyện tập cụm từ:</span>
           <strong>{keyPhrase.phrase}</strong>
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+          <Badge
+            variant="default"
+            size="sm"
+            className="text-[10px] px-2 py-0.5"
+          >
             {formatLabel(keyPhrase.category)}
-          </span>
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+          </Badge>
+          <Badge
+            variant="default"
+            size="sm"
+            className="text-[10px] px-2 py-0.5"
+          >
             {keyPhrase.difficulty}
-          </span>
+          </Badge>
         </a>
       ) : lessonFocus ? (
         <a
@@ -197,12 +207,20 @@ export function ExerciseCard({
         >
           <span>Lưu ý:</span>
           <strong>{lessonFocus.title}</strong>
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+          <Badge
+            variant="default"
+            size="sm"
+            className="text-[10px] px-2 py-0.5"
+          >
             {formatLabel(lessonFocus.category)}
-          </span>
-          <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-[10px] font-extrabold leading-none">
+          </Badge>
+          <Badge
+            variant="default"
+            size="sm"
+            className="text-[10px] px-2 py-0.5"
+          >
             {lessonFocus.difficulty}
-          </span>
+          </Badge>
         </a>
       ) : null}
 
@@ -284,16 +302,16 @@ export function ExerciseCard({
           </label>
         )}
         {solved && !isPracticingAgain ? (
-          <button
+          <Button
             type="button"
             onClick={() => {
               setIsPracticingAgain(true);
               setAnswer("");
             }}
-            className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer mt-3 w-fit"
+            className="mt-3 w-fit"
           >
             Luyện tập lại
-          </button>
+          </Button>
         ) : (
           (!latest || isPracticingAgain) && (
             <SubmitAttemptButton disabled={!canSubmit} label={submitLabel} />
@@ -320,21 +338,13 @@ export function ExerciseCard({
           {!latest.isCorrect && !isPracticingAgain && (
             <div className="flex flex-wrap items-center gap-3 mt-2">
               {attempts.length === 1 && (
-                <button
-                  form={`exercise-form-${exercise.id}`}
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px cursor-pointer"
-                >
+                <Button form={`exercise-form-${exercise.id}`} type="submit">
                   Thử lại 1 lần
-                </button>
+                </Button>
               )}
-              <button
-                type="button"
-                onClick={onNext}
-                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-border bg-surface text-text hover:bg-surface-strong px-5 font-semibold text-sm transition-all shadow-sm cursor-pointer"
-              >
+              <Button type="button" onClick={onNext} variant="secondary">
                 Đi tiếp →
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -353,17 +363,13 @@ function SubmitAttemptButton({
   const { pending } = useFormStatus();
 
   return (
-    <button
-      className="inline-flex items-center justify-center gap-2 min-h-11 rounded-md border border-transparent px-5 font-semibold text-sm transition-all shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(5,150,105,0.15)] disabled:pointer-events-none disabled:opacity-50 cursor-pointer mt-3"
-      disabled={disabled || pending}
-      type="submit"
-    >
+    <Button disabled={disabled || pending} type="submit" className="mt-3">
       {pending ? (
         <Loader2 className="animate-spin" size={16} aria-hidden="true" />
       ) : (
         <SendHorizontal size={16} aria-hidden="true" />
       )}
       {pending ? "Đang chấm..." : label}
-    </button>
+    </Button>
   );
 }

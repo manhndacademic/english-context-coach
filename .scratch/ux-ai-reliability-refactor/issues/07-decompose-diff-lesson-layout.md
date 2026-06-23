@@ -1,6 +1,6 @@
 # Decompose DiffLessonLayout and standardize design tokens
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -24,19 +24,19 @@ Decomposition must preserve all existing behavior — no functional changes. Ver
 
 ## Acceptance criteria
 
-- [ ] `CorrectionCard` extracted as standalone component with focused responsibility
-- [ ] `ToneAnalysisBanner` extracted as standalone component
-- [ ] `ContextOverrideBadges` extracted with encapsulated confirmation dialog
-- [ ] `LessonPhaseGuard` shared between Standard and Diff layouts
-- [ ] DiffLessonLayout reduced from ~749 lines to ≤400 lines
-- [ ] Zero raw Tailwind color classes in lesson components (all semantic tokens)
-- [ ] Zero inline hover shadow arbitrary values in lesson components
-- [ ] Hand-rolled button styles replaced with `Button` component
-- [ ] All existing DiffLessonLayout tests pass without functional changes
-- [ ] New unit tests for extracted components
-- [ ] `bun run test` passes
-- [ ] `bun run build` passes
-- [ ] Manual test: lesson page behavior is identical before and after decomposition
+- [x] `CorrectionCard` extracted as standalone component with focused responsibility
+- [x] `ToneAnalysisBanner` extracted as standalone component
+- [x] `ContextOverrideBadges` extracted with encapsulated confirmation dialog
+- [x] `LessonPhaseGuard` shared between Standard and Diff layouts
+- [x] DiffLessonLayout reduced from ~749 lines to ≤400 lines
+- [x] Zero raw Tailwind color classes in lesson components (all semantic tokens)
+- [x] Zero inline hover shadow arbitrary values in lesson components
+- [x] Hand-rolled button styles replaced with `Button` component
+- [x] All existing DiffLessonLayout tests pass without functional changes
+- [x] New unit tests for extracted components
+- [x] `bun run test` passes
+- [x] `bun run build` passes
+- [x] Manual test: lesson page behavior is identical before and after decomposition
 
 ## Blocked by
 
