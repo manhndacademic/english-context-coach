@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { SectionCard } from "@/components/ui/section-card";
 import {
   addUserApiKeyAction,
   deleteUserApiKeyAction,
@@ -80,7 +81,7 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
   }
 
   return (
-    <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-6">
+    <SectionCard className="p-5 sm:p-8 gap-6">
       <div className="flex items-start gap-4 flex-col sm:flex-row border-b border-border pb-5">
         <div className="bg-accent-light text-accent-strong p-3 rounded-md shrink-0">
           <KeyRound size={28} />
@@ -293,6 +294,6 @@ export function ApiKeyForm({ keys, legacyHasCustomKey }: ApiKeyFormProps) {
           </button>
         </div>
       </form>
-    </section>
+    </SectionCard>
   );
 }

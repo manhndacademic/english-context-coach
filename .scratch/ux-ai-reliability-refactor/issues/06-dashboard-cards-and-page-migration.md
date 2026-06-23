@@ -1,6 +1,6 @@
 # Improve dashboard lesson cards and migrate pages to primitives
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -24,16 +24,16 @@ Verify each page visually after migration, including dark mode.
 
 ## Acceptance criteria
 
-- [ ] Lesson card titles show up to 2 lines (not truncated to 1)
-- [ ] Lesson cards have minimum height for consistent visual weight
-- [ ] Dashboard page uses `PageLayout`, `SectionCard` primitives
-- [ ] History page uses `StatCard`, `Badge`, `SectionCard` primitives
-- [ ] Review and settings pages use `PageLayout`, `SectionCard`
-- [ ] Landing page badges and button links use `Badge` and `Button asChild`
-- [ ] All migrated pages render correctly in dark mode
-- [ ] `bun run test` passes
-- [ ] `bun run build` passes
-- [ ] Manual test: dashboard lesson titles are readable, not harshly truncated
+- [x] Lesson card titles show up to 2 lines (not truncated to 1)
+- [x] Lesson cards have minimum height for consistent visual weight
+- [x] Dashboard page uses `PageLayout`, `SectionCard` primitives
+- [x] History page uses `StatCard`, `Badge`, `SectionCard` primitives
+- [x] Review and settings pages use `PageLayout`, `SectionCard`
+- [x] Landing page badges and button links use `Badge` and `Button asChild`
+- [x] All migrated pages render correctly in dark mode
+- [x] `bun run test` passes
+- [x] `bun run build` passes
+- [x] Manual test: dashboard lesson titles are readable, not harshly truncated
 
 ## Blocked by
 

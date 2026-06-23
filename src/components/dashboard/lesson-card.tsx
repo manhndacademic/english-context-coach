@@ -93,8 +93,11 @@ export function LessonCard({ lesson }: LessonCardProps) {
         <div className="bg-surface-strong p-2.5 rounded-md flex items-center justify-center shrink-0">
           {getDocIcon(lesson.textType)}
         </div>
-        <div className="min-w-0 grid gap-1">
-          <strong className="text-base font-bold text-text truncate block">
+        <div className="min-w-0 grid gap-1 min-h-[72px] content-center">
+          <strong
+            className="text-base md:text-lg font-bold text-text line-clamp-2 block"
+            title={lesson.title || "Bài học không tên"}
+          >
             {lesson.title || "Bài học không tên"}
           </strong>
           <span className="text-muted text-xs leading-none truncate block">

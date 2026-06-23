@@ -23,6 +23,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import { SectionCard } from "@/components/ui/section-card";
 
 interface UsageDashboardProps {
   initialStats: any;
@@ -402,7 +403,7 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
   }
 
   return (
-    <section className="bg-surface border border-border rounded-lg p-5 sm:p-8 shadow-md grid gap-6">
+    <SectionCard className="p-5 sm:p-8 gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <h2 className="text-xl font-bold text-text flex items-center gap-2 m-0">
@@ -445,6 +446,6 @@ Thông điệp lỗi: ${req.errorMessage || "Không có thông điệp lỗi chi
         copiedId={copiedId}
         handleCopyDiagnostics={handleCopyDiagnostics}
       />
-    </section>
+    </SectionCard>
   );
 }

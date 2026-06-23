@@ -1,3 +1,6 @@
+import { Badge } from "@/components/ui/badge";
+import { SectionCard } from "@/components/ui/section-card";
+
 const rows = [
   {
     need: "Dịch đoạn tiếng Anh",
@@ -23,11 +26,11 @@ const rows = [
 
 export function ComparisonSection() {
   return (
-    <section className="p-4 min-[860px]:p-10 rounded-lg bg-surface border border-border shadow-md grid gap-8">
+    <SectionCard className="p-4 min-[860px]:p-10 gap-8">
       <div className="text-center max-w-[700px] mx-auto">
-        <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
+        <Badge variant="default" size="sm" className="mb-3">
           Sự khác biệt
-        </span>
+        </Badge>
         <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
           ChatGPT giúp bạn hiểu một lần. English Context Coach giúp bạn không
           sai lại lần sau.
@@ -103,6 +106,6 @@ export function ComparisonSection() {
           </tbody>
         </table>
       </div>
-    </section>
+    </SectionCard>
   );
 }

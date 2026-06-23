@@ -1,12 +1,19 @@
-import { BookOpenCheck, ClipboardList, Lightbulb, TriangleAlert } from "lucide-react";
+import {
+  BookOpenCheck,
+  ClipboardList,
+  Lightbulb,
+  TriangleAlert,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { SectionCard } from "@/components/ui/section-card";
 
 export function ProductDemoSection() {
   return (
     <section className="mb-20 grid gap-8">
       <div className="text-center max-w-[680px] mx-auto">
-        <span className="inline-flex w-fit rounded-full bg-surface-strong border border-border px-2.5 py-1 text-muted text-xs font-extrabold mb-3">
+        <Badge variant="default" size="sm" className="mb-3">
           Demo bài học
-        </span>
+        </Badge>
         <h2 className="text-2xl md:text-3xl lg:text-[36px] font-bold mb-2 text-text">
           Dán một đoạn tiếng Anh thật. Nhận một bài học cá nhân hóa.
         </h2>
@@ -17,10 +24,10 @@ export function ProductDemoSection() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-5 lg:gap-6 items-stretch">
-        <div className="bg-surface border border-border rounded-lg p-5 md:p-6 shadow-md grid gap-4 content-start">
-          <span className="inline-flex w-fit rounded-full bg-accent-light border border-border-glow text-accent px-2.5 py-1 text-xs font-bold">
+        <SectionCard className="p-5 md:p-6 shadow-md content-start gap-4">
+          <Badge variant="accent" size="sm" className="w-fit">
             Input
-          </span>
+          </Badge>
           <p className="font-serif text-xl md:text-2xl leading-relaxed text-accent-strong m-0">
             &quot;We need to push this back because the API change is not
             backward compatible.&quot;
@@ -29,9 +36,9 @@ export function ProductDemoSection() {
             Một câu giống những gì bạn gặp trong GitHub issue, changelog hoặc
             Slack khi làm việc với team quốc tế.
           </p>
-        </div>
+        </SectionCard>
 
-        <div className="bg-surface border border-border rounded-lg shadow-md overflow-hidden">
+        <SectionCard className="p-0 sm:p-0 shadow-md overflow-hidden gap-0">
           <div className="border-b border-border bg-surface-strong px-5 py-3">
             <strong className="text-sm text-text">App output</strong>
           </div>
@@ -57,7 +64,8 @@ export function ProductDemoSection() {
                   push this back không phải là &quot;đẩy cái này ra sau&quot;
                 </li>
                 <li>
-                  backward compatible không phải là &quot;tương thích phía sau&quot;
+                  backward compatible không phải là &quot;tương thích phía
+                  sau&quot;
                 </li>
               </ul>
             </div>
@@ -90,7 +98,7 @@ export function ProductDemoSection() {
               </p>
             </div>
           </div>
-        </div>
+        </SectionCard>
       </div>
     </section>
   );
