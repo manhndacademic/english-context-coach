@@ -1,27 +1,27 @@
-import {
-  DrizzleExerciseRepository,
-  DrizzleAttemptRepository,
-  DrizzleMistakePatternRepository,
-  DrizzlePhrasePracticeRepository,
-  DrizzleTransactionCoordinator,
-  DrizzlePracticeHistoryRepository,
-  DrizzleMemoryLessonLookup,
-} from "./adapters/drizzle-repositories";
-import { DefaultGradingEngine } from "./grading/engine";
-import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator";
-import { DefaultLearnerMemoryEngine } from "./engine";
-import { getLLMProvider } from "@/domain/ai";
+import { llmProvider } from "@/domain/ai";
 import { getTextProcessor } from "@/domain/text";
 import { notifyJobQueued } from "@/lib/jobs/trigger";
-import type { LearnerMemoryEngine } from "./types";
+import {
+  DrizzleAttemptRepository,
+  DrizzleExerciseRepository,
+  DrizzleMemoryLessonLookup,
+  DrizzleMistakePatternRepository,
+  DrizzlePhrasePracticeRepository,
+  DrizzlePracticeHistoryRepository,
+  DrizzleTransactionCoordinator,
+} from "./adapters/drizzle-repositories";
+import { GeminiReviewPromptGenerator } from "./adapters/gemini-review-generator";
+import { DefaultLearnerMemoryEngine } from "./engine";
+import { DefaultGradingEngine } from "./grading/engine";
 import type {
-  ExerciseRepository,
   AttemptRepository,
+  ExerciseRepository,
   MistakePatternRepository,
   PhrasePracticeRepository,
-  TransactionCoordinator,
   PracticeHistoryRepository,
+  TransactionCoordinator,
 } from "./ports";
+import type { LearnerMemoryEngine } from "./types";
 
 let cachedEngine: LearnerMemoryEngine | null = null;
 let cachedExerciseRepo: ExerciseRepository | null = null;
@@ -81,7 +81,7 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
     const phrasePracticeRepo = getPhrasePracticeRepository();
     const txCoordinator = getTransactionCoordinator();
     const lessonRepo = new DrizzleMemoryLessonLookup();
-    const llm = getLLMProvider();
+    const llm = llmProvider;
     const grader = new DefaultGradingEngine(llm);
     const reviewGenerator = new GeminiReviewPromptGenerator(llm);
     cachedEngine = new DefaultLearnerMemoryEngine(
@@ -100,33 +100,33 @@ export function getLearnerMemoryEngine(): LearnerMemoryEngine {
   return cachedEngine;
 }
 
-export type {
-  LearnerMemoryEngine,
-  SubmitAttemptInput,
-  AttemptFormResult,
-  SubmitReviewAttemptInput,
-  ReviewFormResult,
-  SubmitPhrasePracticeInput,
-  PhrasePracticeFormResult,
-  MasteryState,
-  Attempt,
-  UserError,
-  ReviewAttempt,
-} from "./types";
+export { DefaultLearnerMemoryEngine } from "./engine";
+export { ExercisePractice } from "./exercise-practice";
+export type { ExercisePracticeData } from "./exercise-practice";
 export { MistakePattern } from "./mistake-pattern";
 export type { MistakePatternPlain } from "./mistake-pattern";
 export { PhrasePractice } from "./phrase-practice";
 export type { PhrasePracticePlain } from "./phrase-practice";
 export type {
-  ExerciseRepository,
   AttemptRepository,
-  MistakePatternRepository,
-  PhrasePracticeRepository,
-  TransactionCoordinator,
+  ExerciseRepository,
   GradingEngine,
   LearnerGradingResult,
+  MistakePatternRepository,
+  PhrasePracticeRepository,
   PracticeHistoryRepository,
+  TransactionCoordinator,
 } from "./ports";
-export { DefaultLearnerMemoryEngine } from "./engine";
-export { ExercisePractice } from "./exercise-practice";
-export type { ExercisePracticeData } from "./exercise-practice";
+export type {
+  Attempt,
+  AttemptFormResult,
+  LearnerMemoryEngine,
+  MasteryState,
+  PhrasePracticeFormResult,
+  ReviewAttempt,
+  ReviewFormResult,
+  SubmitAttemptInput,
+  SubmitPhrasePracticeInput,
+  SubmitReviewAttemptInput,
+  UserError,
+} from "./types";

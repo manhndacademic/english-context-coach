@@ -1,17 +1,17 @@
 import { db } from "@/db";
-import { DrizzleLessonRepository } from "./adapters/drizzle-lesson-repo";
-import { GeminiGenerationEngine } from "./adapters/gemini-generation";
-import { DefaultLessonGenerationEngine } from "./engine";
-import { getLLMProvider } from "@/domain/ai";
+import { llmProvider } from "@/domain/ai";
 import {
   getLearnerMemoryEngine,
   getMistakePatternRepository,
 } from "@/domain/memory";
 import { getTextProcessor } from "@/domain/text";
+import { DrizzleLessonRepository } from "./adapters/drizzle-lesson-repo";
+import { GeminiGenerationEngine } from "./adapters/gemini-generation";
+import { DefaultLessonGenerationEngine } from "./engine";
 import type {
-  LessonRepository,
   GenerationEngine,
   LessonGenerationEngine,
+  LessonRepository,
 } from "./ports";
 
 let cachedLessons: LessonRepository | null = null;
@@ -28,7 +28,7 @@ function getGenerationEngine(
   userId?: string,
   lessonId?: string
 ): GenerationEngine {
-  return new GeminiGenerationEngine(getLLMProvider(), userId, lessonId);
+  return new GeminiGenerationEngine(llmProvider, userId, lessonId);
 }
 
 export function getLessonGenerationEngine(): LessonGenerationEngine {
@@ -74,29 +74,29 @@ export function getLessonGenerationEngine(): LessonGenerationEngine {
 }
 
 export type {
-  LessonRepository,
-  SourceTextRepository,
-  LessonContentRepository,
-  GenerationJobRepository,
-  GenerationProgressRepository,
-  LessonTransactionRepository,
+  Exercise,
   GenerationEngine,
-  LessonGenerationEngine,
-  LessonGenerationResult,
-  JobProcessResult,
+  GenerationJobRepository,
   GenerationProgress,
+  GenerationProgressRepository,
+  JobProcessResult,
   KeyPhrase,
   Lesson,
-  Exercise,
-  SourceText,
-  SentenceBreakdown,
+  LessonContentRepository,
   LessonFocus,
+  LessonGenerationEngine,
+  LessonGenerationResult,
+  LessonRepository,
+  LessonTransactionRepository,
+  SentenceBreakdown,
+  SourceText,
+  SourceTextRepository,
 } from "./ports";
 
 export {
-  dedupeKeyPhrases,
-  prepareAnalysisForSave,
-  exerciseCompletenessIssues,
   assertCompleteExercises,
+  dedupeKeyPhrases,
+  exerciseCompletenessIssues,
   findMatchingLessonFocus,
+  prepareAnalysisForSave,
 } from "./rules";

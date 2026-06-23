@@ -3,16 +3,11 @@ import type { AddUserApiKeyInput } from "../../domain/types";
 import type { ActionResult } from "@/domain/types";
 import { encryptApiKey, sha256 } from "@/lib/crypto";
 import { verifyGeminiApiKey } from "../../infrastructure/llm/gemini-utils";
-import type { DbClient } from "@/db";
 
 export const MAX_USER_KEYS = 10;
 
 export interface AddUserApiKeyUseCase {
-  execute(
-    userId: string,
-    data: AddUserApiKeyInput,
-    dbClient?: DbClient
-  ): Promise<ActionResult>;
+  execute(userId: string, data: AddUserApiKeyInput): Promise<ActionResult>;
 }
 
 export class AddUserApiKeyService implements AddUserApiKeyUseCase {
@@ -20,10 +15,9 @@ export class AddUserApiKeyService implements AddUserApiKeyUseCase {
 
   async execute(
     userId: string,
-    data: AddUserApiKeyInput,
-    dbClient?: DbClient
+    data: AddUserApiKeyInput
   ): Promise<ActionResult> {
-    const existingCount = await this.repo.countForUser(userId, dbClient);
+    const existingCount = await this.repo.countForUser(userId);
     if (existingCount >= MAX_USER_KEYS) {
       return {
         success: false,
@@ -32,11 +26,7 @@ export class AddUserApiKeyService implements AddUserApiKeyUseCase {
     }
 
     const fingerprint = sha256(`${data.provider}:${data.apiKey}`);
-    const duplicate = await this.repo.checkDuplicate(
-      userId,
-      fingerprint,
-      dbClient
-    );
+    const duplicate = await this.repo.checkDuplicate(userId, fingerprint);
     if (duplicate) {
       return { success: false, error: "Key này đã tồn tại." };
     }
@@ -50,14 +40,8 @@ export class AddUserApiKeyService implements AddUserApiKeyUseCase {
     }
 
     const encryptedKey = encryptApiKey(data.apiKey);
-    await this.repo.add(userId, data.name, encryptedKey, fingerprint, dbClient);
+    await this.repo.add(userId, data.name, encryptedKey, fingerprint);
 
     return { success: true };
   }
-}
-
-export function createAddUserApiKeyUseCase(
-  repo: UserApiKeyRepository
-): AddUserApiKeyUseCase {
-  return new AddUserApiKeyService(repo);
 }

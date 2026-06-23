@@ -1,14 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { getLLMProvider } from "@/domain/ai";
-import { getTextProcessor } from "@/domain/text";
-import { getLearnerMemoryEngine } from "@/domain/memory";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { validatedAction } from "@/lib/action-builder";
+import { llmProvider } from "@/domain/ai";
+import { getLearnerMemoryEngine } from "@/domain/memory";
+import { getTextProcessor } from "@/domain/text";
 import type { AiModelKind, AiPurpose } from "@/domain/types";
+import { validatedAction } from "@/lib/action-builder";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 const categorySchema = z.enum([
   "idiom",
@@ -119,7 +119,7 @@ export const explainPhraseAction = validatedAction(
         };
       }
 
-      const llm = getLLMProvider();
+      const llm = llmProvider;
       const prompt = new ExplainPhrasePrompt(
         data.phrase,
         data.sentenceContext,

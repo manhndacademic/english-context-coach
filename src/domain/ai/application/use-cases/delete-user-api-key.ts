@@ -1,24 +1,15 @@
 import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
 import type { ActionResult } from "@/domain/types";
-import type { DbClient } from "@/db";
 
 export interface DeleteUserApiKeyUseCase {
-  execute(
-    userId: string,
-    id: string,
-    dbClient?: DbClient
-  ): Promise<ActionResult>;
+  execute(userId: string, id: string): Promise<ActionResult>;
 }
 
 export class DeleteUserApiKeyService implements DeleteUserApiKeyUseCase {
   constructor(private readonly repo: UserApiKeyRepository) {}
 
-  async execute(
-    userId: string,
-    id: string,
-    dbClient?: DbClient
-  ): Promise<ActionResult> {
-    const existing = await this.repo.findById(userId, id, dbClient);
+  async execute(userId: string, id: string): Promise<ActionResult> {
+    const existing = await this.repo.findById(userId, id);
     if (!existing) {
       return {
         success: false,
@@ -26,13 +17,7 @@ export class DeleteUserApiKeyService implements DeleteUserApiKeyUseCase {
       };
     }
 
-    await this.repo.delete(userId, id, dbClient);
+    await this.repo.delete(userId, id);
     return { success: true };
   }
-}
-
-export function createDeleteUserApiKeyUseCase(
-  repo: UserApiKeyRepository
-): DeleteUserApiKeyUseCase {
-  return new DeleteUserApiKeyService(repo);
 }

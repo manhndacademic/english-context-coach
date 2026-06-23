@@ -142,11 +142,3 @@ export class GenerateJsonService implements GenerateJsonUseCase {
     }
   }
 }
-
-export function createGenerateJsonUseCase(
-  pool: ApiRotationPool,
-  recorder: AiRequestRecorder,
-  callRawOverride?: (options: CallRawOptions) => Promise<CallRawResult>
-): GenerateJsonUseCase {
-  return new GenerateJsonService(pool, recorder, callRawOverride);
-}

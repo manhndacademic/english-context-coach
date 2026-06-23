@@ -1,13 +1,8 @@
 import type { UsageRepository } from "../ports/usage-repository";
 import type { UsageTimeframe, UsageStats } from "../../domain/types";
-import type { DbClient } from "@/db";
 
 export interface GetUserUsageStatsUseCase {
-  execute(
-    userId: string,
-    timeframe: UsageTimeframe,
-    dbClient?: DbClient
-  ): Promise<UsageStats>;
+  execute(userId: string, timeframe: UsageTimeframe): Promise<UsageStats>;
 }
 
 export class GetUserUsageStatsService implements GetUserUsageStatsUseCase {
@@ -15,15 +10,8 @@ export class GetUserUsageStatsService implements GetUserUsageStatsUseCase {
 
   async execute(
     userId: string,
-    timeframe: UsageTimeframe,
-    dbClient?: DbClient
+    timeframe: UsageTimeframe
   ): Promise<UsageStats> {
-    return this.usageRepo.getUserUsageStats(userId, timeframe, dbClient);
+    return this.usageRepo.getUserUsageStats(userId, timeframe);
   }
-}
-
-export function createGetUserUsageStatsUseCase(
-  usageRepo: UsageRepository
-): GetUserUsageStatsUseCase {
-  return new GetUserUsageStatsService(usageRepo);
 }

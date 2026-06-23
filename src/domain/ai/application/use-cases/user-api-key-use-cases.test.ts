@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createAddUserApiKeyUseCase, MAX_USER_KEYS } from "./add-user-api-key";
-import { createDeleteUserApiKeyUseCase } from "./delete-user-api-key";
-import { createDisableUserApiKeyUseCase } from "./disable-user-api-key";
-import { createEnableUserApiKeyUseCase } from "./enable-user-api-key";
-import { createReverifyUserApiKeyUseCase } from "./reverify-user-api-key";
+import { AddUserApiKeyService, MAX_USER_KEYS } from "./add-user-api-key";
+import { DeleteUserApiKeyService } from "./delete-user-api-key";
+import { DisableUserApiKeyService } from "./disable-user-api-key";
+import { EnableUserApiKeyService } from "./enable-user-api-key";
+import { ReverifyUserApiKeyService } from "./reverify-user-api-key";
 import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
 
 vi.mock("@/lib/crypto", () => ({
@@ -19,11 +19,11 @@ vi.mock("../../infrastructure/llm/gemini-utils", () => ({
 
 describe("User API Key Use Cases", () => {
   let mockRepo: UserApiKeyRepository;
-  let addUserApiKeyUC: ReturnType<typeof createAddUserApiKeyUseCase>;
-  let deleteUserApiKeyUC: ReturnType<typeof createDeleteUserApiKeyUseCase>;
-  let disableUserApiKeyUC: ReturnType<typeof createDisableUserApiKeyUseCase>;
-  let enableUserApiKeyUC: ReturnType<typeof createEnableUserApiKeyUseCase>;
-  let reverifyUserApiKeyUC: ReturnType<typeof createReverifyUserApiKeyUseCase>;
+  let addUserApiKeyUC: AddUserApiKeyService;
+  let deleteUserApiKeyUC: DeleteUserApiKeyService;
+  let disableUserApiKeyUC: DisableUserApiKeyService;
+  let enableUserApiKeyUC: EnableUserApiKeyService;
+  let reverifyUserApiKeyUC: ReverifyUserApiKeyService;
 
   beforeEach(() => {
     mockVerifyGeminiApiKey.mockReset();
@@ -36,11 +36,11 @@ describe("User API Key Use Cases", () => {
       checkDuplicate: vi.fn(),
     };
 
-    addUserApiKeyUC = createAddUserApiKeyUseCase(mockRepo);
-    deleteUserApiKeyUC = createDeleteUserApiKeyUseCase(mockRepo);
-    disableUserApiKeyUC = createDisableUserApiKeyUseCase(mockRepo);
-    enableUserApiKeyUC = createEnableUserApiKeyUseCase(mockRepo);
-    reverifyUserApiKeyUC = createReverifyUserApiKeyUseCase(mockRepo);
+    addUserApiKeyUC = new AddUserApiKeyService(mockRepo);
+    deleteUserApiKeyUC = new DeleteUserApiKeyService(mockRepo);
+    disableUserApiKeyUC = new DisableUserApiKeyService(mockRepo);
+    enableUserApiKeyUC = new EnableUserApiKeyService(mockRepo);
+    reverifyUserApiKeyUC = new ReverifyUserApiKeyService(mockRepo);
   });
 
   describe("addUserApiKey", () => {
@@ -103,8 +103,7 @@ describe("User API Key Use Cases", () => {
         "user-1",
         "Key 1",
         "enc_valid-key",
-        "hash_gemini:valid-key",
-        undefined
+        "hash_gemini:valid-key"
       );
     });
   });
@@ -126,7 +125,7 @@ describe("User API Key Use Cases", () => {
 
       const result = await deleteUserApiKeyUC.execute("user-1", "uk-1");
       expect(result.success).toBe(true);
-      expect(mockRepo.delete).toHaveBeenCalledWith("user-1", "uk-1", undefined);
+      expect(mockRepo.delete).toHaveBeenCalledWith("user-1", "uk-1");
     });
 
     it("returns error if no key found", async () => {
@@ -159,8 +158,7 @@ describe("User API Key Use Cases", () => {
       expect(mockRepo.updateStatus).toHaveBeenCalledWith(
         "uk-1",
         "disabled",
-        null,
-        undefined
+        null
       );
     });
 
@@ -204,8 +202,7 @@ describe("User API Key Use Cases", () => {
       expect(mockRepo.updateStatus).toHaveBeenCalledWith(
         "uk-1",
         "active",
-        null,
-        undefined
+        null
       );
     });
 
@@ -229,8 +226,7 @@ describe("User API Key Use Cases", () => {
       expect(mockRepo.updateStatus).toHaveBeenCalledWith(
         "uk-1",
         "invalid",
-        "Failed verification",
-        undefined
+        "Failed verification"
       );
       if (result.success === false) {
         expect(result.error).toContain("Không thể kích hoạt");
@@ -268,8 +264,7 @@ describe("User API Key Use Cases", () => {
       expect(mockRepo.updateStatus).toHaveBeenCalledWith(
         "uk-1",
         "invalid",
-        "Failed verification",
-        undefined
+        "Failed verification"
       );
       if (result.success === false) {
         expect(result.error).not.toContain("Không thể kích hoạt");

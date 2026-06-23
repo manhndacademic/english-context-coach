@@ -2,25 +2,16 @@ import type { UserApiKeyRepository } from "../ports/user-api-key-repository";
 import type { ActionResult } from "@/domain/types";
 import { decryptApiKey } from "@/lib/crypto";
 import { verifyGeminiApiKey } from "../../infrastructure/llm/gemini-utils";
-import type { DbClient } from "@/db";
 
 export interface EnableUserApiKeyUseCase {
-  execute(
-    userId: string,
-    id: string,
-    dbClient?: DbClient
-  ): Promise<ActionResult>;
+  execute(userId: string, id: string): Promise<ActionResult>;
 }
 
 export class EnableUserApiKeyService implements EnableUserApiKeyUseCase {
   constructor(private readonly repo: UserApiKeyRepository) {}
 
-  async execute(
-    userId: string,
-    id: string,
-    dbClient?: DbClient
-  ): Promise<ActionResult> {
-    const keyRow = await this.repo.findById(userId, id, dbClient);
+  async execute(userId: string, id: string): Promise<ActionResult> {
+    const keyRow = await this.repo.findById(userId, id);
     if (!keyRow) {
       return {
         success: false,
@@ -32,7 +23,7 @@ export class EnableUserApiKeyService implements EnableUserApiKeyUseCase {
     const verifyError = await verifyGeminiApiKey(rawKey);
 
     const status = verifyError ? "invalid" : "active";
-    await this.repo.updateStatus(id, status, verifyError, dbClient);
+    await this.repo.updateStatus(id, status, verifyError);
 
     if (verifyError) {
       return {
@@ -43,10 +34,4 @@ export class EnableUserApiKeyService implements EnableUserApiKeyUseCase {
 
     return { success: true };
   }
-}
-
-export function createEnableUserApiKeyUseCase(
-  repo: UserApiKeyRepository
-): EnableUserApiKeyUseCase {
-  return new EnableUserApiKeyService(repo);
 }

@@ -7,8 +7,8 @@ import type {
   GenerateJsonOptions,
 } from "../../application/ports/llm-provider";
 import * as requestRecorderModule from "../logging/record-ai-request";
+import { GenerateJsonService } from "../../application/use-cases/generate-json";
 import { createApiRotationPool, ApiRotationPool } from "./api-rotation-pool";
-import { createGenerateJsonUseCase } from "../../application/use-cases/generate-json";
 
 export interface CallRawOptions {
   apiKey: string;
@@ -51,7 +51,7 @@ export function createGeminiLlmProvider(
     recordRequest: requestRecorderModule.recordAiRequest,
   };
 
-  const generateUseCase = createGenerateJsonUseCase(
+  const generateUseCase = new GenerateJsonService(
     pool,
     recorder,
     options.callRawOverride

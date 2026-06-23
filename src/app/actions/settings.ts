@@ -1,11 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  getApiKeyRepository,
-  getUserApiKeyRepository,
-  getUsageRepository,
-} from "@/domain/ai";
+import { apiKeyRepository, aiUseCases } from "@/domain/ai";
 import { encryptApiKey } from "@/lib/crypto";
 import { validatedAction } from "@/lib/action-builder";
 import { requireUser } from "@/lib/auth/guards";
@@ -32,7 +28,7 @@ export const saveUserApiKeyAction = validatedAction(
         encryptedKey = JSON.stringify(rawKeys.map((k) => encryptApiKey(k)));
       }
     }
-    await getApiKeyRepository().saveUserApiKey(user.id, encryptedKey);
+    await apiKeyRepository.saveUserApiKey(user.id, encryptedKey);
     revalidatePath("/settings");
     return { success: true } as any;
   }
@@ -54,7 +50,7 @@ const addUserApiKeySchema = z.object({
 export const addUserApiKeyAction = validatedAction(
   addUserApiKeySchema,
   async (data, user) => {
-    const result = await getUserApiKeyRepository().add(user.id, data);
+    const result = await aiUseCases.addUserApiKey().execute(user.id, data);
     if (!result.success) return { error: result.error } as any;
     revalidatePath("/settings");
     return { success: true } as any;
@@ -64,7 +60,9 @@ export const addUserApiKeyAction = validatedAction(
 export const deleteUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    const result = await getUserApiKeyRepository().delete(user.id, data.keyId);
+    const result = await aiUseCases
+      .deleteUserApiKey()
+      .execute(user.id, data.keyId);
     if (!result.success) return { error: result.error } as any;
     revalidatePath("/settings");
     return { success: true } as any;
@@ -74,7 +72,9 @@ export const deleteUserApiKeyAction = validatedAction(
 export const disableUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    const result = await getUserApiKeyRepository().disable(user.id, data.keyId);
+    const result = await aiUseCases
+      .disableUserApiKey()
+      .execute(user.id, data.keyId);
     if (!result.success) return { error: result.error } as any;
     revalidatePath("/settings");
     return { success: true } as any;
@@ -84,7 +84,9 @@ export const disableUserApiKeyAction = validatedAction(
 export const enableUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    const result = await getUserApiKeyRepository().enable(user.id, data.keyId);
+    const result = await aiUseCases
+      .enableUserApiKey()
+      .execute(user.id, data.keyId);
     if (!result.success) {
       revalidatePath("/settings");
       return { error: result.error } as any;
@@ -97,10 +99,9 @@ export const enableUserApiKeyAction = validatedAction(
 export const reverifyUserApiKeyAction = validatedAction(
   userKeyIdSchema,
   async (data, user) => {
-    const result = await getUserApiKeyRepository().reverify(
-      user.id,
-      data.keyId
-    );
+    const result = await aiUseCases
+      .reverifyUserApiKey()
+      .execute(user.id, data.keyId);
     revalidatePath("/settings");
     return result.success
       ? ({ success: true } as any)
@@ -110,5 +111,5 @@ export const reverifyUserApiKeyAction = validatedAction(
 
 export async function getUsageStatsAction(timeframe: Timeframe) {
   const user = await requireUser();
-  return getUsageRepository().getUserUsageStats(user.id, timeframe);
+  return aiUseCases.getUserUsageStats().execute(user.id, timeframe);
 }
