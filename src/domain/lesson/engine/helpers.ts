@@ -15,7 +15,11 @@ export function isTransientGenerationError(error: unknown): boolean {
     message.includes("RESOURCE_EXHAUSTED") ||
     message.includes('"code":503') ||
     message.includes("UNAVAILABLE") ||
-    message.includes("high demand")
+    message.includes("high demand") ||
+    message.includes("timed out") ||
+    (error instanceof Error &&
+      "code" in error &&
+      (error as any).code === "timeout")
   );
 }
 

@@ -1,11 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DrizzleLessonRepository } from "./drizzle-lesson-repo";
 import { getTextProcessor } from "@/domain/text";
+import { schema } from "@/db";
 
 function makeSchemaProxy(): any {
+  const cache = new Map<string | symbol, any>();
   const handler: ProxyHandler<object> = {
-    get(_target, _prop) {
-      return new Proxy({}, handler);
+    get(_target, prop) {
+      if (!cache.has(prop)) {
+        cache.set(prop, new Proxy({}, handler));
+      }
+      return cache.get(prop);
     },
   };
   return new Proxy({}, handler);
@@ -600,6 +605,119 @@ describe("DrizzleLessonRepository", () => {
       expect(result?.milestones).toHaveLength(0);
       expect(result?.thoughts).toHaveLength(1);
       expect(result?.thoughts[0].id).toBe(2);
+    });
+  });
+
+  describe("getLessonAggregate", () => {
+    it("returns lesson aggregate with all correction items including rejected ones", async () => {
+      const lessonRow = {
+        id: "les-1",
+        sourceTextId: "st-1",
+        userId: "user-1",
+        title: "Test Lesson",
+        analysisStatus: "succeeded",
+        exerciseStatus: "succeeded",
+        textType: "article",
+        inputMode: "diff",
+        detectedLevel: "B1",
+        summaryVi: "Tóm tắt",
+        naturalTranslationVi: "Dịch tự nhiên",
+        contextExplanationVi: "Giải thích",
+      };
+
+      const sourceTextRow = {
+        id: "st-1",
+        userId: "user-1",
+        content: "Original text",
+      };
+      const draftTextRow = {
+        id: "dt-1",
+        sourceTextId: "st-1",
+        userId: "user-1",
+        content: "Draft text",
+      };
+      const keyPhraseRow = {
+        id: "kp-1",
+        lessonId: "les-1",
+        phrase: "test phrase",
+        explanationVi: "Giải thích",
+      };
+      const focusRow = { id: "f-1", lessonId: "les-1", title: "Focus" };
+      const breakdownRow = {
+        id: "b-1",
+        lessonId: "les-1",
+        originalSentence: "Original",
+        orderIndex: 1,
+      };
+
+      const correctionItemsRow = [
+        {
+          id: "ci-1",
+          lessonId: "les-1",
+          draftPhrase: "bad",
+          correctedPhrase: "good",
+          isRejected: false,
+          orderIndex: 1,
+          category: "grammar",
+          errorType: "spelling",
+        },
+        {
+          id: "ci-2",
+          lessonId: "les-1",
+          draftPhrase: "wrong",
+          correctedPhrase: "right",
+          isRejected: true,
+          orderIndex: 2,
+          category: "vocabulary",
+          errorType: "word_choice",
+        },
+      ];
+
+      // Use a table-based mock to resolve promise.all order issue
+      const mockChainForAggregate = (table: any) => {
+        let result: any[] = [];
+        if (table === schema.lessons) {
+          result = [lessonRow];
+        } else if (table === schema.sourceTexts) {
+          result = [sourceTextRow];
+        } else if (table === schema.draftTexts) {
+          result = [draftTextRow];
+        } else if (table === schema.keyPhrases) {
+          result = [keyPhraseRow];
+        } else if (table === schema.lessonFocuses) {
+          result = [focusRow];
+        } else if (table === schema.sentenceBreakdowns) {
+          result = [breakdownRow];
+        } else if (table === schema.correctionItems) {
+          result = correctionItemsRow;
+        }
+
+        const chain: any = {
+          where: () => chain,
+          orderBy: () => chain,
+          limit: () => chain,
+          then: (onfulfilled: any) => Promise.resolve(result).then(onfulfilled),
+        };
+        return chain;
+      };
+
+      const selectChain: any = {
+        from: (table: any) => mockChainForAggregate(table),
+      };
+
+      mockDbClient.select.mockImplementation(() => selectChain);
+
+      const result = await repository.getLessonAggregate("les-1", "user-1");
+
+      expect(result).not.toBeNull();
+      expect(result?.lesson.title).toBe("Test Lesson");
+
+      const items = result?.correctionItems;
+      expect(items).toBeDefined();
+      expect(items).toHaveLength(2);
+      expect(items![0].id).toBe("ci-1");
+      expect(items![1].id).toBe("ci-2");
+      expect(items![1].isRejected).toBe(true);
     });
   });
 });
