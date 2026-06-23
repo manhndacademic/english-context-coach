@@ -12,6 +12,8 @@ import {
 } from "@/app/actions/source-texts";
 import { diffWords } from "@/domain/lesson/diff-engine";
 import { RepeatedMistakeBanner } from "./RepeatedMistakeBanner";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/dialog";
 
 const DOCUMENT_TYPES = [
   { value: "email", label: "Email", icon: "📧" },
@@ -127,6 +129,11 @@ export function DiffLessonLayout({
   const [editValue, setEditValue] = useState<string>("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "docType" | "formality";
+    value: string;
+  } | null>(null);
+  const [isPendingActionLoading, setIsPendingActionLoading] = useState(false);
 
   const toggleReject = async (id: string) => {
     const nextRejected = !rejectedIds.has(id);
@@ -156,7 +163,7 @@ export function DiffLessonLayout({
           }
           return next;
         });
-        alert("Không thể lưu trạng thái lỗi: " + result.error);
+        toast.error("Không thể lưu trạng thái lỗi: " + result.error);
       }
     } catch (err: any) {
       setRejectedIds((prev) => {
@@ -168,7 +175,7 @@ export function DiffLessonLayout({
         }
         return next;
       });
-      alert("Đã xảy ra lỗi: " + err.message);
+      toast.error("Đã xảy ra lỗi: " + err.message);
     }
   };
 
@@ -210,39 +217,53 @@ export function DiffLessonLayout({
     }
   };
 
-  const handleUpdateDocType = async (newType: string) => {
-    const confirm = window.confirm(
-      "Đổi bối cảnh sẽ phân tích lại toàn bộ. Tiếp tục?"
-    );
-    if (!confirm) return;
+  const handleUpdateDocType = (newType: string) => {
+    setPendingAction({ type: "docType", value: newType });
+  };
 
+  const handleUpdateFormality = (newFormality: string) => {
+    setPendingAction({ type: "formality", value: newFormality });
+  };
+
+  const executeUpdateDocType = async (newType: string) => {
+    setIsPendingActionLoading(true);
     setShowDocTypeChips(false);
-    const result = await changeLessonContextAction({
-      lessonId: lesson.id,
-      newDocumentType: newType,
-    });
-    if (result.ok) {
-      window.location.reload();
-    } else {
-      alert("Có lỗi xảy ra: " + result.error);
+    try {
+      const result = await changeLessonContextAction({
+        lessonId: lesson.id,
+        newDocumentType: newType,
+      });
+      if (result.ok) {
+        window.location.reload();
+      } else {
+        toast.error("Có lỗi xảy ra: " + result.error);
+      }
+    } catch (err: any) {
+      toast.error("Đã xảy ra lỗi: " + err.message);
+    } finally {
+      setIsPendingActionLoading(false);
+      setPendingAction(null);
     }
   };
 
-  const handleUpdateFormality = async (newFormality: string) => {
-    const confirm = window.confirm(
-      "Đổi bối cảnh sẽ phân tích lại toàn bộ. Tiếp tục?"
-    );
-    if (!confirm) return;
-
+  const executeUpdateFormality = async (newFormality: string) => {
+    setIsPendingActionLoading(true);
     setShowFormalityChips(false);
-    const result = await changeLessonContextAction({
-      lessonId: lesson.id,
-      newFormality: newFormality,
-    });
-    if (result.ok) {
-      window.location.reload();
-    } else {
-      alert("Có lỗi xảy ra: " + result.error);
+    try {
+      const result = await changeLessonContextAction({
+        lessonId: lesson.id,
+        newFormality: newFormality,
+      });
+      if (result.ok) {
+        window.location.reload();
+      } else {
+        toast.error("Có lỗi xảy ra: " + result.error);
+      }
+    } catch (err: any) {
+      toast.error("Đã xảy ra lỗi: " + err.message);
+    } finally {
+      setIsPendingActionLoading(false);
+      setPendingAction(null);
     }
   };
 
@@ -747,6 +768,24 @@ export function DiffLessonLayout({
             </div>
           ) : null}
         </div>
+        <ConfirmDialog
+          isOpen={pendingAction !== null}
+          onClose={() => setPendingAction(null)}
+          onConfirm={async () => {
+            if (!pendingAction) return;
+            const { type, value } = pendingAction;
+            if (type === "docType") {
+              await executeUpdateDocType(value);
+            } else if (type === "formality") {
+              await executeUpdateFormality(value);
+            }
+          }}
+          isPending={isPendingActionLoading}
+          title="Thay đổi bối cảnh"
+          description="Đổi bối cảnh sẽ phân tích lại toàn bộ và tạo lại bài tập mới. Bạn có chắc chắn muốn tiếp tục?"
+          confirmText="Tiếp tục"
+          cancelText="Hủy"
+        />
       </main>
     </>
   );

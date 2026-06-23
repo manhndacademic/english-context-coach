@@ -18,6 +18,7 @@ import {
   saveCustomPhraseAction,
   type CustomPhraseExplanation,
 } from "@/app/actions/explain-phrase";
+import { toast } from "sonner";
 
 function getPlainTextFromNode(node: any): string {
   if (!node) return "";
@@ -354,7 +355,7 @@ export function ReadableSourceText({
 
       setIsLookupOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setIsSaving(false);
     }

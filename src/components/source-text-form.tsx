@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { toast } from "sonner";
 import { SOURCE_TEXT_MAX_LENGTH } from "@/domain/constants";
 import {
   createSourceTextAction,
@@ -88,7 +89,7 @@ export function SourceTextForm() {
         setDraftValue(text);
       }
     } catch {
-      alert(
+      toast.error(
         "Không thể tự động đọc clipboard. Bạn vui lòng dán thủ công bằng tổ hợp phím Ctrl+V / Cmd+V."
       );
     }
@@ -101,7 +102,7 @@ export function SourceTextForm() {
         setCorrectedValue(text);
       }
     } catch {
-      alert(
+      toast.error(
         "Không thể tự động đọc clipboard. Bạn vui lòng dán thủ công bằng tổ hợp phím Ctrl+V / Cmd+V."
       );
     }

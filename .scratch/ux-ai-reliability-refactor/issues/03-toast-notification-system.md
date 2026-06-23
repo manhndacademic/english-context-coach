@@ -1,6 +1,6 @@
 # Add toast notification system and replace all `window.alert()`
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -20,14 +20,14 @@ Verify by triggering error conditions and confirming styled toast notifications 
 
 ## Acceptance criteria
 
-- [ ] Sonner installed and `<Toaster />` in root layout
-- [ ] Toast wrapper component created in UI primitives directory with theme-aware defaults
-- [ ] Zero `window.alert()` calls remain in the codebase
-- [ ] Zero `window.confirm()` calls remain in component code
-- [ ] Error toasts appear for AI/clipboard errors
-- [ ] `bun run test` passes (component tests updated)
-- [ ] `bun run build` passes
-- [ ] Manual test: trigger clipboard error → toast appears, not browser alert
+- [x] Sonner installed and `<Toaster />` in root layout
+- [x] Toast wrapper component created in UI primitives directory with theme-aware defaults
+- [x] Zero `window.alert()` calls remain in the codebase
+- [x] Zero `window.confirm()` calls remain in component code
+- [x] Error toasts appear for AI/clipboard errors
+- [x] `bun run test` passes (component tests updated)
+- [x] `bun run build` passes
+- [x] Manual test: trigger clipboard error → toast appears, not browser alert
 
 ## Blocked by
 
